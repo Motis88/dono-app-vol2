@@ -156,7 +156,7 @@ const App = () => {
   };
 
   return (
-    <div className="min-h-screen pb-20 bg-gray-50">
+    <div className="min-h-screen pb-20 bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100">
       {/* Top buttons */}
       <div className="flex justify-center mb-6 gap-4 pt-7 md:pt-4" style={{paddingTop: 'env(safe-area-inset-top,2.7rem)'}}>
         <button
