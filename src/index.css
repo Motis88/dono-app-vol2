@@ -1,0 +1,8 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* בדיקה משלך, שיהיה ברור מה קורה */
+body {
+  background: #f8fafc; /* תכלת אפור מודרני */
+}

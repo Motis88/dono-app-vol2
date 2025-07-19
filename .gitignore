@@ -1,0 +1,22 @@
+# build + dependencies
+node_modules/
+dist/
+build/
+android/
+ios/
+
+# configs you don't want in GitHub
+.env
+.env.local
+*.backup.json
+donor_backup.json
+capacitor.config.json
+
+# system garbage
+.DS_Store
+Thumbs.db
+*.log
+
+# IDE/editor settings
+.idea/
+.vscode/
