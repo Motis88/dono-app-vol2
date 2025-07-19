@@ -1,5 +1,5 @@
 import React from "react";
-import DonorPivotTable from "./DonorPivotTable";
+import DonorPivotTable from './DonorPivotTable';
 
 const DonorDashboard = () => {
   const donors = JSON.parse(localStorage.getItem("animal_donors") || "[]");

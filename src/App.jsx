@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import DonorForm from './components/DonorForm';
 import TablesByLocation from './components/TablesByLocation';
 import Dashboard from './components/DonorDashboard';
-import ManualDonorList from './components/ManualDonorList';
 import { v4 as uuidv4 } from 'uuid';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { useSwipeable } from 'react-swipeable';
