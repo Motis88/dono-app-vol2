@@ -12,6 +12,11 @@ ios/
 donor_backup.json
 capacitor.config.json
 
+# sample files (for testing only)
+sample-*.csv
+sample-*.json
+sample-*.xlsx
+
 # system garbage
 .DS_Store
 Thumbs.db
