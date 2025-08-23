@@ -16,6 +16,14 @@ capacitor.config.json
 .DS_Store
 Thumbs.db
 *.log
+*.ini
+*.dll
+
+# temporary/garbage files
+**/*(
+**/*)
+**/*}
+**/*{
 
 # IDE/editor settings
 .idea/
