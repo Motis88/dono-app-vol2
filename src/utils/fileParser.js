@@ -90,16 +90,41 @@ export function mapFieldNames(rawData) {
   const fieldMap = {};
   
   // Create mapping from raw fields to normalized fields
+  // Use exact match first, then partial match
   Object.entries(FIELD_MAPPINGS).forEach(([normalizedField, variations]) => {
-    const matchedField = rawFields.find(rawField => 
-      variations.some(variation => 
-        rawField.toLowerCase().includes(variation.toLowerCase()) ||
-        variation.toLowerCase().includes(rawField.toLowerCase())
-      )
+    if (fieldMap[normalizedField]) return; // Already mapped
+    
+    // Try exact match first
+    let matchedField = rawFields.find(rawField => 
+      variations.includes(rawField.toLowerCase())
     );
     
-    if (matchedField) {
+    // If no exact match, try contains match but be careful about conflicts
+    if (!matchedField) {
+      matchedField = rawFields.find(rawField => {
+        return variations.some(variation => {
+          // For 'price' field, don't match if field contains 'total'
+          if (normalizedField === 'price' && rawField.toLowerCase().includes('total')) {
+            return false;
+          }
+          // For 'total' field, don't match if field is just 'price'
+          if (normalizedField === 'total' && rawField.toLowerCase() === 'price') {
+            return false;
+          }
+          return rawField.toLowerCase().includes(variation.toLowerCase());
+        });
+      });
+    }
+    
+    if (matchedField && !Object.values(fieldMap).includes(normalizedField)) {
       fieldMap[matchedField] = normalizedField;
+    }
+  });
+
+  // If no mapping found, use original field names if they exist in REQUIRED_FIELDS
+  rawFields.forEach(field => {
+    if (REQUIRED_FIELDS.includes(field) && !fieldMap[field]) {
+      fieldMap[field] = field;
     }
   });
 

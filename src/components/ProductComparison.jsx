@@ -17,7 +17,44 @@ const ProductComparison = () => {
 
   // Get label text based on locale
   const getLabel = (key, fallback = key) => {
-    return locale === 'he' ? (HEBREW_LABELS[key] || fallback) : fallback;
+    if (locale === 'he') {
+      const hebrewLabels = {
+        ...HEBREW_LABELS,
+        fileUploadComparison: 'העלאת קבצים והשוואת מוצרים',
+        upload: 'העלאה',
+        data: 'נתונים',
+        monthComparison: 'השוואת חודשים',
+        productComparison: 'השוואת מוצרים',
+        uploadFiles: 'העלאת קבצים',
+        supportedFormats: 'פורמטים נתמכים',
+        requiredFields: 'שדות נדרשים',
+        uploadedFiles: 'קבצים שהועלו',
+        products: 'מוצרים',
+        months: 'חודשים',
+        totalRevenue: 'הכנסה כוללת',
+        uploaded: 'הועלה',
+        duplicatesRemoved: 'כפילויות הוסרו',
+        selected: 'נבחר',
+        dismiss: 'סגור',
+        filterByMonth: 'סנן לפי חודש',
+        allMonths: 'כל החודשים',
+        filterByProduct: 'סנן לפי מוצר',
+        sortBy: 'מיין לפי',
+        direction: 'כיוון',
+        ascending: 'עולה',
+        descending: 'יורד',
+        showing: 'מציג',
+        showingFirst: 'מציג ראשונים',
+        of: 'מתוך',
+        monthlyTrends: 'מגמות חודשיות',
+        topProducts: 'מוצרים מובילים לפי הכנסה',
+        noFilesUploaded: 'לא הועלו קבצים עדיין',
+        uploadFilesToStart: 'העלה קבצים כדי להתחיל להשוות נתונים',
+        goToUpload: 'עבור להעלאה'
+      };
+      return hebrewLabels[key] || fallback;
+    }
+    return fallback;
   };
 
   // Process file upload
