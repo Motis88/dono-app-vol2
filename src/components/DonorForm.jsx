@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { storage } from "../utils/localStorage";
+import { validators } from "../utils/validation";
 
 const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
   const [formData, setFormData] = useState({
@@ -21,23 +23,28 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
     donated: "",
     volume: "",
     notes: "",
-    isPrivateOwner: false, // הוספתי את זה
+    isPrivateOwner: false,
   });
+
+  const [errors, setErrors] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
     if (editingDonor) {
       setFormData(editingDonor);
+      setErrors({});
       window.scrollTo({ top: 0, behavior: "smooth" });
     } else {
       // טעינה של ערכי ברירת מחדל מהמקומי (רק אם לא בעריכה)
-      const lastLocation = localStorage.getItem("last_location") || "";
-      const lastDate = localStorage.getItem("last_date") || "";
+      const lastLocation = storage.getLastLocation();
+      const lastDate = storage.getLastDate();
       setFormData((prev) => ({
         ...prev,
         location: lastLocation,
         date: lastDate,
         isPrivateOwner: false, // שלא יישאר מסומן בטעות
       }));
+      setErrors({});
     }
   }, [editingDonor]);
 
@@ -53,49 +60,85 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
 
       // אם שינית מיקום – שמור ב־localStorage
       if (name === "location") {
-        localStorage.setItem("last_location", value);
+        storage.setLastLocation(value);
       }
       // אם שינית תאריך – שמור ב־localStorage
       if (name === "date") {
-        localStorage.setItem("last_date", value);
+        storage.setLastDate(value);
       }
       return newForm;
     });
+
+    // Clear specific field error when user starts typing
+    if (errors[name]) {
+      setErrors(prev => ({
+        ...prev,
+        [name]: undefined
+      }));
+    }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (onAddDonor) onAddDonor(formData);
-    // שמור גם אחרי שליחה (ליתר ביטחון)
-    if (formData.location) localStorage.setItem("last_location", formData.location);
-    if (formData.date) localStorage.setItem("last_date", formData.date);
-    setFormData({
-      date: "",
-      location: "",
-      animalName: "",
-      age: "",
-      weight: "",
-      gender: "",
-      animalType: "",
-      bloodType: "",
-      fiv: "",
-      felv: "",
-      pcv: "",
-      hct: "",
-      wbc: "",
-      plt: "",
-      packedCell: "",
-      slideFindings: "",
-      donated: "",
-      volume: "",
-      notes: "",
-      isPrivateOwner: false,
-    });
+    setIsSubmitting(true);
+
+    // Validate form
+    const validation = validators.validateDonorForm(formData);
+    
+    if (!validation.isValid) {
+      setErrors(validation.errors);
+      setIsSubmitting(false);
+      return;
+    }
+
+    if (onAddDonor) {
+      onAddDonor(formData);
+      // שמור גם אחרי שליחה (ליתר ביטחון)
+      if (formData.location) storage.setLastLocation(formData.location);
+      if (formData.date) storage.setLastDate(formData.date);
+    }
+
+    if (!editingDonor) {
+      setFormData({
+        date: "",
+        location: storage.getLastLocation(),
+        animalName: "",
+        age: "",
+        weight: "",
+        gender: "",
+        animalType: "",
+        bloodType: "",
+        fiv: "",
+        felv: "",
+        pcv: "",
+        hct: "",
+        wbc: "",
+        plt: "",
+        packedCell: "",
+        slideFindings: "",
+        donated: "",
+        volume: "",
+        notes: "",
+        isPrivateOwner: false,
+      });
+      setErrors({});
+    }
+    setIsSubmitting(false);
   };
 
   const locations = ['רחובות', 'איגוד ערים דן', 'פתחיה', 'חולון', 'חיצוני'];
   const dogBloodTypes = ['DEA 1.1 Positive', 'DEA 1.1 Negative'];
   const catBloodTypes = ['A', 'AB', 'B'];
+
+  // Helper function to render input with error
+  const renderInputWithError = (name, inputElement) => (
+    <div>
+      {inputElement}
+      {errors[name] && (
+        <div className="text-red-500 text-sm mt-1">{errors[name]}</div>
+      )}
+    </div>
+  );
 
   return (
     <div className="max-w-5xl mx-auto p-6 bg-white rounded-lg shadow border border-gray-300">
@@ -106,43 +149,86 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
 
         {/* Date & Location */}
         <div className="grid grid-cols-2 gap-4">
-          <div className="relative">
-            <input
-              id="date"
-              type="date"
-              name="date"
-              value={formData.date}
+          {renderInputWithError('date', 
+            <div className="relative">
+              <input
+                id="date"
+                type="date"
+                name="date"
+                value={formData.date}
+                onChange={handleChange}
+                required
+                className={`p-2 h-12 border rounded w-full text-sm focus:outline-none focus:ring-2 transition peer ${
+                  errors.date ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+                }`}
+              />
+              {!formData.date && (
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none select-none">
+                  Date
+                </span>
+              )}
+            </div>
+          )}
+          {renderInputWithError('location',
+            <select
+              name="location"
+              value={formData.location}
               onChange={handleChange}
               required
-              className="p-2 h-12 border rounded w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition peer"
-            />
-            {!formData.date && (
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none select-none">
-                Date
-              </span>
-            )}
-          </div>
-          <select
-            name="location"
-            value={formData.location}
-            onChange={handleChange}
-            required
-            className="p-2 h-12 border rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
-          >
-            <option value="">Select Location</option>
-            {locations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
-          </select>
+              className={`p-2 h-12 border rounded w-full focus:outline-none focus:ring-2 transition ${
+                errors.location ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+              }`}
+            >
+              <option value="">Select Location</option>
+              {locations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
+            </select>
+          )}
         </div>
 
         {/* Animal Name & Weight */}
         <div className="grid grid-cols-2 gap-4">
-          <input name="animalName" placeholder="Animal Name" value={formData.animalName} onChange={handleChange} required className="p-2 h-12 border rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition" />
-          <input name="weight" placeholder="Weight" value={formData.weight} onChange={handleChange} type="number" step="any" className="p-2 h-12 border rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition" />
+          {renderInputWithError('animalName',
+            <input 
+              name="animalName" 
+              placeholder="Animal Name" 
+              value={formData.animalName} 
+              onChange={handleChange} 
+              required 
+              className={`p-2 h-12 border rounded w-full focus:outline-none focus:ring-2 transition ${
+                errors.animalName ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+              }`}
+            />
+          )}
+          {renderInputWithError('weight',
+            <input 
+              name="weight" 
+              placeholder="Weight" 
+              value={formData.weight} 
+              onChange={handleChange} 
+              type="number" 
+              step="any" 
+              className={`p-2 h-12 border rounded w-full focus:outline-none focus:ring-2 transition ${
+                errors.weight ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+              }`}
+            />
+          )}
         </div>
 
         {/* Age & Gender */}
         <div className="grid grid-cols-2 gap-4">
-          <input name="age" placeholder="Age" value={formData.age} onChange={handleChange} type="number" step="any" className="p-2 h-12 border rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition" />
+          {renderInputWithError('age',
+            <input 
+              name="age" 
+              placeholder="Age" 
+              value={formData.age} 
+              onChange={handleChange} 
+              type="number" 
+              step="any" 
+              className={`p-2 h-12 border rounded w-full focus:outline-none focus:ring-2 transition ${
+                errors.age ? 'border-red-500 focus:ring-red-500' : 'border-gray-300 focus:ring-blue-500'
+              }`}
+            />
+          )}
           <div className="flex flex-col gap-2 justify-center">
             <div className="font-semibold">Gender:</div>
             <div className="flex flex-wrap gap-4">
@@ -337,11 +423,34 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
 
         {editingDonor ? (
           <div className="grid grid-cols-2 gap-2 md:col-span-2 mt-2">
-            <button type="submit" className="bg-green-600 text-white py-3 rounded w-full hover:bg-green-700">Save</button>
-            <button type="button" onClick={onCancelEdit} className="bg-gray-400 text-black py-3 rounded w-full hover:bg-gray-500">Cancel</button>
+            <button 
+              type="submit" 
+              disabled={isSubmitting}
+              className={`text-white py-3 rounded w-full transition ${
+                isSubmitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-green-600 hover:bg-green-700'
+              }`}
+            >
+              {isSubmitting ? 'שומר...' : 'Save'}
+            </button>
+            <button 
+              type="button" 
+              onClick={onCancelEdit} 
+              disabled={isSubmitting}
+              className="bg-gray-400 text-black py-3 rounded w-full hover:bg-gray-500 disabled:opacity-50"
+            >
+              Cancel
+            </button>
           </div>
         ) : (
-          <button type="submit" className="md:col-span-2 w-full bg-black text-white py-3 rounded hover:bg-gray-800 mt-2">Submit</button>
+          <button 
+            type="submit" 
+            disabled={isSubmitting}
+            className={`md:col-span-2 w-full text-white py-3 rounded mt-2 transition ${
+              isSubmitting ? 'bg-gray-400 cursor-not-allowed' : 'bg-black hover:bg-gray-800'
+            }`}
+          >
+            {isSubmitting ? 'שולח...' : 'Submit'}
+          </button>
         )}
       </form>
     </div>

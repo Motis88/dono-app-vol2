@@ -74,15 +74,11 @@ const UpcomingDonors = ({ onEdit }) => {
   const weekFromNow = new Date(today);
   weekFromNow.setDate(today.getDate() + 7);
 
- // --- יש לוודא ש-latestDonors מוגדר למעלה כמו קודם ---
-
-const today = new Date();
-
-const daysBetween = (dateString) => {
-  if (!dateString) return 9999;
-  const date = new Date(dateString);
-  return Math.floor((today - date) / (1000 * 60 * 60 * 24));
-};
+  const daysBetween = (dateString) => {
+    if (!dateString) return 9999;
+    const date = new Date(dateString);
+    return Math.floor((today - date) / (1000 * 60 * 60 * 24));
+  };
 
 const eligibleDonors = latestDonors.filter(d => {
   if (!d.date) return false; // חייב שיהיה date!

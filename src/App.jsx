@@ -3,9 +3,12 @@ import DonorForm from './components/DonorForm';
 import TablesByLocation from './components/TablesByLocation';
 import Dashboard from './components/DonorDashboard';
 import ManualDonorList from './components/ManualDonorList';
+import ErrorBoundary from './components/ErrorBoundary';
 import { v4 as uuidv4 } from 'uuid';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { useSwipeable } from 'react-swipeable';
+import { storage } from './utils/localStorage';
+import { validators } from './utils/validation';
 
 function isInsideHorizontallyScrollableElement(target) {
   while (target) {
@@ -23,12 +26,7 @@ function isInsideHorizontallyScrollableElement(target) {
   return false;
 }
 
-const isMeaningfulName = (name) => {
-  if (!name) return false;
-  const hasLetters = /[A-Za-z\u0590-\u05FF]/.test(name);
-  const onlyDigits = /^\d+$/.test(name.trim());
-  return hasLetters && !onlyDigits;
-};
+const isMeaningfulName = validators.isMeaningfulName;
 
 const normalizeDonors = (donors) => {
   return donors.map((donor) => {
@@ -83,12 +81,11 @@ const App = () => {
   });
 
   useEffect(() => {
-    const raw = localStorage.getItem("animal_donors");
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      const normalized = normalizeDonors(parsed);
+    const raw = storage.getDonors();
+    if (raw && raw.length > 0) {
+      const normalized = normalizeDonors(raw);
       const cleaned = removeExactDuplicates(normalized);
-      localStorage.setItem("animal_donors", JSON.stringify(cleaned));
+      storage.setDonors(cleaned);
     }
     const stored = localStorage.getItem("editing_donor");
     if (stored) {
@@ -100,14 +97,14 @@ const App = () => {
 
   const backupDonorsToFile = async (showAlert = true) => {
     try {
-      const data = localStorage.getItem("animal_donors");
-      if (!data) {
+      const data = storage.getDonors();
+      if (!data || data.length === 0) {
         if (showAlert) alert("⛔ No data to backup.");
         return;
       }
       await Filesystem.writeFile({
         path: 'donor_backup.json',
-        data,
+        data: JSON.stringify(data),
         directory: Directory.Documents,
         encoding: 'utf8',
       });
@@ -128,7 +125,7 @@ const App = () => {
       const parsed = JSON.parse(result.data);
       const normalized = normalizeDonors(parsed);
       const cleaned = removeExactDuplicates(normalized);
-      localStorage.setItem("animal_donors", JSON.stringify(cleaned));
+      storage.setDonors(cleaned);
       window.location.reload();
     } catch (err) {
       console.error("Restore error:", err);
@@ -137,14 +134,14 @@ const App = () => {
   };
 
   const handleAddDonor = (newDonor) => {
-    const current = JSON.parse(localStorage.getItem("animal_donors") || "[]");
+    const current = storage.getDonors();
     const donorWithId = newDonor.id ? newDonor : normalizeDonors([newDonor])[0];
     const exists = current.find(d => d.id === donorWithId.id);
     const merged = exists
       ? current.map(d => d.id === donorWithId.id ? donorWithId : d)
       : [...current, donorWithId];
     const cleaned = removeExactDuplicates(merged);
-    localStorage.setItem("animal_donors", JSON.stringify(cleaned));
+    storage.setDonors(cleaned);
     setEditingDonor(null);
     setView("table");
     backupDonorsToFile(false);
@@ -156,64 +153,66 @@ const App = () => {
   };
 
   return (
-    <div className="min-h-screen pb-20 bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100">
-      {/* Top buttons */}
-      <div className="flex justify-center mb-6 gap-4 pt-7 md:pt-4" style={{paddingTop: 'env(safe-area-inset-top,2.7rem)'}}>
-        <button
-          className="px-4 py-2 rounded bg-green-500 text-white font-bold shadow"
-          onClick={backupDonorsToFile}
-        >
-          Backup
-        </button>
-        <button
-          className="px-4 py-2 rounded bg-yellow-500 text-gray-800 font-bold shadow"
-          onClick={async () => {
-            if (window.confirm('Are you sure you want to RESTORE from backup? This will overwrite all your current donors!')) {
-              await restoreDonorsFromFile();
-            }
+    <ErrorBoundary>
+      <div className="min-h-screen pb-20 bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100">
+        {/* Top buttons */}
+        <div className="flex justify-center mb-6 gap-4 pt-7 md:pt-4" style={{paddingTop: 'env(safe-area-inset-top,2.7rem)'}}>
+          <button
+            className="px-4 py-2 rounded bg-green-500 text-white font-bold shadow"
+            onClick={backupDonorsToFile}
+          >
+            Backup
+          </button>
+          <button
+            className="px-4 py-2 rounded bg-yellow-500 text-gray-800 font-bold shadow"
+            onClick={async () => {
+              if (window.confirm('Are you sure you want to RESTORE from backup? This will overwrite all your current donors!')) {
+                await restoreDonorsFromFile();
+              }
+            }}
+          >
+            Restore
+          </button>
+        </div>
+
+        <div className="p-4 pb-4" {...swipeHandlers}>
+          {view === 'form' && <DonorForm editingDonor={editingDonor} onCancelEdit={handleCancelEdit} onAddDonor={handleAddDonor} />}
+          {view === 'table' && <TablesByLocation onEdit={(donor) => { setEditingDonor(donor); setView("form"); }} />}
+          {view === 'dashboard' && <Dashboard />}
+          {view === 'manual' && <ManualDonorList />}
+        </div>
+
+        <div
+          className="fixed bottom-0 left-0 right-0 bg-white flex justify-around border-t shadow z-50"
+          style={{
+            paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 9px)',
+            minHeight: 58,
           }}
         >
-          Restore
-        </button>
+          <button
+            className={`flex-1 flex flex-col items-center py-1 ${view === 'form' ? 'text-blue-600 font-bold' : 'text-gray-500'}`}
+            onClick={() => setView('form')}
+          >
+            <span style={{fontSize: 22}}>📝</span>
+            <span style={{fontSize: 13, marginTop: 2}}>Form</span>
+          </button>
+          <button
+            className={`flex-1 flex flex-col items-center py-1 ${view === 'table' ? 'text-blue-600 font-bold' : 'text-gray-500'}`}
+            onClick={() => setView('table')}
+          >
+            <span style={{fontSize: 22}}>📋</span>
+            <span style={{fontSize: 13, marginTop: 2}}>Table</span>
+          </button>
+          <button
+            className={`flex-1 flex flex-col items-center py-1 ${view === 'dashboard' ? 'text-blue-600 font-bold' : 'text-gray-500'}`}
+            onClick={() => setView('dashboard')}
+          >
+            <span style={{fontSize: 22}}>📊</span>
+            <span style={{fontSize: 13, marginTop: 2}}>Dashboard</span>
+          </button>
+        </div>
       </div>
-
-      <div className="p-4 pb-4" {...swipeHandlers}>
-        {view === 'form' && <DonorForm editingDonor={editingDonor} onCancelEdit={handleCancelEdit} onAddDonor={handleAddDonor} />}
-        {view === 'table' && <TablesByLocation onEdit={(donor) => { setEditingDonor(donor); setView("form"); }} />}
-        {view === 'dashboard' && <Dashboard />}
-        {view === 'manual' && <ManualDonorList />}
-      </div>
-
-      <div
-        className="fixed bottom-0 left-0 right-0 bg-white flex justify-around border-t shadow z-50"
-        style={{
-          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 9px)',
-          minHeight: 58,
-        }}
-      >
-        <button
-          className={`flex-1 flex flex-col items-center py-1 ${view === 'form' ? 'text-blue-600 font-bold' : 'text-gray-500'}`}
-          onClick={() => setView('form')}
-        >
-          <span style={{fontSize: 22}}>📝</span>
-          <span style={{fontSize: 13, marginTop: 2}}>Form</span>
-        </button>
-        <button
-          className={`flex-1 flex flex-col items-center py-1 ${view === 'table' ? 'text-blue-600 font-bold' : 'text-gray-500'}`}
-          onClick={() => setView('table')}
-        >
-          <span style={{fontSize: 22}}>📋</span>
-          <span style={{fontSize: 13, marginTop: 2}}>Table</span>
-        </button>
-        <button
-          className={`flex-1 flex flex-col items-center py-1 ${view === 'dashboard' ? 'text-blue-600 font-bold' : 'text-gray-500'}`}
-          onClick={() => setView('dashboard')}
-        >
-          <span style={{fontSize: 22}}>📊</span>
-          <span style={{fontSize: 13, marginTop: 2}}>Dashboard</span>
-        </button>
-      </div>
-    </div>
+    </ErrorBoundary>
   );
 };
 
