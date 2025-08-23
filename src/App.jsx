@@ -3,7 +3,7 @@ import DonorForm from './components/DonorForm';
 import TablesByLocation from './components/TablesByLocation';
 import Dashboard from './components/DonorDashboard';
 import ManualDonorList from './components/ManualDonorList';
-import FileComparison from './components/FileComparison';
+import BloodUnitsDisplay from './components/BloodUnitsDisplay';
 import { v4 as uuidv4 } from 'uuid';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { useSwipeable } from 'react-swipeable';
@@ -182,7 +182,7 @@ const App = () => {
         {view === 'form' && <DonorForm editingDonor={editingDonor} onCancelEdit={handleCancelEdit} onAddDonor={handleAddDonor} />}
         {view === 'table' && <TablesByLocation onEdit={(donor) => { setEditingDonor(donor); setView("form"); }} />}
         {view === 'dashboard' && <Dashboard />}
-        {view === 'files' && <FileComparison />}
+        {view === 'files' && <BloodUnitsDisplay />}
         {view === 'manual' && <ManualDonorList />}
       </div>
 

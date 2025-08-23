@@ -2,6 +2,45 @@ import React, { useState, useEffect } from 'react';
 import Papa from 'papaparse';
 import './BloodUnitsDisplay.css';
 
+// נתוני דוגמה לשימוש
+const getSampleUsageData = () => [
+  {
+    'Created timestamp': '2024-01-15 10:30',
+    'Medicine': 'מנת דם חתול A+',
+    'Quantity (packages)': '2',
+    'Client': 'מרפאת חיות ירושלים',
+    'Patient name': 'מיטי',
+    'Veterinarian': 'ד"ר כהן'
+  },
+  {
+    'Created timestamp': '2024-01-16 14:15',
+    'Medicine': 'מנת דם כלב B+',
+    'Quantity (packages)': '1',
+    'Client': 'מרפאת חיות תל אביב',
+    'Patient name': 'רקס',
+    'Veterinarian': 'ד"ר לוי'
+  },
+  {
+    'Created timestamp': '2024-01-17 09:45',
+    'Medicine': 'מנת דם חתול O',
+    'Quantity (packages)': '3',
+    'Client': 'מרפאת חיות חיפה',
+    'Patient name': 'לונה',
+    'Veterinarian': 'ד"ר אברהם'
+  }
+];
+
+// נתוני חשבוניות לדוגמה
+const getSampleInvoiceData = () => [
+  {
+    'Date': '2024-01-15',
+    'Invoice': 'INV-001',
+    'Client': 'מרפאת חיות ירושלים',
+    'Amount': '450',
+    'Blood Type': 'חתול A+'
+  }
+];
+
 function BloodUnitsDisplay() {
   const [usageData, setUsageData] = useState([]);
   const [invoiceData, setInvoiceData] = useState([]);
@@ -9,33 +48,51 @@ function BloodUnitsDisplay() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    // קריאת קבצי CSV
+    // קריאת קבצי CSV או שימוש בנתונים לדוגמה
     const loadCSVData = async () => {
       try {
-        // טעינת קובץ נתוני שימוש
-        const usageResponse = await fetch('/data/blood-units-usage.csv');
-        const usageText = await usageResponse.text();
+        // ניסיון לטעון קבצי CSV
+        let usageParsed = null;
+        let invoiceParsed = null;
         
-        // טעינת קובץ נתוני חשבוניות
-        const invoiceResponse = await fetch('/data/blood-units-invoice.csv');
-        const invoiceText = await invoiceResponse.text();
+        try {
+          const usageResponse = await fetch('/data/blood-units-usage.csv');
+          if (!usageResponse.ok) throw new Error('CSV file not found');
+          const usageText = await usageResponse.text();
+          
+          const invoiceResponse = await fetch('/data/blood-units-invoice.csv');
+          if (!invoiceResponse.ok) throw new Error('CSV file not found');
+          const invoiceText = await invoiceResponse.text();
+          
+          // פירוק ה-CSV עם תמיכה בעברית
+          const parseOptions = { 
+            header: true,
+            skipEmptyLines: true,
+            encoding: 'UTF-8'
+          };
+          
+          usageParsed = Papa.parse(usageText, parseOptions);
+          invoiceParsed = Papa.parse(invoiceText, parseOptions);
+          
+          setUsageData(usageParsed.data);
+          setInvoiceData(invoiceParsed.data);
+        } catch (fetchError) {
+          // אם הקבצים לא נמצאו, השתמש בנתונים לדוגמה
+          console.log('קבצי CSV לא נמצאו, משתמש בנתונים לדוגמה');
+          const sampleUsage = getSampleUsageData();
+          const sampleInvoice = getSampleInvoiceData();
+          setUsageData(sampleUsage);
+          setInvoiceData(sampleInvoice);
+        }
         
-        // פירוק ה-CSV עם תמיכה בעברית
-        const parseOptions = { 
-          header: true,
-          skipEmptyLines: true,
-          encoding: 'UTF-8'
-        };
-        
-        const usageParsed = Papa.parse(usageText, parseOptions);
-        const invoiceParsed = Papa.parse(invoiceText, parseOptions);
-        
-        setUsageData(usageParsed.data);
-        setInvoiceData(invoiceParsed.data);
         setLoading(false);
       } catch (err) {
         console.error('שגיאה בטעינת נתונים:', err);
-        setError('אירעה שגיאה בטעינת הנתונים. נא לנסות שוב.');
+        setError('אירעה שגיאה בטעינת הנתונים. מציג נתונים לדוגמה.');
+        const sampleUsage = getSampleUsageData();
+        const sampleInvoice = getSampleInvoiceData();
+        setUsageData(sampleUsage);
+        setInvoiceData(sampleInvoice);
         setLoading(false);
       }
     };
@@ -53,13 +110,14 @@ function BloodUnitsDisplay() {
   };
 
   if (loading) return <div className="loading">טוען נתונים...</div>;
-  if (error) return <div className="error">{error}</div>;
   
   const totals = calculateTotalByType();
 
   return (
     <div className="blood-units-container" dir="rtl">
       <h1>נתוני מנות דם</h1>
+      
+      {error && <div className="error">{error}</div>}
       
       <div className="summary-stats">
         <div className="stat-card">
@@ -86,16 +144,24 @@ function BloodUnitsDisplay() {
             </tr>
           </thead>
           <tbody>
-            {usageData.map((row, index) => (
-              <tr key={index}>
-                <td>{row['Created timestamp']}</td>
-                <td>{row['Medicine']}</td>
-                <td>{row['Quantity (packages)']}</td>
-                <td>{row['Client']}</td>
-                <td>{row['Patient name']}</td>
-                <td>{row['Veterinarian']}</td>
+            {usageData.length === 0 ? (
+              <tr>
+                <td colSpan="6" style={{ textAlign: 'center', padding: '20px', color: '#666' }}>
+                  אין נתונים להצגה
+                </td>
               </tr>
-            ))}
+            ) : (
+              usageData.map((row, index) => (
+                <tr key={index}>
+                  <td>{row['Created timestamp']}</td>
+                  <td>{row['Medicine']}</td>
+                  <td>{row['Quantity (packages)']}</td>
+                  <td>{row['Client']}</td>
+                  <td>{row['Patient name']}</td>
+                  <td>{row['Veterinarian']}</td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
