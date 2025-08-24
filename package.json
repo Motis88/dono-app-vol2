@@ -1,6 +1,7 @@
 {
   "name": "donor-form-plt",
   "version": "1.0.0",
+  "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
@@ -15,11 +16,13 @@
     "@capacitor/share": "^7.0.1",
     "@tanstack/react-table": "^8.21.3",
     "papaparse": "^5.5.3",
+    "prop-types": "^15.8.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-router-dom": "^7.6.1",
     "react-swipeable": "^7.0.2",
     "recharts": "^2.15.3",
+    "uuid": "^11.1.0",
     "xlsx": "^0.18.5"
   },
   "devDependencies": {

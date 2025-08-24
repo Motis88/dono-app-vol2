@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { donorStorage } from '../utils/storage.js';
 
 const ManualDonorList = () => {
   const [donors, setDonors] = useState([]);
@@ -11,13 +12,13 @@ const ManualDonorList = () => {
   }, []);
 
   const refreshDonors = () => {
-    const all = JSON.parse(localStorage.getItem("animal_donors") || "[]");
+    const all = donorStorage.getDonors();
     setDonors(all.filter(x => x.isPrivateOwner));
   };
 
   const handleDelete = (index) => {
     if (!window.confirm("Delete this donor?")) return;
-    const all = JSON.parse(localStorage.getItem("animal_donors") || "[]");
+    const all = donorStorage.getDonors();
     const privateOwners = all.filter(x => x.isPrivateOwner);
     const donorToDelete = privateOwners[index];
     const origIdx = all.findIndex(d =>
@@ -28,7 +29,7 @@ const ManualDonorList = () => {
     if (origIdx !== -1) {
       const updatedAll = [...all];
       updatedAll.splice(origIdx, 1);
-      localStorage.setItem("animal_donors", JSON.stringify(updatedAll));
+      donorStorage.saveDonors(updatedAll);
       refreshDonors();
     }
   };
@@ -39,8 +40,7 @@ const ManualDonorList = () => {
   };
 
   const saveEdit = () => {
-    const all = JSON.parse(localStorage.getItem("animal_donors") || "[]");
-    const privateOwners = all.filter(x => x.isPrivateOwner);
+    const all = donorStorage.getDonors();
     const origIdx = all.findIndex(d =>
       d.isPrivateOwner &&
       d.ownerName === donors[editIdx].ownerName &&
@@ -48,7 +48,7 @@ const ManualDonorList = () => {
     );
     if (origIdx !== -1) {
       all[origIdx] = { ...all[origIdx], ...editData };
-      localStorage.setItem("animal_donors", JSON.stringify(all));
+      donorStorage.saveDonors(all);
       setEditIdx(null);
       setEditData(null);
       refreshDonors();

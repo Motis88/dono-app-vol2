@@ -4,32 +4,27 @@
 // שאר הפיצ’רים כמו שהיו.
 
 import React, { useEffect, useState, useRef } from "react";
+import PropTypes from 'prop-types';
+import { LOCATIONS } from '../utils/constants.js';
+import { donorStorage, safeJsonParse } from '../utils/storage.js';
+import { isAnimalHighlighted } from '../utils/donorUtils.js';
 
 const TablesByLocation = ({ onEdit }) => {
   const [donors, setDonors] = useState([]);
   const [activeLocation, setActiveLocation] = useState(() => {
-    return localStorage.getItem("active_location") || "רחובות";
+    return donorStorage.getActiveLocation();
   });
   const [search, setSearch] = useState("");
   const [animalTypeFilter, setAnimalTypeFilter] = useState("");
   const [selectedDonor, setSelectedDonor] = useState(null);
   const [removedHighlights, setRemovedHighlights] = useState(() => {
-    try {
-      return JSON.parse(localStorage.getItem("removed_highlights") || "[]");
-    } catch { return []; }
+    return donorStorage.getRemovedHighlights();
   });
   const fileInputRef = useRef(null);
 
-  const locations = ["רחובות", "איגוד ערים דן", "פתחיה", "חולון", "חיצוני"];
-
   useEffect(() => {
-    const stored = localStorage.getItem("animal_donors");
-    try {
-      const parsed = JSON.parse(stored || "[]");
-      if (Array.isArray(parsed)) setDonors(parsed);
-    } catch (e) {
-      console.error("שגיאה בטעינת donors:", e);
-    }
+    const donorsData = donorStorage.getDonors();
+    setDonors(donorsData);
   }, []);
 
   const animalTypesMap = new Map();
@@ -42,13 +37,13 @@ const TablesByLocation = ({ onEdit }) => {
 
   const handleLocationChange = (loc) => {
     setActiveLocation(loc);
-    localStorage.setItem("active_location", loc);
+    donorStorage.saveActiveLocation(loc);
   };
 
   const addRemovedHighlight = (id) => {
     const updated = Array.from(new Set([...removedHighlights, id]));
     setRemovedHighlights(updated);
-    localStorage.setItem("removed_highlights", JSON.stringify(updated));
+    donorStorage.saveRemovedHighlights(updated);
   };
 
   const filteredDonors = donors
@@ -73,7 +68,7 @@ const TablesByLocation = ({ onEdit }) => {
       const updated = [...donors];
       updated.splice(realIndex, 1);
       setDonors(updated);
-      localStorage.setItem("animal_donors", JSON.stringify(updated));
+      donorStorage.saveDonors(updated);
     }
   };
 
@@ -84,39 +79,21 @@ const TablesByLocation = ({ onEdit }) => {
     const reader = new FileReader();
     reader.onload = (e) => {
       try {
-        const imported = JSON.parse(e.target.result);
+        const imported = safeJsonParse(e.target.result, null);
         if (Array.isArray(imported)) {
           const merged = [...donors, ...imported];
           setDonors(merged);
-          localStorage.setItem("animal_donors", JSON.stringify(merged));
+          donorStorage.saveDonors(merged);
           alert("✅ JSON import succeeded");
         } else {
-          alert("❌ Invalid file");
+          alert("❌ Invalid file format - expected JSON array");
         }
-      } catch {
+      } catch (error) {
+        console.error("Import error:", error);
         alert("❌ Error reading file");
       }
     };
     reader.readAsText(file);
-  };
-
-  // Highlight logic: 7 days before Next Eligible Date, up to 14 days after
-  const isAnimalHighlighted = (donor) => {
-    const type = donor.animalType?.toLowerCase();
-    if (!type || (type !== "dog" && type !== "cat")) return false;
-    if (!donor.animalName || !/[a-zA-Z\u0590-\u05FF]/.test(donor.animalName)) return false;
-    if (!donor.date) return false;
-    const d = new Date(donor.date);
-    if (isNaN(d)) return false;
-    const nextEligible = new Date(d);
-    nextEligible.setDate(nextEligible.getDate() + 90);
-    const today = new Date();
-    today.setHours(0,0,0,0);
-    nextEligible.setHours(0,0,0,0);
-    const diffDays = Math.round((today - nextEligible) / (1000 * 60 * 60 * 24));
-    if (diffDays < -7 || diffDays > 14) return false;
-    if (removedHighlights.includes(donor.id)) return false;
-    return true;
   };
 
   const handleRowClick = (donor) => setSelectedDonor(donor);
@@ -144,7 +121,7 @@ const TablesByLocation = ({ onEdit }) => {
       </div>
 
       <div className="flex flex-wrap gap-2 justify-center mb-4">
-        {locations.map((loc) => (
+        {LOCATIONS.map((loc) => (
           <button
             key={loc}
             onClick={() => handleLocationChange(loc)}
@@ -202,7 +179,7 @@ const TablesByLocation = ({ onEdit }) => {
             {filteredDonors.map((d, i) => (
               <tr
                 key={d.id ?? i}
-                className={`${i % 2 === 0 ? "bg-white" : "bg-gray-50"} ${isAnimalHighlighted(d) ? "bg-yellow-200" : ""}`}
+                className={`${i % 2 === 0 ? "bg-white" : "bg-gray-50"} ${isAnimalHighlighted(d, removedHighlights) ? "bg-yellow-200" : ""}`}
                 onClick={() => handleRowClick(d)}
                 style={{ cursor: "pointer" }}
               >
@@ -364,7 +341,7 @@ const TablesByLocation = ({ onEdit }) => {
                 </tbody>
               </table>
               {/* Remove Highlight button – ONLY if highlighted */}
-              {isAnimalHighlighted(selectedDonor) && (
+              {isAnimalHighlighted(selectedDonor, removedHighlights) && (
                 <button
                   className="bg-orange-500 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded my-4 block mx-auto"
                   onClick={() => {
@@ -381,6 +358,10 @@ const TablesByLocation = ({ onEdit }) => {
       )}
     </div>
   );
+};
+
+TablesByLocation.propTypes = {
+  onEdit: PropTypes.func.isRequired,
 };
 
 export default TablesByLocation;

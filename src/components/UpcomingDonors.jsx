@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { donorStorage } from '../utils/storage.js';
 
 // מחזיר את הרשומה עם date הכי מאוחרת לכל שם+מיקום
 function getLatestByNameAndLocation(list) {
@@ -62,8 +63,8 @@ const UpcomingDonors = ({ onEdit }) => {
   const [locationFilter, setLocationFilter] = useState("");
 
   useEffect(() => {
-    const data = localStorage.getItem("animal_donors");
-    if (data) setDonors(JSON.parse(data));
+    const data = donorStorage.getDonors();
+    setDonors(data);
   }, []);
 
   // 1. מאחדים כל שם+מיקום לרשומה הכי עדכנית
@@ -114,7 +115,7 @@ const eligibleDonors = latestDonors.filter(d => {
         : d
     );
     setDonors(updated);
-    localStorage.setItem("animal_donors", JSON.stringify(updated));
+    donorStorage.saveDonors(updated);
     setShowCard(false);
   };
 

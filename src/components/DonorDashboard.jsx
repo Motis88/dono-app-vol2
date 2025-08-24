@@ -1,8 +1,9 @@
 import React from "react";
 import DonorPivotTable from "./DonorPivotTable";
+import { donorStorage } from '../utils/storage.js';
 
 const DonorDashboard = () => {
-  const donors = JSON.parse(localStorage.getItem("animal_donors") || "[]");
+  const donors = donorStorage.getDonors();
 
   const handleUnknownClick = (animalType, month) => {
     alert(`ערוך נתוני ${animalType} לא ידוע לחודש ${month}`);

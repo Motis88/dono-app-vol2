@@ -1,4 +1,8 @@
 import React, { useState, useEffect } from "react";
+import PropTypes from 'prop-types';
+import { LOCATIONS, BLOOD_TYPES, DONATION_STATUSES } from '../utils/constants.js';
+import { donorStorage } from '../utils/storage.js';
+import { validateDonor, sanitizeDonor } from '../utils/donorUtils.js';
 
 const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
   const [formData, setFormData] = useState({
@@ -21,54 +25,87 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
     donated: "",
     volume: "",
     notes: "",
-    isPrivateOwner: false, // הוספתי את זה
+    isPrivateOwner: false,
   });
+
+  const [validationErrors, setValidationErrors] = useState([]);
 
   useEffect(() => {
     if (editingDonor) {
       setFormData(editingDonor);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } else {
-      // טעינה של ערכי ברירת מחדל מהמקומי (רק אם לא בעריכה)
-      const lastLocation = localStorage.getItem("last_location") || "";
-      const lastDate = localStorage.getItem("last_date") || "";
+      // Load default values from localStorage (only if not editing)
+      const lastLocation = donorStorage.getLastLocation();
+      const lastDate = donorStorage.getLastDate();
       setFormData((prev) => ({
         ...prev,
         location: lastLocation,
         date: lastDate,
-        isPrivateOwner: false, // שלא יישאר מסומן בטעות
+        isPrivateOwner: false,
       }));
     }
   }, [editingDonor]);
 
   const handleChange = (e) => {
-    const { name, value } = e.target;
+    const { name, value, type, checked } = e.target;
+    const finalValue = type === 'checkbox' ? checked : value;
 
     setFormData(prev => {
       let newForm = {
         ...prev,
-        [name]: value,
+        [name]: finalValue,
+        // Reset blood type and test results when animal type changes
         ...(name === "animalType" ? { bloodType: "", fiv: "", felv: "" } : {}),
       };
 
-      // אם שינית מיקום – שמור ב־localStorage
-      if (name === "location") {
-        localStorage.setItem("last_location", value);
+      // Save location and date to localStorage for convenience
+      if (name === "location" && typeof finalValue === 'string') {
+        donorStorage.saveLastLocation(finalValue);
       }
-      // אם שינית תאריך – שמור ב־localStorage
-      if (name === "date") {
-        localStorage.setItem("last_date", value);
+      if (name === "date" && typeof finalValue === 'string') {
+        donorStorage.saveLastDate(finalValue);
       }
+      
       return newForm;
     });
+
+    // Clear validation errors when user starts fixing them
+    if (validationErrors.length > 0) {
+      setValidationErrors([]);
+    }
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (onAddDonor) onAddDonor(formData);
-    // שמור גם אחרי שליחה (ליתר ביטחון)
-    if (formData.location) localStorage.setItem("last_location", formData.location);
-    if (formData.date) localStorage.setItem("last_date", formData.date);
+    
+    // Validate form data
+    const validation = validateDonor(formData);
+    if (!validation.isValid) {
+      setValidationErrors(validation.errors);
+      return;
+    }
+
+    // Sanitize form data before submission
+    const sanitizedData = sanitizeDonor(formData);
+    
+    if (onAddDonor) {
+      onAddDonor(sanitizedData);
+    }
+    
+    // Save location and date for next time
+    if (sanitizedData.location) {
+      donorStorage.saveLastLocation(sanitizedData.location);
+    }
+    if (sanitizedData.date) {
+      donorStorage.saveLastDate(sanitizedData.date);
+    }
+    
+    // Reset form
+    resetForm();
+  };
+
+  const resetForm = () => {
     setFormData({
       date: "",
       location: "",
@@ -91,18 +128,26 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
       notes: "",
       isPrivateOwner: false,
     });
+    setValidationErrors([]);
   };
-
-  const locations = ['רחובות', 'איגוד ערים דן', 'פתחיה', 'חולון', 'חיצוני'];
-  const dogBloodTypes = ['DEA 1.1 Positive', 'DEA 1.1 Negative'];
-  const catBloodTypes = ['A', 'AB', 'B'];
 
   return (
     <div className="max-w-5xl mx-auto p-6 bg-white rounded-lg shadow border border-gray-300">
       <h2 className="text-2xl font-bold text-center mb-6">Donor Form</h2>
+      
+      {/* Validation Errors */}
+      {validationErrors.length > 0 && (
+        <div className="mb-4 p-4 bg-red-100 border border-red-400 rounded">
+          <h3 className="font-bold text-red-800 mb-2">Please fix the following errors:</h3>
+          <ul className="list-disc list-inside text-red-700">
+            {validationErrors.map((error, index) => (
+              <li key={index}>{error}</li>
+            ))}
+          </ul>
+        </div>
+      )}
+      
       <form onSubmit={handleSubmit} className="space-y-4">
-
-        {/* כל הטופס הרגיל כאן */}
 
         {/* Date & Location */}
         <div className="grid grid-cols-2 gap-4">
@@ -130,7 +175,7 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
             className="p-2 h-12 border rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
           >
             <option value="">Select Location</option>
-            {locations.map(loc => <option key={loc} value={loc}>{loc}</option>)}
+            {LOCATIONS.map(loc => <option key={loc} value={loc}>{loc}</option>)}
           </select>
         </div>
 
@@ -206,7 +251,7 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
           <div className="flex flex-col gap-2">
             <span className="font-semibold">Blood Type:</span>
             <div className="flex flex-wrap gap-6 p-2 border rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
-              {(formData.animalType === "Dog" ? dogBloodTypes : formData.animalType === "Cat" ? catBloodTypes : []).map(type => (
+              {(formData.animalType === "Dog" ? BLOOD_TYPES.DOG : formData.animalType === "Cat" ? BLOOD_TYPES.CAT : []).map(type => (
                 <label key={type} className="flex items-center">
                   <input
                     type="radio"
@@ -346,6 +391,12 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
       </form>
     </div>
   );
+};
+
+DonorForm.propTypes = {
+  onAddDonor: PropTypes.func.isRequired,
+  editingDonor: PropTypes.object,
+  onCancelEdit: PropTypes.func.isRequired,
 };
 
 export default DonorForm;
