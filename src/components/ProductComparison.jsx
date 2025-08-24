@@ -2,7 +2,7 @@ import React, { useState, useRef } from 'react';
 import * as XLSX from 'xlsx';
 import Papa from 'papaparse';
 
-const ProductComparison = ({ sells, setSells }) => {
+const ProductComparison = ({ sells, setSells, externalUsageCount, setExternalUsageCount }) => {
   const [error, setError] = useState('');
   const usageFileInputRef = useRef(null);
   const salesFileInputRef = useRef(null);
@@ -23,6 +23,7 @@ const ProductComparison = ({ sells, setSells }) => {
         // Map Usage file headers to our format
         const medicineValue = findColumnValue(row, ['Medicine', 'medicine', 'מוצר', 'תרופה']);
         const quantityValue = findColumnValue(row, ['Quantity (units)', 'Quantity', 'quantity', 'כמות', 'כמות (יחידות)']);
+        const sourceValue = findColumnValue(row, ['מקור', 'Source', 'source']) || '';
         
         return {
           id: Date.now() + Math.random(),
@@ -31,12 +32,18 @@ const ProductComparison = ({ sells, setSells }) => {
           price: 0, // Hardcoded to 0 for usage files
           date: currentDate,
           total: 0, // price * quantity = 0
-          source: 'usage'
+          source: sourceValue,
+          type: 'usage'
         };
       }).filter(item => item.productName !== 'Unknown' && item.quantity > 0);
 
       // Add to sells state
       setSells(prev => [...prev, ...processedData]);
+      
+      // Calculate external usage count
+      const newSells = [...sells, ...processedData];
+      const externalCount = newSells.filter(item => item.type === 'usage' && item.source === 'חיצוני').length;
+      setExternalUsageCount(externalCount);
       
       alert(`✅ Usage file processed successfully! Added ${processedData.length} records.`);
     } catch (error) {
@@ -62,14 +69,15 @@ const ProductComparison = ({ sells, setSells }) => {
       
       // Process each row for sales data
       const processedData = result.map(row => {
-        // Map Sales file headers to our format
+        // Map Sales file headers to our format according to requirements:
+        // Name -> productName, Quantity -> quantity, Total incl. VAT -> price
         const nameValue = findColumnValue(row, ['Name', 'name', 'שם', 'מוצר']);
         const quantityValue = findColumnValue(row, ['Quantity', 'quantity', 'כמות']);
-        const totalValue = findColumnValue(row, ['Total incl. VAT', 'Total', 'total', 'סה״כ', 'סה״כ כולל מע״מ']);
+        const priceValue = findColumnValue(row, ['Total incl. VAT', 'Total', 'total', 'סה״כ', 'סה״כ כולל מע״מ']);
         
         const quantity = parseFloat(quantityValue) || 0;
-        const total = parseFloat(totalValue) || 0;
-        const price = quantity > 0 ? total / quantity : 0;
+        const price = parseFloat(priceValue) || 0;
+        const total = quantity * price; // Calculate total from quantity * price
         
         return {
           id: Date.now() + Math.random(),
@@ -78,7 +86,8 @@ const ProductComparison = ({ sells, setSells }) => {
           price: price,
           date: currentDate,
           total: total,
-          source: 'sales'
+          source: '',
+          type: 'sales'
         };
       }).filter(item => item.productName !== 'Unknown' && item.quantity > 0);
 
@@ -153,8 +162,8 @@ const ProductComparison = ({ sells, setSells }) => {
   // Calculate summary statistics
   const getSummary = () => {
     const totalRecords = sells.length;
-    const usageRecords = sells.filter(item => item.source === 'usage').length;
-    const salesRecords = sells.filter(item => item.source === 'sales').length;
+    const usageRecords = sells.filter(item => item.type === 'usage').length;
+    const salesRecords = sells.filter(item => item.type === 'sales').length;
     const totalRevenue = sells.reduce((sum, item) => sum + item.total, 0);
     const totalQuantity = sells.reduce((sum, item) => sum + item.quantity, 0);
     
@@ -167,7 +176,35 @@ const ProductComparison = ({ sells, setSells }) => {
     };
   };
 
+  // Calculate sales summary by product
+  const getSalesSummary = () => {
+    const salesData = sells.filter(item => item.type === 'sales');
+    const productGroups = {};
+    
+    salesData.forEach(item => {
+      if (!productGroups[item.productName]) {
+        productGroups[item.productName] = {
+          productName: item.productName,
+          totalQuantity: 0,
+          totalRevenue: 0
+        };
+      }
+      productGroups[item.productName].totalQuantity += item.quantity;
+      productGroups[item.productName].totalRevenue += item.total;
+    });
+    
+    const productSummaries = Object.values(productGroups);
+    const grandTotalRevenue = productSummaries.reduce((sum, product) => sum + product.totalRevenue, 0);
+    
+    return {
+      productSummaries,
+      grandTotalRevenue,
+      hasSalesData: salesData.length > 0
+    };
+  };
+
   const summary = getSummary();
+  const salesSummary = getSalesSummary();
 
   return (
     <div className="p-4">
@@ -208,8 +245,15 @@ const ProductComparison = ({ sells, setSells }) => {
               onChange={handleUsageFileUpload}
             />
             <p className="text-sm text-green-700">
-              Usage files: Expected columns - Medicine, Quantity (units)
+              Usage files: Expected columns - Medicine, Quantity (units), מקור (Source)
             </p>
+            {externalUsageCount > 0 && (
+              <div className="mt-2 p-2 bg-green-100 rounded">
+                <span className="text-green-800 font-semibold">
+                  כמות שימוש חיצוני: {externalUsageCount}
+                </span>
+              </div>
+            )}
           </div>
         </div>
 
@@ -265,6 +309,42 @@ const ProductComparison = ({ sells, setSells }) => {
         </div>
       )}
 
+      {/* Sales Summary Dashboard */}
+      {salesSummary.hasSalesData && (
+        <div className="mb-6 p-4 bg-blue-50 rounded-lg border-2 border-blue-200">
+          <h4 className="text-lg font-semibold mb-3 text-blue-800">סיכום מכירות</h4>
+          
+          {/* Sales Summary Table */}
+          <div className="overflow-x-auto mb-4">
+            <table className="w-full bg-white rounded border">
+              <thead className="bg-blue-100">
+                <tr>
+                  <th className="px-4 py-2 text-right border-b">מוצר</th>
+                  <th className="px-4 py-2 text-center border-b">כמות שנמכרה</th>
+                  <th className="px-4 py-2 text-center border-b">סה״כ הכנסה</th>
+                </tr>
+              </thead>
+              <tbody>
+                {salesSummary.productSummaries.map((product, index) => (
+                  <tr key={index} className="hover:bg-gray-50">
+                    <td className="px-4 py-2 border-b text-right">{product.productName}</td>
+                    <td className="px-4 py-2 border-b text-center">{product.totalQuantity}</td>
+                    <td className="px-4 py-2 border-b text-center">{product.totalRevenue.toFixed(2)} ₪</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          
+          {/* Grand Total */}
+          <div className="text-center p-3 bg-blue-100 rounded border">
+            <span className="text-lg font-bold text-blue-800">
+              סה״כ הכנסה כללי: {salesSummary.grandTotalRevenue.toFixed(2)} ₪
+            </span>
+          </div>
+        </div>
+      )}
+
       {/* Data Table */}
       {sells.length > 0 ? (
         <div className="overflow-x-auto border rounded-lg">
@@ -289,11 +369,11 @@ const ProductComparison = ({ sells, setSells }) => {
                   <td className="px-4 py-2 border-b text-right">{row.total.toFixed(2)}</td>
                   <td className="px-4 py-2 border-b text-center">
                     <span className={`px-2 py-1 text-xs rounded ${
-                      row.source === 'usage' 
+                      row.type === 'usage' 
                         ? 'bg-green-100 text-green-800' 
                         : 'bg-blue-100 text-blue-800'
                     }`}>
-                      {row.source}
+                      {row.type}
                     </span>
                   </td>
                 </tr>

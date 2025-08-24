@@ -67,6 +67,7 @@ const App = () => {
   const [view, setView] = useState('form');
   const [editingDonor, setEditingDonor] = useState(null);
   const [sells, setSells] = useState([]);
+  const [externalUsageCount, setExternalUsageCount] = useState(0);
 
   const views = ['form', 'table', 'dashboard', 'products'];
   const currentViewIdx = views.indexOf(view);
@@ -183,7 +184,7 @@ const App = () => {
         {view === 'form' && <DonorForm editingDonor={editingDonor} onCancelEdit={handleCancelEdit} onAddDonor={handleAddDonor} />}
         {view === 'table' && <TablesByLocation onEdit={(donor) => { setEditingDonor(donor); setView("form"); }} />}
         {view === 'dashboard' && <Dashboard />}
-        {view === 'products' && <ProductComparison sells={sells} setSells={setSells} />}
+        {view === 'products' && <ProductComparison sells={sells} setSells={setSells} externalUsageCount={externalUsageCount} setExternalUsageCount={setExternalUsageCount} />}
         {view === 'manual' && <ManualDonorList />}
       </div>
 
