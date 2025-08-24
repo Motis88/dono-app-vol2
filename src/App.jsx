@@ -3,7 +3,6 @@ import DonorForm from './components/DonorForm';
 import TablesByLocation from './components/TablesByLocation';
 import Dashboard from './components/DonorDashboard';
 import ManualDonorList from './components/ManualDonorList';
-import FileComparison from './components/FileComparison';
 import ProductComparison from './components/ProductComparison';
 import { v4 as uuidv4 } from 'uuid';
 import { Filesystem, Directory } from '@capacitor/filesystem';
@@ -67,8 +66,9 @@ const removeExactDuplicates = (donors) => {
 const App = () => {
   const [view, setView] = useState('form');
   const [editingDonor, setEditingDonor] = useState(null);
+  const [sells, setSells] = useState([]);
 
-  const views = ['form', 'table', 'dashboard', 'files', 'products'];
+  const views = ['form', 'table', 'dashboard', 'products'];
   const currentViewIdx = views.indexOf(view);
 
   const swipeHandlers = useSwipeable({
@@ -183,8 +183,7 @@ const App = () => {
         {view === 'form' && <DonorForm editingDonor={editingDonor} onCancelEdit={handleCancelEdit} onAddDonor={handleAddDonor} />}
         {view === 'table' && <TablesByLocation onEdit={(donor) => { setEditingDonor(donor); setView("form"); }} />}
         {view === 'dashboard' && <Dashboard />}
-        {view === 'files' && <FileComparison />}
-        {view === 'products' && <ProductComparison />}
+        {view === 'products' && <ProductComparison sells={sells} setSells={setSells} />}
         {view === 'manual' && <ManualDonorList />}
       </div>
 
@@ -217,18 +216,11 @@ const App = () => {
           <span style={{fontSize: 13, marginTop: 2}}>Dashboard</span>
         </button>
         <button
-          className={`flex-1 flex flex-col items-center py-1 ${view === 'files' ? 'text-blue-600 font-bold' : 'text-gray-500'}`}
-          onClick={() => setView('files')}
-        >
-          <span style={{fontSize: 22}}>📁</span>
-          <span style={{fontSize: 13, marginTop: 2}}>Files</span>
-        </button>
-        <button
           className={`flex-1 flex flex-col items-center py-1 ${view === 'products' ? 'text-blue-600 font-bold' : 'text-gray-500'}`}
           onClick={() => setView('products')}
         >
           <span style={{fontSize: 22}}>🏷️</span>
-          <span style={{fontSize: 13, marginTop: 2}}>Products</span>
+          <span style={{fontSize: 13, marginTop: 2}}>Sells 3.0</span>
         </button>
       </div>
     </div>
