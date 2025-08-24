@@ -114,12 +114,12 @@ const ExternalCells = () => {
     .sort((a, b) => a.monthKey.localeCompare(b.monthKey));
 
   const productTypes = [
-    { key: 'wholeBloodCat', label: 'דם מלא- חתול (Whole Blood - Cat)', color: '#ff6b6b' },
-    { key: 'wholeBloodDog', label: 'דם מלא- כלב (Whole Blood - Dog)', color: '#4ecdc4' },
-    { key: 'plasmaCat', label: 'פלסמה- חתול (Plasma - Cat)', color: '#45b7d1' },
-    { key: 'plasmaDog', label: 'פלסמה- כלב (Plasma - Dog)', color: '#96ceb4' },
-    { key: 'pcCat', label: 'תרכיז- חתול (PC - Cat)', color: '#feca57' },
-    { key: 'pcDog', label: 'תרכיז- כלב (PC - Dog)', color: '#ff9ff3' }
+    { key: 'wholeBloodCat', label: 'דם מלא- חתול (Whole Blood - Cat)', color: '#ff6b6b', chartKey: 'Whole Blood Cat' },
+    { key: 'wholeBloodDog', label: 'דם מלא- כלב (Whole Blood - Dog)', color: '#4ecdc4', chartKey: 'Whole Blood Dog' },
+    { key: 'plasmaCat', label: 'פלסמה- חתול (Plasma - Cat)', color: '#45b7d1', chartKey: 'Plasma Cat' },
+    { key: 'plasmaDog', label: 'פלסמה- כלב (Plasma - Dog)', color: '#96ceb4', chartKey: 'Plasma Dog' },
+    { key: 'pcCat', label: 'תרכיז- חתול (PC - Cat)', color: '#feca57', chartKey: 'PC Cat' },
+    { key: 'pcDog', label: 'תרכיז- כלב (PC - Dog)', color: '#ff9ff3', chartKey: 'PC Dog' }
   ];
 
   return (
@@ -202,7 +202,7 @@ const ExternalCells = () => {
                   <Line
                     key={product.key}
                     type="monotone"
-                    dataKey={product.label.split(' (')[1].split(')')[0]}
+                    dataKey={product.chartKey}
                     stroke={product.color}
                     strokeWidth={2}
                     dot={{ r: 4 }}
@@ -230,7 +230,7 @@ const ExternalCells = () => {
                 {productTypes.map(product => (
                   <Bar
                     key={product.key}
-                    dataKey={product.label.split(' (')[1].split(')')[0]}
+                    dataKey={product.chartKey}
                     fill={product.color}
                   />
                 ))}
