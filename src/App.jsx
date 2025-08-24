@@ -3,7 +3,7 @@ import DonorForm from './components/DonorForm';
 import TablesByLocation from './components/TablesByLocation';
 import Dashboard from './components/DonorDashboard';
 import ManualDonorList from './components/ManualDonorList';
-import ProductComparison from './components/ProductComparison';
+import EconomicsTab from './components/EconomicsTab';
 import { v4 as uuidv4 } from 'uuid';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { useSwipeable } from 'react-swipeable';
@@ -66,10 +66,8 @@ const removeExactDuplicates = (donors) => {
 const App = () => {
   const [view, setView] = useState('form');
   const [editingDonor, setEditingDonor] = useState(null);
-  const [sells, setSells] = useState([]);
-  const [externalUsageCount, setExternalUsageCount] = useState(0);
 
-  const views = ['form', 'table', 'dashboard', 'products'];
+  const views = ['form', 'table', 'dashboard', 'economics'];
   const currentViewIdx = views.indexOf(view);
 
   const swipeHandlers = useSwipeable({
@@ -184,7 +182,7 @@ const App = () => {
         {view === 'form' && <DonorForm editingDonor={editingDonor} onCancelEdit={handleCancelEdit} onAddDonor={handleAddDonor} />}
         {view === 'table' && <TablesByLocation onEdit={(donor) => { setEditingDonor(donor); setView("form"); }} />}
         {view === 'dashboard' && <Dashboard />}
-        {view === 'products' && <ProductComparison sells={sells} setSells={setSells} externalUsageCount={externalUsageCount} setExternalUsageCount={setExternalUsageCount} />}
+        {view === 'economics' && <EconomicsTab />}
         {view === 'manual' && <ManualDonorList />}
       </div>
 
@@ -217,11 +215,11 @@ const App = () => {
           <span style={{fontSize: 13, marginTop: 2}}>Dashboard</span>
         </button>
         <button
-          className={`flex-1 flex flex-col items-center py-1 ${view === 'products' ? 'text-blue-600 font-bold' : 'text-gray-500'}`}
-          onClick={() => setView('products')}
+          className={`flex-1 flex flex-col items-center py-1 ${view === 'economics' ? 'text-blue-600 font-bold' : 'text-gray-500'}`}
+          onClick={() => setView('economics')}
         >
-          <span style={{fontSize: 22}}>🏷️</span>
-          <span style={{fontSize: 13, marginTop: 2}}>Sells 3.0</span>
+          <span style={{fontSize: 22}}>💰</span>
+          <span style={{fontSize: 13, marginTop: 2}}>Economics</span>
         </button>
       </div>
     </div>
