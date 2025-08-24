@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import PropTypes from 'prop-types';
 import { LOCATIONS, BLOOD_TYPES, DONATION_STATUSES } from '../utils/constants.js';
 import { donorStorage } from '../utils/storage.js';
 import { validateDonor, sanitizeDonor } from '../utils/donorUtils.js';
@@ -390,6 +391,12 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
       </form>
     </div>
   );
+};
+
+DonorForm.propTypes = {
+  onAddDonor: PropTypes.func.isRequired,
+  editingDonor: PropTypes.object,
+  onCancelEdit: PropTypes.func.isRequired,
 };
 
 export default DonorForm;

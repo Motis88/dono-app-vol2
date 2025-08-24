@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { storage, safeJsonParse } from '../utils/storage.js';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
 
 const ExternalCells = () => {
@@ -39,14 +40,10 @@ const ExternalCells = () => {
 
   // Load data from localStorage on component mount
   useEffect(() => {
-    const storedData = localStorage.getItem('external_cells_data');
+    const storedData = storage.getString('external_cells_data', null);
     if (storedData) {
-      try {
-        const parsed = JSON.parse(storedData);
-        setAllData(parsed);
-      } catch (err) {
-        console.error('Error parsing external cells data:', err);
-      }
+      const parsed = safeJsonParse(storedData, {});
+      setAllData(parsed);
     }
   }, []);
 
@@ -93,7 +90,7 @@ const ExternalCells = () => {
     };
 
     setAllData(updatedData);
-    localStorage.setItem('external_cells_data', JSON.stringify(updatedData));
+    storage.setString('external_cells_data', JSON.stringify(updatedData));
     alert('Data saved successfully!');
   };
 

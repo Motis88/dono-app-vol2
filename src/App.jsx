@@ -1,14 +1,16 @@
-import React, { useState, useEffect } from 'react';
-import DonorForm from './components/DonorForm';
-import TablesByLocation from './components/TablesByLocation';
-import Dashboard from './components/DonorDashboard';
-import ManualDonorList from './components/ManualDonorList';
-import ExternalCells from './components/ExternalCells';
+import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { useSwipeable } from 'react-swipeable';
 import { VIEWS, FILE_NAMES } from './utils/constants.js';
 import { donorStorage, safeJsonParse } from './utils/storage.js';
 import { normalizeDonors, removeExactDuplicates } from './utils/donorUtils.js';
+
+// Lazy load components to reduce bundle size
+const DonorForm = lazy(() => import('./components/DonorForm'));
+const TablesByLocation = lazy(() => import('./components/TablesByLocation'));
+const Dashboard = lazy(() => import('./components/DonorDashboard'));
+const ManualDonorList = lazy(() => import('./components/ManualDonorList'));
+const ExternalCells = lazy(() => import('./components/ExternalCells'));
 
 /**
  * Check if target element is inside a horizontally scrollable element
@@ -164,11 +166,13 @@ const App = () => {
       </div>
 
       <div className="p-4 pb-4" {...swipeHandlers}>
-        {view === 'form' && <DonorForm editingDonor={editingDonor} onCancelEdit={handleCancelEdit} onAddDonor={handleAddDonor} />}
-        {view === 'table' && <TablesByLocation onEdit={(donor) => { setEditingDonor(donor); setView("form"); }} />}
-        {view === 'dashboard' && <Dashboard />}
-        {view === 'manual' && <ManualDonorList />}
-        {view === 'external-cells' && <ExternalCells />}
+        <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>}>
+          {view === 'form' && <DonorForm editingDonor={editingDonor} onCancelEdit={handleCancelEdit} onAddDonor={handleAddDonor} />}
+          {view === 'table' && <TablesByLocation onEdit={(donor) => { setEditingDonor(donor); setView("form"); }} />}
+          {view === 'dashboard' && <Dashboard />}
+          {view === 'manual' && <ManualDonorList />}
+          {view === 'external-cells' && <ExternalCells />}
+        </Suspense>
       </div>
 
       <div
