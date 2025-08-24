@@ -4,8 +4,34 @@ import Papa from 'papaparse';
 
 const ProductComparison = ({ sells, setSells, externalUsageCount, setExternalUsageCount }) => {
   const [error, setError] = useState('');
+  const [salesData, setSalesData] = useState([]);
+  const [usageData, setUsageData] = useState([]);
   const usageFileInputRef = useRef(null);
   const salesFileInputRef = useRef(null);
+
+  // Function to find the actual header row by scanning first 10-15 rows
+  const findHeaderRow = (data, expectedHeaders) => {
+    // Scan first 15 rows (or all rows if less than 15)
+    const scanRows = Math.min(15, data.length);
+    
+    for (let i = 0; i < scanRows; i++) {
+      const row = data[i];
+      const rowKeys = Object.keys(row).map(key => key.toLowerCase());
+      
+      // Check if this row contains expected headers
+      const matchCount = expectedHeaders.filter(header => 
+        rowKeys.some(key => key.includes(header.toLowerCase()))
+      ).length;
+      
+      // If we find at least half of the expected headers, consider this the header row
+      if (matchCount >= Math.ceil(expectedHeaders.length / 2)) {
+        return i;
+      }
+    }
+    
+    // Default to first row if no clear header row found
+    return 0;
+  };
 
   // Function to handle Usage file upload
   const handleUsageFileUpload = async (event) => {
@@ -16,33 +42,45 @@ const ProductComparison = ({ sells, setSells, externalUsageCount, setExternalUsa
     
     try {
       const result = await parseFile(file);
+      
+      // Find the actual header row for usage files
+      const expectedUsageHeaders = ['Medicine', 'Quantity', 'מקור', 'שם', 'כמות'];
+      const headerRowIndex = findHeaderRow(result, expectedUsageHeaders);
+      
+      // Process data starting from the row after the header
+      const dataRows = result.slice(headerRowIndex);
       const currentDate = new Date().toISOString().split('T')[0];
       
       // Process each row for usage data
-      const processedData = result.map(row => {
+      const processedData = dataRows.map(row => {
         // Map Usage file headers to our format
-        const medicineValue = findColumnValue(row, ['Medicine', 'medicine', 'מוצר', 'תרופה']);
+        const medicineValue = findColumnValue(row, ['Medicine', 'medicine', 'מוצר', 'תרופה', 'שם']);
         const quantityValue = findColumnValue(row, ['Quantity (units)', 'Quantity', 'quantity', 'כמות', 'כמות (יחידות)']);
         const sourceValue = findColumnValue(row, ['מקור', 'Source', 'source']) || '';
         
         return {
           id: Date.now() + Math.random(),
           productName: medicineValue || 'Unknown',
-          quantity: parseFloat(quantityValue) || 0,
-          price: 0, // Hardcoded to 0 for usage files
-          date: currentDate,
-          total: 0, // price * quantity = 0
+          quantity: Number(quantityValue) || 0, // Convert to Number
           source: sourceValue,
+          date: currentDate,
           type: 'usage'
         };
       }).filter(item => item.productName !== 'Unknown' && item.quantity > 0);
 
-      // Add to sells state
-      setSells(prev => [...prev, ...processedData]);
+      // Update usage data state
+      setUsageData(prev => [...prev, ...processedData]);
       
-      // Calculate external usage count
-      const newSells = [...sells, ...processedData];
-      const externalCount = newSells.filter(item => item.type === 'usage' && item.source === 'חיצוני').length;
+      // Also update the old sells state for backward compatibility
+      setSells(prev => [...prev, ...processedData.map(item => ({
+        ...item,
+        price: 0,
+        total: 0
+      }))]);
+      
+      // Calculate external usage count from usage data only
+      const newUsageData = [...usageData, ...processedData];
+      const externalCount = newUsageData.filter(item => item.source === 'חיצוני').length;
       setExternalUsageCount(externalCount);
       
       alert(`✅ Usage file processed successfully! Added ${processedData.length} records.`);
@@ -65,18 +103,25 @@ const ProductComparison = ({ sells, setSells, externalUsageCount, setExternalUsa
     
     try {
       const result = await parseFile(file);
+      
+      // Find the actual header row for sales files
+      const expectedSalesHeaders = ['Name', 'Quantity', 'Total'];
+      const headerRowIndex = findHeaderRow(result, expectedSalesHeaders);
+      
+      // Process data starting from the row after the header
+      const dataRows = result.slice(headerRowIndex);
       const currentDate = new Date().toISOString().split('T')[0];
       
       // Process each row for sales data
-      const processedData = result.map(row => {
+      const processedData = dataRows.map(row => {
         // Map Sales file headers to our format according to requirements:
         // Name -> productName, Quantity -> quantity, Total incl. VAT -> price
         const nameValue = findColumnValue(row, ['Name', 'name', 'שם', 'מוצר']);
         const quantityValue = findColumnValue(row, ['Quantity', 'quantity', 'כמות']);
         const priceValue = findColumnValue(row, ['Total incl. VAT', 'Total', 'total', 'סה״כ', 'סה״כ כולל מע״מ']);
         
-        const quantity = parseFloat(quantityValue) || 0;
-        const price = parseFloat(priceValue) || 0;
+        const quantity = Number(quantityValue) || 0; // Convert to Number
+        const price = Number(priceValue) || 0; // Convert to Number
         const total = quantity * price; // Calculate total from quantity * price
         
         return {
@@ -86,13 +131,18 @@ const ProductComparison = ({ sells, setSells, externalUsageCount, setExternalUsa
           price: price,
           date: currentDate,
           total: total,
-          source: '',
           type: 'sales'
         };
       }).filter(item => item.productName !== 'Unknown' && item.quantity > 0);
 
-      // Add to sells state
-      setSells(prev => [...prev, ...processedData]);
+      // Update sales data state
+      setSalesData(prev => [...prev, ...processedData]);
+      
+      // Also update the old sells state for backward compatibility
+      setSells(prev => [...prev, ...processedData.map(item => ({
+        ...item,
+        source: ''
+      }))]);
       
       alert(`✅ Sales file processed successfully! Added ${processedData.length} records.`);
     } catch (error) {
@@ -159,26 +209,8 @@ const ProductComparison = ({ sells, setSells, externalUsageCount, setExternalUsa
     });
   };
 
-  // Calculate summary statistics
-  const getSummary = () => {
-    const totalRecords = sells.length;
-    const usageRecords = sells.filter(item => item.type === 'usage').length;
-    const salesRecords = sells.filter(item => item.type === 'sales').length;
-    const totalRevenue = sells.reduce((sum, item) => sum + item.total, 0);
-    const totalQuantity = sells.reduce((sum, item) => sum + item.quantity, 0);
-    
-    return {
-      totalRecords,
-      usageRecords,
-      salesRecords,
-      totalRevenue,
-      totalQuantity
-    };
-  };
-
-  // Calculate sales summary by product
+  // Calculate sales summary by product from salesData only
   const getSalesSummary = () => {
-    const salesData = sells.filter(item => item.type === 'sales');
     const productGroups = {};
     
     salesData.forEach(item => {
@@ -203,12 +235,34 @@ const ProductComparison = ({ sells, setSells, externalUsageCount, setExternalUsa
     };
   };
 
-  const summary = getSummary();
+  // Calculate usage summary by product from usageData only
+  const getUsageSummary = () => {
+    const productGroups = {};
+    
+    usageData.forEach(item => {
+      if (!productGroups[item.productName]) {
+        productGroups[item.productName] = {
+          productName: item.productName,
+          totalQuantity: 0
+        };
+      }
+      productGroups[item.productName].totalQuantity += item.quantity;
+    });
+    
+    const productSummaries = Object.values(productGroups);
+    
+    return {
+      productSummaries,
+      hasUsageData: usageData.length > 0
+    };
+  };
+
   const salesSummary = getSalesSummary();
+  const usageSummary = getUsageSummary();
 
   return (
     <div className="p-4">
-      <h2 className="text-xl font-bold text-center mb-4">Sells 3.0 - Data Management</h2>
+      <h2 className="text-xl font-bold text-center mb-4">Summary Dashboard</h2>
       
       {/* Error Display */}
       {error && (
@@ -245,7 +299,7 @@ const ProductComparison = ({ sells, setSells, externalUsageCount, setExternalUsa
               onChange={handleUsageFileUpload}
             />
             <p className="text-sm text-green-700">
-              Usage files: Expected columns - Medicine, Quantity (units), מקור (Source)
+              Usage files: Expected columns - Medicine/שם, Quantity/כמות, מקור (Source)
             </p>
             {externalUsageCount > 0 && (
               <div className="mt-2 p-2 bg-green-100 rounded">
@@ -274,40 +328,11 @@ const ProductComparison = ({ sells, setSells, externalUsageCount, setExternalUsa
               onChange={handleSalesFileUpload}
             />
             <p className="text-sm text-blue-700">
-              Sales files: Expected columns - Name, Quantity, Total incl. VAT
+              Sales files: Expected columns - Name/שם, Quantity/כמות, Total incl. VAT
             </p>
           </div>
         </div>
       </div>
-
-      {/* Summary Statistics */}
-      {sells.length > 0 && (
-        <div className="mb-6 p-4 bg-gray-50 rounded-lg">
-          <h4 className="font-semibold mb-2">Summary</h4>
-          <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
-            <div className="text-center">
-              <div className="font-bold text-lg">{summary.totalRecords}</div>
-              <div className="text-gray-600">Total Records</div>
-            </div>
-            <div className="text-center">
-              <div className="font-bold text-lg text-green-600">{summary.usageRecords}</div>
-              <div className="text-gray-600">Usage Records</div>
-            </div>
-            <div className="text-center">
-              <div className="font-bold text-lg text-blue-600">{summary.salesRecords}</div>
-              <div className="text-gray-600">Sales Records</div>
-            </div>
-            <div className="text-center">
-              <div className="font-bold text-lg">{summary.totalQuantity}</div>
-              <div className="text-gray-600">Total Quantity</div>
-            </div>
-            <div className="text-center">
-              <div className="font-bold text-lg">{summary.totalRevenue.toFixed(2)}</div>
-              <div className="text-gray-600">Total Revenue</div>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Sales Summary Dashboard */}
       {salesSummary.hasSalesData && (
@@ -345,46 +370,38 @@ const ProductComparison = ({ sells, setSells, externalUsageCount, setExternalUsa
         </div>
       )}
 
-      {/* Data Table */}
-      {sells.length > 0 ? (
-        <div className="overflow-x-auto border rounded-lg">
-          <table className="min-w-full bg-white">
-            <thead className="bg-gray-100 sticky top-0">
-              <tr>
-                <th className="px-4 py-2 text-left border-b">Date</th>
-                <th className="px-4 py-2 text-left border-b">Product Name</th>
-                <th className="px-4 py-2 text-right border-b">Quantity</th>
-                <th className="px-4 py-2 text-right border-b">Price</th>
-                <th className="px-4 py-2 text-right border-b">Total</th>
-                <th className="px-4 py-2 text-center border-b">Source</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sells.map((row, index) => (
-                <tr key={row.id || index} className="hover:bg-gray-50">
-                  <td className="px-4 py-2 border-b">{row.date}</td>
-                  <td className="px-4 py-2 border-b">{row.productName}</td>
-                  <td className="px-4 py-2 border-b text-right">{row.quantity}</td>
-                  <td className="px-4 py-2 border-b text-right">{row.price.toFixed(2)}</td>
-                  <td className="px-4 py-2 border-b text-right">{row.total.toFixed(2)}</td>
-                  <td className="px-4 py-2 border-b text-center">
-                    <span className={`px-2 py-1 text-xs rounded ${
-                      row.type === 'usage' 
-                        ? 'bg-green-100 text-green-800' 
-                        : 'bg-blue-100 text-blue-800'
-                    }`}>
-                      {row.type}
-                    </span>
-                  </td>
+      {/* Usage Summary Dashboard */}
+      {usageSummary.hasUsageData && (
+        <div className="mb-6 p-4 bg-green-50 rounded-lg border-2 border-green-200">
+          <h4 className="text-lg font-semibold mb-3 text-green-800">סיכום שימוש</h4>
+          
+          {/* Usage Summary Table */}
+          <div className="overflow-x-auto mb-4">
+            <table className="w-full bg-white rounded border">
+              <thead className="bg-green-100">
+                <tr>
+                  <th className="px-4 py-2 text-right border-b">מוצר</th>
+                  <th className="px-4 py-2 text-center border-b">כמות שימוש</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {usageSummary.productSummaries.map((product, index) => (
+                  <tr key={index} className="hover:bg-gray-50">
+                    <td className="px-4 py-2 border-b text-right">{product.productName}</td>
+                    <td className="px-4 py-2 border-b text-center">{product.totalQuantity}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      ) : (
+      )}
+
+      {/* Empty State */}
+      {!salesSummary.hasSalesData && !usageSummary.hasUsageData && (
         <div className="text-center text-gray-500 py-8">
           <p className="text-lg">No data uploaded yet</p>
-          <p className="text-sm">Upload usage or sales files to see data in the table</p>
+          <p className="text-sm">Upload sales or usage files to see summaries</p>
         </div>
       )}
     </div>
