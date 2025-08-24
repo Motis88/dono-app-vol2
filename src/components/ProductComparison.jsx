@@ -33,6 +33,104 @@ const ProductComparison = ({ sells, setSells, externalUsageCount, setExternalUsa
     return 0;
   };
 
+  // Function to parse file based on extension with header detection
+  const parseFileWithHeaders = async (file, expectedHeaders) => {
+    return new Promise((resolve, reject) => {
+      const fileExtension = file.name.split('.').pop().toLowerCase();
+      const reader = new FileReader();
+
+      reader.onload = (e) => {
+        try {
+          let data = null;
+          
+          if (fileExtension === 'csv') {
+            const parsed = Papa.parse(e.target.result, { 
+              header: false, // Parse without header first
+              skipEmptyLines: true 
+            });
+            if (parsed.errors.length > 0) {
+              throw new Error(`CSV parsing error: ${parsed.errors[0].message}`);
+            }
+            
+            // Find the header row
+            const rawData = parsed.data;
+            const headerRowIndex = findHeaderRowInArray(rawData, expectedHeaders);
+            
+            // Re-parse with the correct header row
+            const headerRow = rawData[headerRowIndex];
+            const dataRows = rawData.slice(headerRowIndex + 1);
+            
+            data = dataRows.map(row => {
+              const obj = {};
+              headerRow.forEach((header, index) => {
+                obj[header] = row[index];
+              });
+              return obj;
+            });
+            
+          } else if (['xlsx', 'xls'].includes(fileExtension)) {
+            const workbook = XLSX.read(e.target.result, { type: 'array' });
+            const sheetName = workbook.SheetNames[0];
+            const sheet = workbook.Sheets[sheetName];
+            data = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+            
+            // Find header row in the array format
+            const headerRowIndex = findHeaderRowInArray(data, expectedHeaders);
+            const headerRow = data[headerRowIndex];
+            const dataRows = data.slice(headerRowIndex + 1);
+            
+            // Convert to object format
+            data = dataRows.map(row => {
+              const obj = {};
+              headerRow.forEach((header, index) => {
+                obj[header] = row[index];
+              });
+              return obj;
+            });
+          } else {
+            throw new Error(`Unsupported file type: ${fileExtension}`);
+          }
+
+          resolve(data);
+        } catch (error) {
+          reject(error);
+        }
+      };
+
+      reader.onerror = () => reject(new Error('File reading failed'));
+
+      if (['xlsx', 'xls'].includes(fileExtension)) {
+        reader.readAsArrayBuffer(file);
+      } else {
+        reader.readAsText(file);
+      }
+    });
+  };
+
+  // Function to find header row in array format
+  const findHeaderRowInArray = (data, expectedHeaders) => {
+    const scanRows = Math.min(15, data.length);
+    
+    for (let i = 0; i < scanRows; i++) {
+      const row = data[i];
+      if (!Array.isArray(row)) continue;
+      
+      const rowStrings = row.map(cell => String(cell || '').toLowerCase());
+      
+      // Check if this row contains expected headers
+      const matchCount = expectedHeaders.filter(header => 
+        rowStrings.some(cell => cell.includes(header.toLowerCase()))
+      ).length;
+      
+      // If we find at least half of the expected headers, consider this the header row
+      if (matchCount >= Math.ceil(expectedHeaders.length / 2)) {
+        return i;
+      }
+    }
+    
+    return 0;
+  };
+
   // Function to handle Usage file upload
   const handleUsageFileUpload = async (event) => {
     const file = event.target.files[0];
@@ -41,18 +139,14 @@ const ProductComparison = ({ sells, setSells, externalUsageCount, setExternalUsa
     setError('');
     
     try {
-      const result = await parseFile(file);
-      
       // Find the actual header row for usage files
       const expectedUsageHeaders = ['Medicine', 'Quantity', 'מקור', 'שם', 'כמות'];
-      const headerRowIndex = findHeaderRow(result, expectedUsageHeaders);
+      const result = await parseFileWithHeaders(file, expectedUsageHeaders);
       
-      // Process data starting from the row after the header
-      const dataRows = result.slice(headerRowIndex);
       const currentDate = new Date().toISOString().split('T')[0];
       
       // Process each row for usage data
-      const processedData = dataRows.map(row => {
+      const processedData = result.map(row => {
         // Map Usage file headers to our format
         const medicineValue = findColumnValue(row, ['Medicine', 'medicine', 'מוצר', 'תרופה', 'שם']);
         const quantityValue = findColumnValue(row, ['Quantity (units)', 'Quantity', 'quantity', 'כמות', 'כמות (יחידות)']);
@@ -102,18 +196,14 @@ const ProductComparison = ({ sells, setSells, externalUsageCount, setExternalUsa
     setError('');
     
     try {
-      const result = await parseFile(file);
-      
       // Find the actual header row for sales files
       const expectedSalesHeaders = ['Name', 'Quantity', 'Total'];
-      const headerRowIndex = findHeaderRow(result, expectedSalesHeaders);
+      const result = await parseFileWithHeaders(file, expectedSalesHeaders);
       
-      // Process data starting from the row after the header
-      const dataRows = result.slice(headerRowIndex);
       const currentDate = new Date().toISOString().split('T')[0];
       
       // Process each row for sales data
-      const processedData = dataRows.map(row => {
+      const processedData = result.map(row => {
         // Map Sales file headers to our format according to requirements:
         // Name -> productName, Quantity -> quantity, Total incl. VAT -> price
         const nameValue = findColumnValue(row, ['Name', 'name', 'שם', 'מוצר']);
@@ -163,50 +253,6 @@ const ProductComparison = ({ sells, setSells, externalUsageCount, setExternalUsa
       }
     }
     return null;
-  };
-
-  // Function to parse file based on extension
-  const parseFile = async (file) => {
-    return new Promise((resolve, reject) => {
-      const fileExtension = file.name.split('.').pop().toLowerCase();
-      const reader = new FileReader();
-
-      reader.onload = (e) => {
-        try {
-          let data = null;
-          
-          if (fileExtension === 'csv') {
-            const parsed = Papa.parse(e.target.result, { 
-              header: true, 
-              skipEmptyLines: true 
-            });
-            if (parsed.errors.length > 0) {
-              throw new Error(`CSV parsing error: ${parsed.errors[0].message}`);
-            }
-            data = parsed.data;
-          } else if (['xlsx', 'xls'].includes(fileExtension)) {
-            const workbook = XLSX.read(e.target.result, { type: 'array' });
-            const sheetName = workbook.SheetNames[0];
-            const sheet = workbook.Sheets[sheetName];
-            data = XLSX.utils.sheet_to_json(sheet);
-          } else {
-            throw new Error(`Unsupported file type: ${fileExtension}`);
-          }
-
-          resolve(data);
-        } catch (error) {
-          reject(error);
-        }
-      };
-
-      reader.onerror = () => reject(new Error('File reading failed'));
-
-      if (['xlsx', 'xls'].includes(fileExtension)) {
-        reader.readAsArrayBuffer(file);
-      } else {
-        reader.readAsText(file);
-      }
-    });
   };
 
   // Calculate sales summary by product from salesData only
