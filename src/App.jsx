@@ -3,6 +3,7 @@ import DonorForm from './components/DonorForm';
 import TablesByLocation from './components/TablesByLocation';
 import Dashboard from './components/DonorDashboard';
 import ManualDonorList from './components/ManualDonorList';
+import ExternalCells from './components/ExternalCells';
 import { v4 as uuidv4 } from 'uuid';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { useSwipeable } from 'react-swipeable';
@@ -66,7 +67,7 @@ const App = () => {
   const [view, setView] = useState('form');
   const [editingDonor, setEditingDonor] = useState(null);
 
-  const views = ['form', 'table', 'dashboard'];
+  const views = ['form', 'table', 'dashboard', 'external-cells'];
   const currentViewIdx = views.indexOf(view);
 
   const swipeHandlers = useSwipeable({
@@ -182,6 +183,7 @@ const App = () => {
         {view === 'table' && <TablesByLocation onEdit={(donor) => { setEditingDonor(donor); setView("form"); }} />}
         {view === 'dashboard' && <Dashboard />}
         {view === 'manual' && <ManualDonorList />}
+        {view === 'external-cells' && <ExternalCells />}
       </div>
 
       <div
@@ -211,6 +213,13 @@ const App = () => {
         >
           <span style={{fontSize: 22}}>📊</span>
           <span style={{fontSize: 13, marginTop: 2}}>Dashboard</span>
+        </button>
+        <button
+          className={`flex-1 flex flex-col items-center py-1 ${view === 'external-cells' ? 'text-blue-600 font-bold' : 'text-gray-500'}`}
+          onClick={() => setView('external-cells')}
+        >
+          <span style={{fontSize: 22}}>🩸</span>
+          <span style={{fontSize: 13, marginTop: 2}}>External</span>
         </button>
       </div>
     </div>
