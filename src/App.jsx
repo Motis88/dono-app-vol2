@@ -144,17 +144,31 @@ const App = () => {
   };
 
   return (
-    <div className="min-h-screen pb-20 bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100">
-      {/* Top buttons */}
-      <div className="flex justify-center mb-6 gap-4 pt-7 md:pt-4" style={{paddingTop: 'env(safe-area-inset-top,2.7rem)'}}>
+    <div className="min-h-screen pb-16 bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100">
+      {/* Backup/Restore buttons - top bar */}
+      <div
+        className="fixed top-0 left-0 right-0 flex flex-wrap justify-center items-center mb-2 gap-2 w-full z-50"
+        style={{
+          paddingTop: 'calc(env(safe-area-inset-top, 0px) + 20px)',
+          minHeight: 34,
+          maxWidth: '100vw',
+          overflowX: 'auto',
+        }}
+      >
         <button
-          className="px-4 py-2 rounded bg-green-500 text-white font-bold shadow"
+          className="px-3 py-1 rounded bg-green-500 text-white font-bold shadow min-w-[90px] max-w-full h-10"
+          style={{
+            whiteSpace: 'nowrap',
+          }}
           onClick={backupDonorsToFile}
         >
           Backup
         </button>
         <button
-          className="px-4 py-2 rounded bg-yellow-500 text-gray-800 font-bold shadow"
+          className="px-3 py-1 rounded bg-yellow-500 text-gray-800 font-bold shadow min-w-[90px] max-w-full h-10"
+          style={{
+            whiteSpace: 'nowrap',
+          }}
           onClick={async () => {
             if (window.confirm('Are you sure you want to RESTORE from backup? This will overwrite all your current donors!')) {
               await restoreDonorsFromFile();
@@ -165,7 +179,8 @@ const App = () => {
         </button>
       </div>
 
-      <div className="p-4 pb-4" {...swipeHandlers}>
+      {/* Main content - add top padding for nav bar */}
+      <div className="p-4 pb-4 pt-16" {...swipeHandlers}>
         <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>}>
           {view === 'form' && <DonorForm editingDonor={editingDonor} onCancelEdit={handleCancelEdit} onAddDonor={handleAddDonor} />}
           {view === 'table' && <TablesByLocation onEdit={(donor) => { setEditingDonor(donor); setView("form"); }} />}
@@ -175,40 +190,43 @@ const App = () => {
         </Suspense>
       </div>
 
+      {/* Navigation buttons - bottom bar */}
       <div
-        className="fixed bottom-0 left-0 right-0 bg-white flex justify-around border-t shadow z-50"
+        className="fixed bottom-0 left-0 right-0 bg-white flex justify-around border-b shadow z-50"
         style={{
-          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 9px)',
-          minHeight: 58,
+          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 44px)',
+          minHeight: 44,
+          maxWidth: '100vw',
+          overflowX: 'auto',
         }}
       >
         <button
-          className={`flex-1 flex flex-col items-center py-1 ${view === 'form' ? 'text-blue-600 font-bold' : 'text-gray-500'}`}
+          className={`flex-1 flex flex-col items-center py-1 h-10 ${view === 'form' ? 'text-blue-600 font-bold' : 'text-gray-500'}`}
           onClick={() => setView('form')}
         >
-          <span style={{fontSize: 22}}>📝</span>
-          <span style={{fontSize: 13, marginTop: 2}}>Form</span>
+          <span style={{fontSize: 18}}>📝</span>
+          <span style={{fontSize: 11, marginTop: 1}}>Form</span>
         </button>
         <button
-          className={`flex-1 flex flex-col items-center py-1 ${view === 'table' ? 'text-blue-600 font-bold' : 'text-gray-500'}`}
+          className={`flex-1 flex flex-col items-center py-1 h-10 ${view === 'table' ? 'text-blue-600 font-bold' : 'text-gray-500'}`}
           onClick={() => setView('table')}
         >
-          <span style={{fontSize: 22}}>📋</span>
-          <span style={{fontSize: 13, marginTop: 2}}>Table</span>
+          <span style={{fontSize: 18}}>📋</span>
+          <span style={{fontSize: 11, marginTop: 1}}>Table</span>
         </button>
         <button
-          className={`flex-1 flex flex-col items-center py-1 ${view === 'dashboard' ? 'text-blue-600 font-bold' : 'text-gray-500'}`}
+          className={`flex-1 flex flex-col items-center py-1 h-10 ${view === 'dashboard' ? 'text-blue-600 font-bold' : 'text-gray-500'}`}
           onClick={() => setView('dashboard')}
         >
-          <span style={{fontSize: 22}}>📊</span>
-          <span style={{fontSize: 13, marginTop: 2}}>Dashboard</span>
+          <span style={{fontSize: 18}}>📊</span>
+          <span style={{fontSize: 11, marginTop: 1}}>Dashboard</span>
         </button>
         <button
-          className={`flex-1 flex flex-col items-center py-1 ${view === 'external-cells' ? 'text-blue-600 font-bold' : 'text-gray-500'}`}
+          className={`flex-1 flex flex-col items-center py-1 h-10 ${view === 'external-cells' ? 'text-blue-600 font-bold' : 'text-gray-500'}`}
           onClick={() => setView('external-cells')}
         >
-          <span style={{fontSize: 22}}>🩸</span>
-          <span style={{fontSize: 13, marginTop: 2}}>External</span>
+          <span style={{fontSize: 18}}>🩸</span>
+          <span style={{fontSize: 11, marginTop: 1}}>External</span>
         </button>
       </div>
     </div>
