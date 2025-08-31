@@ -7,7 +7,8 @@ import React, { useEffect, useState, useRef } from "react";
 import PropTypes from 'prop-types';
 import { LOCATIONS } from '../utils/constants.js';
 import { donorStorage, safeJsonParse } from '../utils/storage.js';
-import { isAnimalHighlighted } from '../utils/donorUtils.js';
+import { isAnimalHighlighted, removeExactDuplicates } from '../utils/donorUtils.js';
+import { FixedSizeList } from 'react-window';
 
 const TablesByLocation = ({ onEdit }) => {
   const [donors, setDonors] = useState([]);
@@ -23,8 +24,11 @@ const TablesByLocation = ({ onEdit }) => {
   const fileInputRef = useRef(null);
 
   useEffect(() => {
-    const donorsData = donorStorage.getDonors();
-    setDonors(donorsData);
+  const donorsData = donorStorage.getDonors();
+  // ניקוי דופליקטים אוטומטי
+  const cleaned = removeExactDuplicates(donorsData);
+  setDonors(cleaned);
+  donorStorage.saveDonors(cleaned);
   }, []);
 
   const animalTypesMap = new Map();
@@ -81,10 +85,27 @@ const TablesByLocation = ({ onEdit }) => {
       try {
         const imported = safeJsonParse(e.target.result, null);
         if (Array.isArray(imported)) {
-          const merged = [...donors, ...imported];
-          setDonors(merged);
-          donorStorage.saveDonors(merged);
-          alert("✅ JSON import succeeded");
+          // ולידציה לכל תורם
+          const invalids = [];
+          const valids = [];
+          imported.forEach((donor, idx) => {
+            const { isValid, errors } = require('../utils/donorUtils.js').validateDonor(donor);
+            if (!isValid) {
+              invalids.push(`Donor #${idx + 1}: ${errors.join(", ")}`);
+            } else {
+              valids.push(donor);
+            }
+          });
+
+          if (invalids.length > 0) {
+            alert("❌ Some donors are invalid:\n" + invalids.join("\n"));
+          }
+          if (valids.length > 0) {
+            const merged = [...donors, ...valids];
+            setDonors(merged);
+            donorStorage.saveDonors(merged);
+            alert("✅ Imported " + valids.length + " valid donors");
+          }
         } else {
           alert("❌ Invalid file format - expected JSON array");
         }
@@ -176,50 +197,60 @@ const TablesByLocation = ({ onEdit }) => {
             </tr>
           </thead>
           <tbody>
-            {filteredDonors.map((d, i) => (
-              <tr
-                key={d.id ?? i}
-                className={`${i % 2 === 0 ? "bg-white" : "bg-gray-50"} ${isAnimalHighlighted(d, removedHighlights) ? "bg-yellow-200" : ""}`}
-                onClick={() => handleRowClick(d)}
-                style={{ cursor: "pointer" }}
-              >
-                <td className="border px-2 py-1">{i + 1}</td>
-                <td
-                  className="border px-1 py-1"
-                  onClick={e => e.stopPropagation()}
-                >
-                  <div className="flex flex-col items-center gap-1">
-                    <span
-                      className="text-blue-600 underline cursor-pointer"
-                      onClick={() => onEdit(d)}
+            <FixedSizeList
+              height={400}
+              itemCount={filteredDonors.length}
+              itemSize={48}
+              width={"100%"}
+            >
+              {({ index, style }) => {
+                const d = filteredDonors[index];
+                return (
+                  <tr
+                    key={d.id ?? index}
+                    style={style}
+                    className={`${index % 2 === 0 ? "bg-white" : "bg-gray-50"} ${isAnimalHighlighted(d, removedHighlights) ? "bg-yellow-200" : ""}`}
+                    onClick={() => handleRowClick(d)}
+                  >
+                    <td className="border px-2 py-1">{index + 1}</td>
+                    <td
+                      className="border px-1 py-1"
+                      onClick={e => e.stopPropagation()}
                     >
-                      Edit
-                    </span>
-                    <span
-                      className="text-red-600 underline cursor-pointer"
-                      onClick={() => handleDelete(i)}
-                    >
-                      Delete
-                    </span>
-                  </div>
-                </td>
-                <td className="border px-2 py-1">{d.date}</td>
-                <td className="border px-2 py-1">{d.animalName}</td>
-                <td className="border px-2 py-1">{d.animalType}</td>
-                <td className="border px-2 py-1">{d.bloodType}</td>
-                <td className="border px-2 py-1">{d.pcv}</td>
-                <td className="border px-2 py-1">{d.donated}</td>
-                <td className="border px-2 py-1">
-                  {(() => {
-                    if (!d.date) return "";
-                    const date = new Date(d.date);
-                    if (isNaN(date)) return "";
-                    const eligible = new Date(date.setDate(date.getDate() + 90));
-                    return eligible.toISOString().slice(0, 10);
-                  })()}
-                </td>
-              </tr>
-            ))}
+                      <div className="flex flex-col items-center gap-1">
+                        <span
+                          className="text-blue-600 underline cursor-pointer"
+                          onClick={() => onEdit(d)}
+                        >
+                          Edit
+                        </span>
+                        <span
+                          className="text-red-600 underline cursor-pointer"
+                          onClick={() => handleDelete(index)}
+                        >
+                          Delete
+                        </span>
+                      </div>
+                    </td>
+                    <td className="border px-2 py-1">{d.date}</td>
+                    <td className="border px-2 py-1">{d.animalName}</td>
+                    <td className="border px-2 py-1">{d.animalType}</td>
+                    <td className="border px-2 py-1">{d.bloodType}</td>
+                    <td className="border px-2 py-1">{d.pcv}</td>
+                    <td className="border px-2 py-1">{d.donated}</td>
+                    <td className="border px-2 py-1">
+                      {(() => {
+                        if (!d.date) return "";
+                        const date = new Date(d.date);
+                        if (isNaN(date)) return "";
+                        const eligible = new Date(date.setDate(date.getDate() + 90));
+                        return eligible.toISOString().slice(0, 10);
+                      })()}
+                    </td>
+                  </tr>
+                );
+              }}
+            </FixedSizeList>
             {filteredDonors.length === 0 && (
               <tr>
                 <td colSpan={9} className="py-4 text-gray-500">

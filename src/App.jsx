@@ -36,6 +36,7 @@ function isInsideHorizontallyScrollableElement(target) {
 }
 
 const App = () => {
+  const MAX_BACKUP_SIZE = 1024 * 1024; // 1MB
   const [view, setView] = useState('form');
   const [editingDonor, setEditingDonor] = useState(null);
 
@@ -79,20 +80,45 @@ const App = () => {
         if (showAlert) alert("⛔ No data to backup.");
         return;
       }
-      
       const dataString = JSON.stringify(donors);
+      if (dataString.length > MAX_BACKUP_SIZE) {
+        alert("⚠️ Backup file is too large to share (over 1MB). Please export fewer donors or split the backup.");
+        return;
+      }
       await Filesystem.writeFile({
         path: FILE_NAMES.BACKUP,
         data: dataString,
-        directory: Directory.Documents,
+        directory: Directory.Data,
         encoding: 'utf8',
       });
-      
-      if (showAlert) alert("📦 Backup saved in Documents folder!");
+      if (showAlert) alert("📦 Backup saved in app's internal storage!");
     } catch (err) {
       console.error("Backup error:", err);
-      if (showAlert) alert("😵 Backup failed.");
+      if (showAlert) {
+        if (err?.message?.includes('permission') || err?.message?.includes('denied')) {
+          alert("😵 Backup failed due to missing storage permissions. Please check app permissions.");
+        } else {
+          alert("😵 Backup failed.");
+        }
+      }
     }
+  // שיתוף קובץ הגיבוי מה-Documents
+  const shareBackupFile = async () => {
+    try {
+      const fileUriResult = await Filesystem.getUri({
+        path: FILE_NAMES.BACKUP,
+        directory: Directory.Documents,
+      });
+      await Share.share({
+        title: 'גיבוי תורמים',
+        url: fileUriResult.uri,
+        dialogTitle: 'שיתוף גיבוי',
+      });
+    } catch (error) {
+      console.error('שגיאה בשיתוף הגיבוי:', error);
+      alert('❌ שיתוף קובץ הגיבוי נכשל.\n\n' + error?.message);
+    }
+  };
   };
 
   const restoreDonorsFromFile = async () => {
