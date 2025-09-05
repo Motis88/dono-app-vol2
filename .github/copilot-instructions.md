@@ -1,52 +1,76 @@
-# Copilot Instructions
+# GitHub Copilot — Project Instructions (dono-app-vol2)
 
-Dono App Vol2 is designed to help organizations and individuals efficiently manage blood donation processes for animals. The application streamlines donor tracking, donation management, and overall workflow, providing a user-friendly experience for all users.
+## TL;DR
+- After **every** code change you propose, append:
+  1) **Windows CMD/PowerShell commands** to run/build/test.
+  2) **Git commands** (add + commit + push) using **Conventional Commits** with a clear scope.
+- Do **not** rename files, components, storage keys, or change UI/RTL text without explicit request.
 
-Efficient Donation Management: Easily track donors and donations in one place.
-Improvement-Oriented: Flexible design for future upgrades and enhancements.
-User-Friendly Experience: Clear navigation and intuitive interface.
+---
 
-Future Improvements:
-- Advanced analytics and reporting tools.
-- Automated notifications for donors and administrators.
-- Enhanced security and privacy features.
-- Multi-language support and improved accessibility.
+## Project Overview
+- App: **dono-app-vol2** — veterinary blood bank operations (dogs/cats donors, blood types, plasma/packed cells, locations).
+- Stack: **React + Vite**, **Capacitor (Android)**. Components in `src/components`, helpers in `src/utils`.
+- Persistence: `localStorage` and JSON export/backup via `@capacitor/filesystem`.
+- Large tables: **react-window** (virtualized lists).
 
-Notes and Recommendations:
-- Regularly review the codebase for optimization opportunities.
-- Keep dependencies up to date for better security and performance.
-- Encourage user feedback to improve usability and add new features.
+### Important paths (don’t change unless asked)
+- `src/components/TablesByLocation.jsx`
+- `src/components/DonorDashboard.jsx`
+- `src/components/ExternalCells.jsx`
+- `src/utils/storage.js`, `src/utils/donorUtils.js`
 
-Installation:
-- Run 'npm install' to install dependencies.
-- Run 'npm start' to start the application.
+### Domain terms / data
+- Dogs: DEA 1.1 ± ; Cats: A/B/AB.
+- Products: Plasma, Packed RBC (PC), Whole blood.
+- Common locations: "Rehovot", "Igud Irim Dan", "Ptahia", "Holon", "External".
+- Storage keys: e.g., `"animal_donors"` — **do not rename**.
 
-Importing JSON Files:
-- Import donor lists in JSON format using the "Table By Location" tab.
-- Ensure your JSON file matches the required structure (see example below).
+---
 
-Example Donor Object Structure:
-{
-  "date": "2025-08-30",
-  "location": "Tel Aviv",
-  "animalName": "Rex",
-  "age": "5",
-  "weight": "22",
-  "gender": "Male",
-  "animalType": "Dog",
-  "bloodType": "DEA 1.1+",
-  "fiv": "",
-  "felv": "",
-  "pcv": "45",
-  "hct": "42",
-  "wbc": "8",
-  "plt": "200",
-  "packedCell": "1",
-  "slideFindings": "",
-  "donated": "Yes",
-  "volume": "450",
-  "notes": "",
-  "isPrivateOwner": false
-}
+## Coding Guidelines
+1) **UI & backward compatibility**
+   - Don’t break internal APIs, component names, or JSON formats.
+   - New labels must be bilingual where relevant (Heb/Eng); respect RTL/LTR.
 
-For questions and support, contact the repository owner.
+2) **React**
+   - Functional components + hooks; no side effects in render (use `useEffect`).
+   - For big data lists, keep **react-window**; add `memo`, `useMemo`, `useCallback` where helpful.
+   - Accessibility: buttons with meaningful `aria-label`.
+
+3) **Capacitor (Android)**
+   - Use `@capacitor/filesystem`; handle runtime permissions (Android 13+).
+   - If writing to `Documents` fails with EACCES, fall back to **Share Intent**.
+   - Keep dependencies light; avoid unnecessary native plugins.
+
+4) **Performance**
+   - Virtualize tables; avoid loading huge JSONs into DOM at once.
+
+5) **Errors & Logs**
+   - Clear error messages; reduce noisy `console.log` in production.
+
+---
+
+## Required Output Footer after every change
+After each code snippet/change, append:
+
+**Windows CMD / PowerShell**
+- commands to install, run Vite, build, or test.
+
+**Git (Conventional Commits)**
+- `git add -A`
+- `git commit -m "type(scope): short message"`
+- `git push`
+
+Examples of `type(scope)`: `feat(donors)`, `fix(storage)`, `perf(table)`, `docs(readme)`, `build/android`, `chore(deps)`.
+
+---
+
+## Examples (templates)
+
+### Adding a new util function
+**CMD/PowerShell**
+```bat
+cd C:\dono-app-vol2
+npm i
+npm run dev
