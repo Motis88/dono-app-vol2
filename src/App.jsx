@@ -10,7 +10,6 @@ const DonorForm = lazy(() => import('./components/DonorForm'));
 const TablesByLocation = lazy(() => import('./components/TablesByLocation'));
 const Dashboard = lazy(() => import('./components/DonorDashboard'));
 const ManualDonorList = lazy(() => import('./components/ManualDonorList'));
-const ExternalCells = lazy(() => import('./components/ExternalCells'));
 
 /**
  * Check if target element is inside a horizontally scrollable element
@@ -97,24 +96,47 @@ const App = () => {
 
   const restoreDonorsFromFile = async () => {
     try {
-      const result = await Filesystem.readFile({
-        path: FILE_NAMES.BACKUP,
-        directory: Directory.Documents,
-        encoding: 'utf8',
-      });
-      
+      let result;
+      let triedData = false;
+      try {
+        result = await Filesystem.readFile({
+          path: FILE_NAMES.BACKUP,
+          directory: Directory.Documents,
+          encoding: 'utf8',
+        });
+      } catch (errDoc) {
+        triedData = true;
+        try {
+          result = await Filesystem.readFile({
+            path: FILE_NAMES.BACKUP,
+            directory: Directory.Data,
+            encoding: 'utf8',
+          });
+        } catch (errData) {
+          if (errData?.message?.includes('permission') || errDoc?.message?.includes('permission')) {
+            alert('❌ Restore failed: Missing storage permissions.');
+            return;
+          }
+          if (errData?.message?.includes('not found') || errDoc?.message?.includes('not found')) {
+            alert('❌ Restore failed: Backup file not found in Documents or Data folder.');
+            return;
+          }
+          alert('❌ Restore failed: ' + (errData?.message || errDoc?.message));
+          return;
+        }
+      }
       const parsed = safeJsonParse(result.data, []);
       if (!Array.isArray(parsed)) {
-        throw new Error('Invalid backup file format');
+        alert('❌ Restore failed: Invalid backup file format.');
+        return;
       }
-      
       const normalized = normalizeDonors(parsed);
       const cleaned = removeExactDuplicates(normalized);
       donorStorage.saveDonors(cleaned);
       window.location.reload();
     } catch (err) {
       console.error("Restore error:", err);
-      alert("😵 Restore failed.");
+      alert("😵 Restore failed: " + (err?.message || err));
     }
   };
 
@@ -144,7 +166,7 @@ const App = () => {
   };
 
   return (
-    <div className="min-h-screen pb-20 bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100">
+    <div className="min-h-screen bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 flex flex-col">
       {/* Top buttons */}
       <div className="flex justify-center mb-6 gap-4 pt-7 md:pt-4" style={{paddingTop: 'env(safe-area-inset-top,2.7rem)'}}>
         <button
@@ -165,21 +187,22 @@ const App = () => {
         </button>
       </div>
 
-      <div className="p-4 pb-4" {...swipeHandlers}>
+      <div className="flex-1 overflow-y-auto p-4 pb-4" {...swipeHandlers}>
         <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>}>
           {view === 'form' && <DonorForm editingDonor={editingDonor} onCancelEdit={handleCancelEdit} onAddDonor={handleAddDonor} />}
           {view === 'table' && <TablesByLocation onEdit={(donor) => { setEditingDonor(donor); setView("form"); }} />}
           {view === 'dashboard' && <Dashboard />}
-          {view === 'manual' && <ManualDonorList />}
-          {view === 'external-cells' && <ExternalCells />}
+          {view === 'manual' && <ManualDonorList onEdit={(donor) => { setEditingDonor(donor); setView('form'); }} />}
         </Suspense>
       </div>
 
       <div
         className="fixed bottom-0 left-0 right-0 bg-white flex justify-around border-t shadow z-50"
         style={{
+          bottom: '16px',
           paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 9px)',
-          minHeight: 58,
+          minHeight: 38,
+          height: 38,
         }}
       >
         <button
@@ -204,11 +227,11 @@ const App = () => {
           <span style={{fontSize: 13, marginTop: 2}}>Dashboard</span>
         </button>
         <button
-          className={`flex-1 flex flex-col items-center py-1 ${view === 'external-cells' ? 'text-blue-600 font-bold' : 'text-gray-500'}`}
-          onClick={() => setView('external-cells')}
+          className={`flex-1 flex flex-col items-center py-1 ${view === 'manual' ? 'text-blue-600 font-bold' : 'text-gray-500'}`}
+          onClick={() => setView('manual')}
         >
           <span style={{fontSize: 22}}>🩸</span>
-          <span style={{fontSize: 13, marginTop: 2}}>External</span>
+          <span style={{fontSize: 13, marginTop: 2}}>Owners</span>
         </button>
       </div>
     </div>

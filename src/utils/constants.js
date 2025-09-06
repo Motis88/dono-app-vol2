@@ -12,7 +12,7 @@ export const FILE_NAMES = {
   BACKUP: 'donor_backup.json'
 };
 
-export const LOCATIONS = ['רחובות', 'איגוד ערים דן', 'פתחיה', 'חולון', 'חיצוני'];
+export const LOCATIONS = ['רחובות', 'איגוד ערים דן', 'פתחיה', 'חולון', 'חיצוני', 'בית עובד'];
 
 export const BLOOD_TYPES = {
   DOG: ['DEA 1.1 Positive', 'DEA 1.1 Negative'],

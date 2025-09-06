@@ -77,8 +77,6 @@ const UpcomingDonors = ({ onEdit }) => {
 
  // --- יש לוודא ש-latestDonors מוגדר למעלה כמו קודם ---
 
-const today = new Date();
-
 const daysBetween = (dateString) => {
   if (!dateString) return 9999;
   const date = new Date(dateString);
@@ -120,7 +118,7 @@ const eligibleDonors = latestDonors.filter(d => {
   };
 
   return (
-    <div className="p-4 max-w-4xl mx-auto text-left">
+  <div className="p-4 max-w-4xl mx-auto text-left">
       <h2 className="text-xl font-bold mb-4 text-center">בע"ח שיכולים לתרום עכשיו</h2>
       {/* מיון לפי מיקום */}
       <div className="mb-4 flex gap-3 items-center">
@@ -178,6 +176,8 @@ const eligibleDonors = latestDonors.filter(d => {
           onMarkDonated={handleMarkDonated}
         />
       )}
+      {/* הודעה קטנה לבדיקה */}
+  {/* ...ההודעה עברה למעלה... */}
     </div>
   );
 };

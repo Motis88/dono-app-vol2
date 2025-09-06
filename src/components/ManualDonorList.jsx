@@ -1,10 +1,9 @@
+
 import React, { useState, useEffect } from "react";
 import { donorStorage } from '../utils/storage.js';
 
-const ManualDonorList = () => {
+const ManualDonorList = ({ onEdit }) => {
   const [donors, setDonors] = useState([]);
-  const [editIdx, setEditIdx] = useState(null);
-  const [editData, setEditData] = useState(null);
   const [showProfile, setShowProfile] = useState(null);
 
   useEffect(() => {
@@ -13,7 +12,24 @@ const ManualDonorList = () => {
 
   const refreshDonors = () => {
     const all = donorStorage.getDonors();
-    setDonors(all.filter(x => x.isPrivateOwner));
+    // For each private owner animal, find its last donation date
+    const privateAnimals = all.filter(x => x.isPrivateOwner).map(animal => {
+      // Find all donations for this animal (by id or by animalName+ownerName)
+      const matches = all.filter(d =>
+        d.isPrivateOwner &&
+        d.animalName === animal.animalName &&
+        d.ownerName === animal.ownerName
+      );
+      // Get the latest date
+      const lastDonation = matches.reduce((latest, d) => {
+        if (d.date && (!latest || new Date(d.date) > new Date(latest))) {
+          return d.date;
+        }
+        return latest;
+      }, null);
+      return { ...animal, donationDate: lastDonation };
+    });
+    setDonors(privateAnimals);
   };
 
   const handleDelete = (index) => {
@@ -34,94 +50,42 @@ const ManualDonorList = () => {
     }
   };
 
-  const handleEdit = (index) => {
-    setEditIdx(index);
-    setEditData({ ...donors[index] });
-  };
-
-  const saveEdit = () => {
-    const all = donorStorage.getDonors();
-    const origIdx = all.findIndex(d =>
-      d.isPrivateOwner &&
-      d.ownerName === donors[editIdx].ownerName &&
-      d.animalName === donors[editIdx].animalName
-    );
-    if (origIdx !== -1) {
-      all[origIdx] = { ...all[origIdx], ...editData };
-      donorStorage.saveDonors(all);
-      setEditIdx(null);
-      setEditData(null);
-      refreshDonors();
-    }
-  };
-
   return (
     <div className="p-4 max-w-4xl mx-auto text-left">
-      <h2 className="text-xl font-bold mb-4 text-center">Private owners</h2>
+      <h2 className="text-xl font-bold mb-4 text-center">Owners</h2>
       <table className="w-full text-sm border border-gray-300 text-center">
         <thead className="bg-gray-100">
           <tr>
-            <th className="border px-2 py-1">שם בעלים</th>
-            <th className="border px-2 py-1">שם בע״ח</th>
-            <th className="border px-2 py-1">טלפון</th>
-            <th className="border px-2 py-1">עריכה</th>
+            <th className="border px-2 py-1">Animal Name</th>
+            <th className="border px-2 py-1">Owner Name</th>
+            <th className="border px-2 py-1">File Number</th>
+            <th className="border px-2 py-1">Phone Number</th>
+            <th className="border px-2 py-1">Actions</th>
           </tr>
         </thead>
         <tbody>
           {donors.length === 0 && (
-            <tr><td colSpan={4} className="text-gray-500 py-4">אין רשומות להציג</td></tr>
+            <tr><td colSpan={6} className="text-gray-500 py-4">No records to show</td></tr>
           )}
           {donors.map((d, i) => (
-            <tr key={i} className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}>
+            <tr
+              key={i}
+              className={i % 2 === 0 ? "bg-white" : "bg-gray-50"}
+              style={{ cursor: "pointer" }}
+              onClick={() => setShowProfile(d)}
+            >
+              <td className="border px-2 py-1">{d.animalName || "-"}</td>
               <td className="border px-2 py-1">{d.ownerName || "-"}</td>
-              <td
-                className="border px-2 py-1 cursor-pointer text-blue-600 underline"
-                onClick={() => setShowProfile(d)}
-                style={{ direction: "rtl" }}
-                title="פתח כרטיס"
-              >
-                {d.animalName}
-              </td>
+              <td className="border px-2 py-1">{d.fileNumber || "-"}</td>
               <td className="border px-2 py-1">{d.ownerPhone || "-"}</td>
-              <td className="border px-2 py-1">
-                <button onClick={() => handleEdit(i)} className="text-blue-600 hover:underline mx-2">ערוך</button>
-                <button onClick={() => handleDelete(i)} className="text-red-600 hover:underline mx-2">מחק</button>
+              <td className="border px-2 py-1" onClick={e => e.stopPropagation()}>
+                <button onClick={() => onEdit(d)} className="text-blue-600 hover:underline mx-2">Edit</button>
+                <button onClick={() => handleDelete(i)} className="text-red-600 hover:underline mx-2">Delete</button>
               </td>
             </tr>
           ))}
         </tbody>
       </table>
-
-      {/* טופס עריכה קופץ */}
-      {editIdx !== null && editData && (
-        <div className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50">
-          <div className="bg-white p-6 rounded shadow w-96">
-            <h3 className="text-lg font-bold mb-4">עריכת בעלים</h3>
-            <input
-              placeholder="שם בעלים"
-              value={editData.ownerName || ""}
-              onChange={e => setEditData(ed => ({ ...ed, ownerName: e.target.value }))}
-              className="mb-2 w-full p-2 border rounded"
-            />
-            <input
-              placeholder="טלפון"
-              value={editData.ownerPhone || ""}
-              onChange={e => setEditData(ed => ({ ...ed, ownerPhone: e.target.value }))}
-              className="mb-2 w-full p-2 border rounded"
-            />
-            <input
-              placeholder='שם בע"ח'
-              value={editData.animalName || ""}
-              onChange={e => setEditData(ed => ({ ...ed, animalName: e.target.value }))}
-              className="mb-2 w-full p-2 border rounded"
-            />
-            <div className="flex gap-2 mt-2">
-              <button onClick={saveEdit} className="bg-green-600 text-white px-4 py-2 rounded">שמור</button>
-              <button onClick={() => { setEditIdx(null); setEditData(null); }} className="bg-gray-400 text-black px-4 py-2 rounded">בטל</button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* פרופיל מלא של בע"ח */}
       {showProfile && (
@@ -129,12 +93,13 @@ const ManualDonorList = () => {
           <div className="bg-white p-6 rounded shadow w-[400px] relative" onClick={e => e.stopPropagation()}>
             <button onClick={() => setShowProfile(null)} className="absolute top-2 left-2 text-xl">&times;</button>
             <h3 className="text-lg font-bold mb-2">{showProfile.animalName}</h3>
-            <div className="mb-2">שם בעלים: {showProfile.ownerName}</div>
-            <div className="mb-2">טלפון: {showProfile.ownerPhone}</div>
-            <div className="mb-2">גיל: {showProfile.age}</div>
-            <div className="mb-2">סוג: {showProfile.animalType}</div>
-            <div className="mb-2">סוג דם: {showProfile.bloodType}</div>
-            <div className="mb-2">הערות: {showProfile.notes}</div>
+            <div className="mb-2">Owner Name: {showProfile.ownerName}</div>
+            <div className="mb-2">File Number: {showProfile.fileNumber}</div>
+            <div className="mb-2">Phone Number: {showProfile.ownerPhone}</div>
+            <div className="mb-2">Age: {showProfile.age}</div>
+            <div className="mb-2">Type: {showProfile.animalType}</div>
+            <div className="mb-2">Blood Type: {showProfile.bloodType}</div>
+            <div className="mb-2">Notes: {showProfile.notes}</div>
           </div>
         </div>
       )}

@@ -26,10 +26,12 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
     volume: "",
     notes: "",
     isPrivateOwner: false,
+    ownerName: "",
+    fileNumber: "",
+    ownerPhone: "",
   });
 
   const [validationErrors, setValidationErrors] = useState([]);
-
   useEffect(() => {
     if (editingDonor) {
       setFormData(editingDonor);
@@ -59,16 +61,15 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
         ...(name === "animalType" ? { bloodType: "", fiv: "", felv: "" } : {}),
       };
 
-      // Save location and date to localStorage for convenience
-      if (name === "location" && typeof finalValue === 'string') {
-        donorStorage.saveLastLocation(finalValue);
-      }
-      if (name === "date" && typeof finalValue === 'string') {
-        donorStorage.saveLastDate(finalValue);
-      }
-      
-      return newForm;
-    });
+    // Save location and date to localStorage for convenience
+    if (name === "location") {
+      donorStorage.saveLastLocation(finalValue);
+    }
+    if (name === "date" && typeof finalValue === 'string') {
+      donorStorage.saveLastDate(finalValue);
+    }
+    return newForm;
+  });
 
     // Clear validation errors when user starts fixing them
     if (validationErrors.length > 0) {
@@ -86,13 +87,23 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
       return;
     }
 
-    // Sanitize form data before submission
+    // Sanitize donor data before submitting
     const sanitizedData = sanitizeDonor(formData);
-    
-    if (onAddDonor) {
-      onAddDonor(sanitizedData);
+
+    if (formData.isPrivateOwner) {
+      sanitizedData.ownerName = formData.ownerName || "";
+      sanitizedData.fileNumber = formData.fileNumber || "";
+      sanitizedData.ownerPhone = formData.ownerPhone || "";
+    } else {
+      sanitizedData.ownerName = "";
+      sanitizedData.fileNumber = "";
+      sanitizedData.ownerPhone = "";
     }
     
+    if (onAddDonor) {
+  if (onAddDonor) {
+    onAddDonor(sanitizedData);
+  }
     // Save location and date for next time
     if (sanitizedData.location) {
       donorStorage.saveLastLocation(sanitizedData.location);
@@ -102,7 +113,8 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
     }
     
     // Reset form
-    resetForm();
+      resetForm();
+    }
   };
 
   const resetForm = () => {
@@ -127,14 +139,16 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
       volume: "",
       notes: "",
       isPrivateOwner: false,
+      ownerName: "",
+      fileNumber: "",
+      ownerPhone: "",
     });
     setValidationErrors([]);
   };
 
   return (
-    <div className="max-w-5xl mx-auto p-6 bg-white rounded-lg shadow border border-gray-300">
+    <div className="max-w-5xl mx-auto p-6 bg-white rounded-lg shadow border border-gray-300 pb-24">
       <h2 className="text-2xl font-bold text-center mb-6">Donor Form</h2>
-      
       {/* Validation Errors */}
       {validationErrors.length > 0 && (
         <div className="mb-4 p-4 bg-red-100 border border-red-400 rounded">
@@ -146,9 +160,7 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
           </ul>
         </div>
       )}
-      
       <form onSubmit={handleSubmit} className="space-y-4">
-
         {/* Date & Location */}
         <div className="grid grid-cols-2 gap-4">
           <div className="relative">
@@ -178,13 +190,11 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
             {LOCATIONS.map(loc => <option key={loc} value={loc}>{loc}</option>)}
           </select>
         </div>
-
         {/* Animal Name & Weight */}
         <div className="grid grid-cols-2 gap-4">
           <input name="animalName" placeholder="Animal Name" value={formData.animalName} onChange={handleChange} required className="p-2 h-12 border rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition" />
           <input name="weight" placeholder="Weight" value={formData.weight} onChange={handleChange} type="number" step="any" className="p-2 h-12 border rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition" />
         </div>
-
         {/* Age & Gender */}
         <div className="grid grid-cols-2 gap-4">
           <input name="age" placeholder="Age" value={formData.age} onChange={handleChange} type="number" step="any" className="p-2 h-12 border rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition" />
@@ -216,7 +226,6 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
             </div>
           </div>
         </div>
-
         {/* Animal Type (Dog/Cat) — רדיו */}
         <div className="flex flex-col gap-2">
           <span className="font-semibold">Animal Type:</span>
@@ -245,7 +254,6 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
             </label>
           </div>
         </div>
-
         {/* Blood Type — רדיו לפי Animal Type */}
         {formData.animalType && (
           <div className="flex flex-col gap-2">
@@ -267,14 +275,13 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
             </div>
           </div>
         )}
-
         {/* FIV & FeLV (רק לחתול) */}
         {formData.animalType === 'Cat' && (
           <div className="grid grid-cols-2 gap-4">
             <div className="flex flex-col gap-2">
               <span className="font-semibold">FIV Status:</span>
               <div className="flex flex-wrap gap-4 p-2 border rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
-                {["Negative", "Positive"].map(status => (
+                {['Negative', 'Positive'].map(status => (
                   <label key={status} className="flex items-center">
                     <input
                       type="radio"
@@ -292,7 +299,7 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
             <div className="flex flex-col gap-2">
               <span className="font-semibold">FeLV Status:</span>
               <div className="flex flex-wrap gap-4 p-2 border rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
-                {["Negative", "Positive"].map(status => (
+                {['Negative', 'Positive'].map(status => (
                   <label key={status} className="flex items-center">
                     <input
                       type="radio"
@@ -309,7 +316,6 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
             </div>
           </div>
         )}
-
         {/* PCV, HCT, WBC, PLT */}
         <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
           <input name="pcv" type="number" step="any" value={formData.pcv} onChange={handleChange} placeholder="PCV" className="p-2 h-12 border rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition" />
@@ -317,10 +323,8 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
           <input name="wbc" type="number" step="any" value={formData.wbc} onChange={handleChange} placeholder="WBC" className="p-2 h-12 border rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition" />
           <input name="plt" type="number" step="any" value={formData.plt} onChange={handleChange} placeholder="PLT" className="p-2 h-12 border rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition" />
         </div>
-
         <input name="packedCell" placeholder="Packed Cell" value={formData.packedCell} onChange={handleChange} type="number" className="p-2 h-12 border rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition" />
         <input name="slideFindings" placeholder="Slide Findings" value={formData.slideFindings} onChange={handleChange} className="p-2 h-12 border rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition" />
-
         {/* Donated? רדיו */}
         <div className="flex flex-col gap-2">
           <span className="font-semibold">Donated?</span>
@@ -358,9 +362,7 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
           inputMode="numeric"
           className="p-2 h-12 border rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
         />
-
         <textarea name="notes" placeholder="Notes" value={formData.notes} onChange={handleChange} rows={2} className="p-2 border rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition md:col-span-2" />
-
         {/* === צ'קבוקס "בעלים פרטי" ממש לפני ה-Submit === */}
         <div className="flex items-center mt-4">
           <input
@@ -379,7 +381,6 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
           <label htmlFor="isPrivateOwner">בעלים פרטי</label>
         </div>
         {/* === סוף תוספת === */}
-
         {editingDonor ? (
           <div className="grid grid-cols-2 gap-2 md:col-span-2 mt-2">
             <button type="submit" className="bg-green-600 text-white py-3 rounded w-full hover:bg-green-700">Save</button>
@@ -394,9 +395,9 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
 };
 
 DonorForm.propTypes = {
-  onAddDonor: PropTypes.func.isRequired,
+  onAddDonor: PropTypes.func,
   editingDonor: PropTypes.object,
-  onCancelEdit: PropTypes.func.isRequired,
+  onCancelEdit: PropTypes.func,
 };
 
 export default DonorForm;
