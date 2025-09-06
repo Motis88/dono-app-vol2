@@ -13,7 +13,7 @@
     "@capacitor/cli": "^7.2.0",
     "@capacitor/core": "^7.2.0",
     "@capacitor/filesystem": "^7.1.1",
-    "@capacitor/share": "^7.0.1",
+    "@capacitor/share": "^7.0.2",
     "@tanstack/react-table": "^8.21.3",
     "papaparse": "^5.5.3",
     "prop-types": "^15.8.1",

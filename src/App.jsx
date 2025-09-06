@@ -4,6 +4,7 @@ import { useSwipeable } from 'react-swipeable';
 import { VIEWS, FILE_NAMES } from './utils/constants.js';
 import { donorStorage, safeJsonParse } from './utils/storage.js';
 import { normalizeDonors, removeExactDuplicates } from './utils/donorUtils.js';
+import { Share } from '@capacitor/share';
 
 // Lazy load components to reduce bundle size
 const DonorForm = lazy(() => import('./components/DonorForm'));
@@ -78,16 +79,35 @@ const App = () => {
         if (showAlert) alert("⛔ No data to backup.");
         return;
       }
-      
       const dataString = JSON.stringify(donors);
-      await Filesystem.writeFile({
-        path: FILE_NAMES.BACKUP,
-        data: dataString,
-        directory: Directory.Documents,
-        encoding: 'utf8',
-      });
-      
-      if (showAlert) alert("📦 Backup saved in Documents folder!");
+      try {
+        // גיבוי ל-Directory.Data (לא Documents)
+        await Filesystem.writeFile({
+          path: FILE_NAMES.BACKUP,
+          data: dataString,
+          directory: Directory.Data,
+          encoding: 'utf8',
+        });
+        if (showAlert) alert(`📦 Backup saved! Total donors: ${donors.length}`);
+      } catch (err) {
+        // Fallback: שיתוף קובץ אם יש שגיאת הרשאה
+        if (err?.message?.includes('EACCES') || err?.message?.includes('Permission denied')) {
+          if (showAlert) alert('אין הרשאה לכתיבה ל-Data. משתף קובץ דרך מערכת השיתוף.');
+          try {
+            await Share.share({
+              title: 'Donor Backup',
+              text: `Backup file with ${donors.length} donors`,
+              url: `data:application/json;base64,${btoa(unescape(encodeURIComponent(dataString)))}`,
+              dialogTitle: 'Share Donor Backup File',
+            });
+          } catch (shareErr) {
+            alert('שיתוף הקובץ נכשל: ' + (shareErr?.message || shareErr));
+          }
+        } else {
+          console.error("Backup error:", err);
+          if (showAlert) alert("😵 Backup failed.");
+        }
+      }
     } catch (err) {
       console.error("Backup error:", err);
       if (showAlert) alert("😵 Backup failed.");
@@ -133,6 +153,7 @@ const App = () => {
       const normalized = normalizeDonors(parsed);
       const cleaned = removeExactDuplicates(normalized);
       donorStorage.saveDonors(cleaned);
+      alert(`✅ Restore succeeded! Total donors restored: ${cleaned.length}`);
       window.location.reload();
     } catch (err) {
       console.error("Restore error:", err);

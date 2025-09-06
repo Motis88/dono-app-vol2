@@ -373,13 +373,39 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
             onChange={e =>
               setFormData(prev => ({
                 ...prev,
-                isPrivateOwner: e.target.checked
+                isPrivateOwner: e.target.checked,
+                // פותח את הרובריקות רק כאשר מסומן
+                ownerName: e.target.checked ? prev.ownerName : "",
+                fileNumber: e.target.checked ? prev.fileNumber : "",
+                ownerPhone: e.target.checked ? prev.ownerPhone : ""
               }))
             }
             className="mr-2"
           />
           <label htmlFor="isPrivateOwner">בעלים פרטי</label>
         </div>
+        {formData.isPrivateOwner && (
+          <div className="grid grid-cols-2 gap-4 mt-4 mb-4">
+            <input
+              placeholder="Owner Name"
+              value={formData.ownerName || ""}
+              onChange={e => setFormData(f => ({ ...f, ownerName: e.target.value }))}
+              className="p-2 h-12 border rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+            />
+            <input
+              placeholder="File Number"
+              value={formData.fileNumber || ""}
+              onChange={e => setFormData(f => ({ ...f, fileNumber: e.target.value }))}
+              className="p-2 h-12 border rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+            />
+            <input
+              placeholder="Phone Number"
+              value={formData.ownerPhone || ""}
+              onChange={e => setFormData(f => ({ ...f, ownerPhone: e.target.value }))}
+              className="p-2 h-12 border rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+            />
+          </div>
+        )}
         {/* === סוף תוספת === */}
         {editingDonor ? (
           <div className="grid grid-cols-2 gap-2 md:col-span-2 mt-2">
