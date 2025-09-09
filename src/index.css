@@ -6,3 +6,18 @@
 body {
   background: #f8fafc; /* תכלת אפור מודרני */
 }
+
+@layer components {
+  .btn-primary {
+    @apply px-5 py-3 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-lg transition-colors;
+  }
+  .btn-secondary {
+    @apply px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium transition;
+  }
+  .card {
+    @apply bg-white p-6 rounded-2xl shadow-md;
+  }
+  .input-field {
+    @apply border border-gray-300 rounded px-4 py-2 w-full;
+  }
+}
