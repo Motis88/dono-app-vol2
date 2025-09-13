@@ -1,0 +1,37 @@
+From efeab7735a6bdc01c34c4841720341d929fcb16f Mon Sep 17 00:00:00 2001
+From: moti <moti@example.com>
+Date: Tue, 9 Sep 2025 09:49:53 +0000
+Subject: [PATCH] added Tailwind reusable components
+
+---
+ src/index.css | 15 +++++++++++++++
+ 1 file changed, 15 insertions(+)
+
+diff --git a/src/index.css b/src/index.css
+index 98d32dd..35bf995 100644
+--- a/src/index.css
++++ b/src/index.css
+@@ -5,4 +5,19 @@
+ /* בדיקה משלך, שיהיה ברור מה קורה */
+ body {
+   background: #f8fafc; /* תכלת אפור מודרני */
++}
++
++@layer components {
++  .btn-primary {
++    @apply px-5 py-3 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-lg transition-colors;
++  }
++  .btn-secondary {
++    @apply px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 text-gray-800 font-medium transition;
++  }
++  .card {
++    @apply bg-white p-6 rounded-2xl shadow-md;
++  }
++  .input-field {
++    @apply border border-gray-300 rounded px-4 py-2 w-full;
++  }
+ }
+\ No newline at end of file
+-- 
+2.39.2
+

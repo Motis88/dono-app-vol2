@@ -32,6 +32,7 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
   });
 
   const [validationErrors, setValidationErrors] = useState([]);
+
   useEffect(() => {
     if (editingDonor) {
       setFormData(editingDonor);
@@ -101,9 +102,9 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
     }
     
     if (onAddDonor) {
-  if (onAddDonor) {
-    onAddDonor(sanitizedData);
-  }
+      onAddDonor(sanitizedData);
+    }
+    
     // Save location and date for next time
     if (sanitizedData.location) {
       donorStorage.saveLastLocation(sanitizedData.location);
@@ -112,7 +113,13 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
       donorStorage.saveLastDate(sanitizedData.date);
     }
     
-    // Reset form
+    // Clear validation errors after successful submission
+    if (validationErrors.length > 0) {
+      setValidationErrors([]);
+    }
+
+    if (!editingDonor) {
+      // Reset form
       resetForm();
     }
   };
@@ -147,22 +154,22 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
   };
 
   return (
-    <div className="max-w-5xl mx-auto p-6 bg-white rounded-lg shadow border border-gray-300 pb-24">
-      <h2 className="text-2xl font-bold text-center mb-6">Donor Form</h2>
+    <div className="max-w-7xl mx-auto p-3 sm:p-6 lg:p-8 bg-white rounded-lg sm:rounded-2xl shadow-xl sm:shadow-2xl border border-gray-200 pb-20 sm:pb-24">
+      <h2 className="text-2xl sm:text-3xl font-bold text-center mb-6 sm:mb-8 text-gray-800 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Donor Form</h2>
       {/* Validation Errors */}
       {validationErrors.length > 0 && (
-        <div className="mb-4 p-4 bg-red-100 border border-red-400 rounded">
-          <h3 className="font-bold text-red-800 mb-2">Please fix the following errors:</h3>
-          <ul className="list-disc list-inside text-red-700">
+        <div className="mb-4 sm:mb-6 p-3 sm:p-5 bg-red-50 border border-red-200 rounded-lg sm:rounded-xl shadow-sm">
+          <h3 className="font-bold text-red-800 mb-2 sm:mb-3 text-sm sm:text-base">Please fix the following errors:</h3>
+          <ul className="list-disc list-inside text-red-700 space-y-1 text-sm sm:text-base">
             {validationErrors.map((error, index) => (
               <li key={index}>{error}</li>
             ))}
           </ul>
         </div>
       )}
-      <form onSubmit={handleSubmit} className="space-y-4">
+      <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
         {/* Date & Location */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
           <div className="relative">
             <input
               id="date"
@@ -171,10 +178,10 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
               value={formData.date}
               onChange={handleChange}
               required
-              className="p-2 h-12 border rounded w-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 transition peer"
+              className="p-3 sm:p-4 h-12 sm:h-14 border-2 border-gray-300 rounded-lg sm:rounded-xl w-full text-sm focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 focus:border-blue-500 transition-all duration-200 peer bg-gray-50 hover:bg-white"
             />
             {!formData.date && (
-              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none select-none">
+              <span className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none select-none">
                 Date
               </span>
             )}
@@ -184,92 +191,92 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
             value={formData.location}
             onChange={handleChange}
             required
-            className="p-2 h-12 border rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+            className="p-3 sm:p-4 h-12 sm:h-14 border-2 border-gray-300 rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 focus:border-blue-500 transition-all duration-200 bg-gray-50 hover:bg-white"
           >
             <option value="">Select Location</option>
             {LOCATIONS.map(loc => <option key={loc} value={loc}>{loc}</option>)}
           </select>
         </div>
         {/* Animal Name & Weight */}
-        <div className="grid grid-cols-2 gap-4">
-          <input name="animalName" placeholder="Animal Name" value={formData.animalName} onChange={handleChange} required className="p-2 h-12 border rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition" />
-          <input name="weight" placeholder="Weight" value={formData.weight} onChange={handleChange} type="number" step="any" className="p-2 h-12 border rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition" />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+          <input name="animalName" placeholder="Animal Name" value={formData.animalName} onChange={handleChange} required className="p-3 sm:p-4 h-12 sm:h-14 border-2 border-gray-300 rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 focus:border-blue-500 transition-all duration-200 bg-gray-50 hover:bg-white placeholder-gray-500" />
+          <input name="weight" placeholder="Weight" value={formData.weight} onChange={handleChange} type="number" step="any" className="p-3 sm:p-4 h-12 sm:h-14 border-2 border-gray-300 rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 focus:border-blue-500 transition-all duration-200 bg-gray-50 hover:bg-white placeholder-gray-500" />
         </div>
         {/* Age & Gender */}
-        <div className="grid grid-cols-2 gap-4">
-          <input name="age" placeholder="Age" value={formData.age} onChange={handleChange} type="number" step="any" className="p-2 h-12 border rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition" />
-          <div className="flex flex-col gap-2 justify-center">
-            <div className="font-semibold">Gender:</div>
-            <div className="flex flex-wrap gap-4">
-              <label className="flex items-center">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+          <input name="age" placeholder="Age" value={formData.age} onChange={handleChange} type="number" step="any" className="p-3 sm:p-4 h-12 sm:h-14 border-2 border-gray-300 rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 focus:border-blue-500 transition-all duration-200 bg-gray-50 hover:bg-white placeholder-gray-500" />
+          <div className="flex flex-col gap-2 sm:gap-3 justify-center">
+            <div className="font-semibold text-gray-700 text-sm sm:text-base">Gender:</div>
+            <div className="flex flex-wrap gap-4 sm:gap-6">
+              <label className="flex items-center cursor-pointer">
                 <input
                   type="radio"
                   name="gender"
                   value="Male"
                   checked={formData.gender === "Male"}
                   onChange={handleChange}
-                  className="mr-1"
+                  className="mr-2 w-4 h-4 text-blue-600"
                 />
-                Male
+                <span className="text-gray-700 text-sm sm:text-base">Male</span>
               </label>
-              <label className="flex items-center">
+              <label className="flex items-center cursor-pointer">
                 <input
                   type="radio"
                   name="gender"
                   value="Female"
                   checked={formData.gender === "Female"}
                   onChange={handleChange}
-                  className="mr-1"
+                  className="mr-2 w-4 h-4 text-blue-600"
                 />
-                Female
+                <span className="text-gray-700 text-sm sm:text-base">Female</span>
               </label>
             </div>
           </div>
         </div>
         {/* Animal Type (Dog/Cat) — רדיו */}
-        <div className="flex flex-col gap-2">
-          <span className="font-semibold">Animal Type:</span>
-          <div className="flex flex-wrap gap-6 p-2 border rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
-            <label className="flex items-center">
+        <div className="flex flex-col gap-2 sm:gap-3">
+          <span className="font-semibold text-gray-700 text-sm sm:text-base">Animal Type:</span>
+          <div className="flex flex-wrap gap-6 sm:gap-8 p-3 sm:p-4 border-2 border-gray-300 rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 focus:border-blue-500 transition-all duration-200 bg-gray-50 hover:bg-white">
+            <label className="flex items-center cursor-pointer">
               <input
                 type="radio"
                 name="animalType"
                 value="Dog"
                 checked={formData.animalType === "Dog"}
                 onChange={handleChange}
-                className="mr-1"
+                className="mr-2 sm:mr-3 w-4 h-4 text-blue-600"
               />
-              Dog
+              <span className="text-gray-700 text-sm sm:text-base">Dog</span>
             </label>
-            <label className="flex items-center">
+            <label className="flex items-center cursor-pointer">
               <input
                 type="radio"
                 name="animalType"
                 value="Cat"
                 checked={formData.animalType === "Cat"}
                 onChange={handleChange}
-                className="mr-1"
+                className="mr-2 sm:mr-3 w-4 h-4 text-blue-600"
               />
-              Cat
+              <span className="text-gray-700 text-sm sm:text-base">Cat</span>
             </label>
           </div>
         </div>
         {/* Blood Type — רדיו לפי Animal Type */}
         {formData.animalType && (
-          <div className="flex flex-col gap-2">
-            <span className="font-semibold">Blood Type:</span>
-            <div className="flex flex-wrap gap-6 p-2 border rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+          <div className="flex flex-col gap-2 sm:gap-3">
+            <span className="font-semibold text-gray-700 text-sm sm:text-base">Blood Type:</span>
+            <div className="flex flex-wrap gap-4 sm:gap-8 p-3 sm:p-4 border-2 border-gray-300 rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 focus:border-blue-500 transition-all duration-200 bg-gray-50 hover:bg-white">
               {(formData.animalType === "Dog" ? BLOOD_TYPES.DOG : formData.animalType === "Cat" ? BLOOD_TYPES.CAT : []).map(type => (
-                <label key={type} className="flex items-center">
+                <label key={type} className="flex items-center cursor-pointer">
                   <input
                     type="radio"
                     name="bloodType"
                     value={type}
                     checked={formData.bloodType === type}
                     onChange={handleChange}
-                    className="mr-1"
+                    className="mr-2 sm:mr-3 w-4 h-4 text-blue-600"
                   />
-                  {type}
+                  <span className="text-gray-700 text-xs sm:text-base">{type}</span>
                 </label>
               ))}
             </div>
@@ -277,39 +284,39 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
         )}
         {/* FIV & FeLV (רק לחתול) */}
         {formData.animalType === 'Cat' && (
-          <div className="grid grid-cols-2 gap-4">
-            <div className="flex flex-col gap-2">
-              <span className="font-semibold">FIV Status:</span>
-              <div className="flex flex-wrap gap-4 p-2 border rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+            <div className="flex flex-col gap-2 sm:gap-3">
+              <span className="font-semibold text-gray-700 text-sm sm:text-base">FIV Status:</span>
+              <div className="flex flex-wrap gap-4 sm:gap-6 p-3 sm:p-4 border-2 border-gray-300 rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 focus:border-blue-500 transition-all duration-200 bg-gray-50 hover:bg-white">
                 {['Negative', 'Positive'].map(status => (
-                  <label key={status} className="flex items-center">
+                  <label key={status} className="flex items-center cursor-pointer">
                     <input
                       type="radio"
                       name="fiv"
                       value={status}
                       checked={formData.fiv === status}
                       onChange={handleChange}
-                      className="mr-1"
+                      className="mr-2 sm:mr-3 w-4 h-4 text-blue-600"
                     />
-                    {status}
+                    <span className="text-gray-700 text-sm sm:text-base">{status}</span>
                   </label>
                 ))}
               </div>
             </div>
-            <div className="flex flex-col gap-2">
-              <span className="font-semibold">FeLV Status:</span>
-              <div className="flex flex-wrap gap-4 p-2 border rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+            <div className="flex flex-col gap-2 sm:gap-3">
+              <span className="font-semibold text-gray-700 text-sm sm:text-base">FeLV Status:</span>
+              <div className="flex flex-wrap gap-4 sm:gap-6 p-3 sm:p-4 border-2 border-gray-300 rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 focus:border-blue-500 transition-all duration-200 bg-gray-50 hover:bg-white">
                 {['Negative', 'Positive'].map(status => (
-                  <label key={status} className="flex items-center">
+                  <label key={status} className="flex items-center cursor-pointer">
                     <input
                       type="radio"
                       name="felv"
                       value={status}
                       checked={formData.felv === status}
                       onChange={handleChange}
-                      className="mr-1"
+                      className="mr-2 sm:mr-3 w-4 h-4 text-blue-600"
                     />
-                    {status}
+                    <span className="text-gray-700 text-sm sm:text-base">{status}</span>
                   </label>
                 ))}
               </div>
@@ -317,39 +324,39 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
           </div>
         )}
         {/* PCV, HCT, WBC, PLT */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          <input name="pcv" type="number" step="any" value={formData.pcv} onChange={handleChange} placeholder="PCV" className="p-2 h-12 border rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition" />
-          <input name="hct" type="number" step="any" value={formData.hct} onChange={handleChange} placeholder="HCT" className="p-2 h-12 border rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition" />
-          <input name="wbc" type="number" step="any" value={formData.wbc} onChange={handleChange} placeholder="WBC" className="p-2 h-12 border rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition" />
-          <input name="plt" type="number" step="any" value={formData.plt} onChange={handleChange} placeholder="PLT" className="p-2 h-12 border rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
+          <input name="pcv" type="number" step="any" value={formData.pcv} onChange={handleChange} placeholder="PCV" className="p-3 sm:p-4 h-12 sm:h-14 border-2 border-gray-300 rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 focus:border-blue-500 transition-all duration-200 bg-gray-50 hover:bg-white placeholder-gray-500" />
+          <input name="hct" type="number" step="any" value={formData.hct} onChange={handleChange} placeholder="HCT" className="p-3 sm:p-4 h-12 sm:h-14 border-2 border-gray-300 rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 focus:border-blue-500 transition-all duration-200 bg-gray-50 hover:bg-white placeholder-gray-500" />
+          <input name="wbc" type="number" step="any" value={formData.wbc} onChange={handleChange} placeholder="WBC" className="p-3 sm:p-4 h-12 sm:h-14 border-2 border-gray-300 rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 focus:border-blue-500 transition-all duration-200 bg-gray-50 hover:bg-white placeholder-gray-500" />
+          <input name="plt" type="number" step="any" value={formData.plt} onChange={handleChange} placeholder="PLT" className="p-3 sm:p-4 h-12 sm:h-14 border-2 border-gray-300 rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 focus:border-blue-500 transition-all duration-200 bg-gray-50 hover:bg-white placeholder-gray-500" />
         </div>
-        <input name="packedCell" placeholder="Packed Cell" value={formData.packedCell} onChange={handleChange} type="number" className="p-2 h-12 border rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition" />
-        <input name="slideFindings" placeholder="Slide Findings" value={formData.slideFindings} onChange={handleChange} className="p-2 h-12 border rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition" />
+        <input name="packedCell" placeholder="Packed Cell" value={formData.packedCell} onChange={handleChange} type="number" className="p-3 sm:p-4 h-12 sm:h-14 border-2 border-gray-300 rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 focus:border-blue-500 transition-all duration-200 bg-gray-50 hover:bg-white placeholder-gray-500" />
+        <input name="slideFindings" placeholder="Slide Findings" value={formData.slideFindings} onChange={handleChange} className="p-3 sm:p-4 h-12 sm:h-14 border-2 border-gray-300 rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 focus:border-blue-500 transition-all duration-200 bg-gray-50 hover:bg-white placeholder-gray-500" />
         {/* Donated? רדיו */}
-        <div className="flex flex-col gap-2">
-          <span className="font-semibold">Donated?</span>
-          <div className="flex flex-wrap gap-6 p-2 border rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
-            <label className="flex items-center">
+        <div className="flex flex-col gap-2 sm:gap-3">
+          <span className="font-semibold text-gray-700 text-sm sm:text-base">Donated?</span>
+          <div className="flex flex-wrap gap-4 sm:gap-8 p-3 sm:p-4 border-2 border-gray-300 rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 focus:border-blue-500 transition-all duration-200 bg-gray-50 hover:bg-white">
+            <label className="flex items-center cursor-pointer">
               <input
                 type="radio"
                 name="donated"
                 value="Yes"
                 checked={formData.donated === "Yes"}
                 onChange={handleChange}
-                className="mr-1"
+                className="mr-2 sm:mr-3 w-4 h-4 text-blue-600"
               />
-              Yes
+              <span className="text-gray-700 text-sm sm:text-base">Yes</span>
             </label>
-            <label className="flex items-center">
+            <label className="flex items-center cursor-pointer">
               <input
                 type="radio"
                 name="donated"
                 value="No"
                 checked={formData.donated === "No"}
                 onChange={handleChange}
-                className="mr-1"
+                className="mr-2 sm:mr-3 w-4 h-4 text-blue-600"
               />
-              No
+              <span className="text-gray-700 text-sm sm:text-base">No</span>
             </label>
           </div>
         </div>
@@ -360,11 +367,11 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
           onChange={handleChange}
           type="number"
           inputMode="numeric"
-          className="p-2 h-12 border rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+          className="p-3 sm:p-4 h-12 sm:h-14 border-2 border-gray-300 rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 focus:border-blue-500 transition-all duration-200 bg-gray-50 hover:bg-white placeholder-gray-500"
         />
-        <textarea name="notes" placeholder="Notes" value={formData.notes} onChange={handleChange} rows={2} className="p-2 border rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition md:col-span-2" />
+        <textarea name="notes" placeholder="Notes" value={formData.notes} onChange={handleChange} rows={3} className="p-3 sm:p-4 border-2 border-gray-300 rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 focus:border-blue-500 transition-all duration-200 bg-gray-50 hover:bg-white placeholder-gray-500 md:col-span-2 resize-none" />
         {/* === צ'קבוקס "בעלים פרטי" ממש לפני ה-Submit === */}
-        <div className="flex items-center mt-4">
+        <div className="flex items-center mt-4 sm:mt-6 p-3 sm:p-4 bg-blue-50 rounded-lg sm:rounded-xl border-2 border-blue-200">
           <input
             type="checkbox"
             id="isPrivateOwner"
@@ -380,40 +387,56 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
                 ownerPhone: e.target.checked ? prev.ownerPhone : ""
               }))
             }
-            className="mr-2"
+            className="mr-2 sm:mr-3 w-4 sm:w-5 h-4 sm:h-5 text-blue-600"
           />
-          <label htmlFor="isPrivateOwner">בעלים פרטי</label>
+          <label htmlFor="isPrivateOwner" className="font-semibold text-gray-700 cursor-pointer text-sm sm:text-base">בעלים פרטי</label>
         </div>
         {formData.isPrivateOwner && (
-          <div className="grid grid-cols-2 gap-4 mt-4 mb-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mt-3 sm:mt-4 mb-3 sm:mb-4 p-4 sm:p-6 bg-gray-50 rounded-lg sm:rounded-xl border-2 border-gray-200">
             <input
               placeholder="Owner Name"
               value={formData.ownerName || ""}
               onChange={e => setFormData(f => ({ ...f, ownerName: e.target.value }))}
-              className="p-2 h-12 border rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+              className="p-3 sm:p-4 h-12 sm:h-14 border-2 border-gray-300 rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 focus:border-blue-500 transition-all duration-200 bg-white hover:bg-gray-50 placeholder-gray-500"
             />
             <input
               placeholder="File Number"
               value={formData.fileNumber || ""}
               onChange={e => setFormData(f => ({ ...f, fileNumber: e.target.value }))}
-              className="p-2 h-12 border rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+              className="p-3 sm:p-4 h-12 sm:h-14 border-2 border-gray-300 rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 focus:border-blue-500 transition-all duration-200 bg-white hover:bg-gray-50 placeholder-gray-500"
             />
             <input
               placeholder="Phone Number"
               value={formData.ownerPhone || ""}
               onChange={e => setFormData(f => ({ ...f, ownerPhone: e.target.value }))}
-              className="p-2 h-12 border rounded w-full focus:outline-none focus:ring-2 focus:ring-blue-500 transition"
+              className="p-3 sm:p-4 h-12 sm:h-14 border-2 border-gray-300 rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 focus:border-blue-500 transition-all duration-200 bg-white hover:bg-gray-50 placeholder-gray-500"
             />
           </div>
         )}
         {/* === סוף תוספת === */}
         {editingDonor ? (
-          <div className="grid grid-cols-2 gap-2 md:col-span-2 mt-2">
-            <button type="submit" className="bg-green-600 text-white py-3 rounded w-full hover:bg-green-700">Save</button>
-            <button type="button" onClick={onCancelEdit} className="bg-gray-400 text-black py-3 rounded w-full hover:bg-gray-500">Cancel</button>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 md:col-span-2 mt-6 sm:mt-8 pt-4 sm:pt-6 border-t-2 border-gray-200">
+            <button 
+              type="submit" 
+              className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white py-3 sm:py-4 px-6 sm:px-8 rounded-lg sm:rounded-xl w-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 text-sm sm:text-base"
+            >
+              Save
+            </button>
+            <button 
+              type="button" 
+              onClick={onCancelEdit} 
+              className="bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white py-3 sm:py-4 px-6 sm:px-8 rounded-lg sm:rounded-xl w-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 text-sm sm:text-base"
+            >
+              Cancel
+            </button>
           </div>
         ) : (
-          <button type="submit" className="md:col-span-2 w-full bg-black text-white py-3 rounded hover:bg-gray-800 mt-2">Submit</button>
+          <button 
+            type="submit" 
+            className="md:col-span-2 w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-3 sm:py-4 px-6 sm:px-8 rounded-lg sm:rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 mt-6 sm:mt-8 text-sm sm:text-base"
+          >
+            Submit
+          </button>
         )}
       </form>
     </div>

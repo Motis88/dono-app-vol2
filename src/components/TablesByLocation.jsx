@@ -131,7 +131,22 @@ const TablesByLocation = ({ onEdit }) => {
       try {
         const imported = safeJsonParse(e.target.result, null);
         if (Array.isArray(imported)) {
-          const withIds = imported.map(withStableId);
+          const withIds = imported.map(item => {
+            const normalized = withStableId(item);
+            // Fix the donated field to ensure proper values - more thorough check
+            if (normalized.donated !== undefined && normalized.donated !== null) {
+              const donatedValue = normalized.donated.toString().trim().toLowerCase();
+              if (donatedValue === 'yes' || donatedValue === 'true' || donatedValue === '1' || donatedValue === 'כן') {
+                normalized.donated = 'Yes';
+              } else if (donatedValue === 'no' || donatedValue === 'false' || donatedValue === '0' || donatedValue === 'לא') {
+                normalized.donated = 'No';
+              } else if (donatedValue !== 'yes' && donatedValue !== 'no') {
+                // Keep the original capitalized format if it's already correct
+                normalized.donated = normalized.donated.toString().trim();
+              }
+            }
+            return normalized;
+          });
           const merged = dedupeById([...donors, ...withIds]);
           setDonors(merged);
           donorStorage.saveDonors(merged);
@@ -154,14 +169,14 @@ const TablesByLocation = ({ onEdit }) => {
   const closeModal = () => setSelectedDonor(null);
 
   return (
-    <div className="p-4">
-      <h2 className="text-xl font-bold text-center mb-4">Tables by Location</h2>
+    <div className="p-4 max-w-7xl mx-auto">
+      {/* Removed the testing message line */}
 
       {/* Import JSON */}
-      <div className="flex flex-wrap justify-center gap-4 mb-4">
+      <div className="flex flex-wrap justify-center gap-4 mb-6">
         <button
           onClick={() => fileInputRef.current?.click()}
-          className="bg-green-600 text-white px-4 py-2 rounded"
+          className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-8 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
         >
           Import JSON
         </button>
@@ -174,7 +189,8 @@ const TablesByLocation = ({ onEdit }) => {
         />
       </div>
 
-      <div className="flex flex-wrap gap-2 justify-center mb-4">
+      {/* Location Buttons */}
+      <div className="flex flex-wrap gap-2 justify-center mb-6">
         {LOCATIONS.filter(loc => loc !== "תל אביב").sort((a, b) => {
           if (a === "בית עובד") return -1;
           if (b === "בית עובד") return 1;
@@ -185,10 +201,10 @@ const TablesByLocation = ({ onEdit }) => {
           <button
             key={loc}
             onClick={() => handleLocationChange(loc)}
-            className={`px-4 py-2 rounded ${
+            className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
               normalizeLocation(activeLocation) === normalizeLocation(loc)
-                ? "bg-blue-600 text-white"
-                : "bg-gray-200"
+                ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg"
+                : "bg-white text-gray-700 hover:bg-gradient-to-r hover:from-gray-50 hover:to-gray-100 shadow-md hover:shadow-lg border border-gray-200"
             }`}
           >
             {loc}
@@ -196,103 +212,199 @@ const TablesByLocation = ({ onEdit }) => {
         ))}
       </div>
 
-      {/* Animal Type Filter */}
-      <div className="max-w-md mx-auto mb-2 flex flex-row gap-2 items-center">
-        <label htmlFor="animalTypeSelect">Animal Type:</label>
-        <select
-          id="animalTypeSelect"
-          value={animalTypeFilter}
-          onChange={e => setAnimalTypeFilter(e.target.value)}
-          className="border border-gray-300 rounded px-2 py-1"
-        >
-          <option value="">All</option>
-          {animalTypes.map(type => (
-            <option key={type} value={type}>{type}</option>
-          ))}
-        </select>
+      {/* Filters */}
+      <div className="max-w-2xl mx-auto mb-6 space-y-4">
+        <div className="flex flex-col sm:flex-row gap-4 items-center">
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <label htmlFor="animalTypeSelect" className="font-medium text-gray-700 whitespace-nowrap">Animal Type:</label>
+            <select
+              id="animalTypeSelect"
+              value={animalTypeFilter}
+              onChange={e => setAnimalTypeFilter(e.target.value)}
+              className="flex-1 sm:flex-none border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="">All</option>
+              {animalTypes.map(type => (
+                <option key={type} value={type}>{type}</option>
+              ))}
+            </select>
+          </div>
+          <input
+            type="text"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by animal name..."
+            className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
       </div>
 
-      <div className="max-w-md mx-auto mb-4">
-        <input
-          type="text"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search by animal name..."
-          className="w-full border border-gray-300 rounded px-3 py-2"
-        />
+      {/* Mobile Card Layout */}
+      <div className="block md:hidden space-y-4">
+        {filteredDonors.length === 0 ? (
+          <div className="text-center py-12 text-gray-500">
+            <div className="text-4xl mb-4">🔍</div>
+            <p>No data to display</p>
+          </div>
+        ) : (
+          filteredDonors.map((d, index) => (
+            <div
+              key={d.id}
+              className={`bg-white rounded-lg shadow-md border-l-4 p-4 cursor-pointer transition-all duration-200 hover:shadow-lg ${
+                isAnimalHighlighted(d, removedHighlights) 
+                  ? "border-l-yellow-500 bg-yellow-50" 
+                  : "border-l-blue-500"
+              }`}
+              onClick={() => handleRowClick(d)}
+            >
+              <div className="flex justify-between items-start mb-3">
+                <div>
+                  <h3 className="font-bold text-lg text-gray-800">{d.animalName}</h3>
+                  <p className="text-sm text-gray-600">{d.animalType} • {d.bloodType}</p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onEdit(d);
+                    }}
+                    className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold text-sm px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105"
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete(index);
+                    }}
+                    className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold text-sm px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105"
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-3 text-sm">
+                <div>
+                  <span className="text-gray-500">Date:</span>
+                  <p className="font-medium">{d.date}</p>
+                </div>
+                <div>
+                  <span className="text-gray-500">PCV:</span>
+                  <p className="font-medium">{d.pcv}</p>
+                </div>
+                <div>
+                  <span className="text-gray-500">Donated:</span>
+                  <p className="font-medium">
+                    <span className={`px-2 py-1 rounded-full text-xs ${
+                      d.donated === 'Yes' 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-red-100 text-red-800'
+                    }`}>
+                      {d.donated}
+                    </span>
+                    </p>
+                </div>
+                <div>
+                  <span className="text-gray-500">Next Eligible:</span>
+                  <p className="font-medium text-xs">
+                    {(() => {
+                      if (!d.date) return "N/A";
+                      const date = new Date(d.date);
+                      if (isNaN(date)) return "N/A";
+                      const eligible = new Date(date);
+                      eligible.setDate(eligible.getDate() + 90);
+                      return eligible.toISOString().slice(0, 10);
+                    })()}
+                  </p>
+                </div>
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
-      <div className="overflow-x-auto border border-gray-300 rounded">
-        <table className="min-w-full text-sm text-center border-collapse">
-          <thead className="bg-gray-100">
-            <tr>
-              <th className="border px-2 py-1 w-10">#</th>
-              <th className="border px-1 py-1 w-14">Actions</th>
-              <th className="border px-2 py-1">Date</th>
-              <th className="border px-2 py-1">Animal Name</th>
-              <th className="border px-2 py-1">Animal Type</th>
-              <th className="border px-2 py-1">Blood Type</th>
-              <th className="border px-2 py-1">PCV</th>
-              <th className="border px-2 py-1">Donated?</th>
-              <th className="border px-2 py-1">Next Eligible Date</th>
-            </tr>
-          </thead>
-          <tbody>
-            {filteredDonors.map((d, i) => (
-              <tr
-                key={d.id}
-                className={`${i % 2 === 0 ? "bg-white" : "bg-gray-50"} ${isAnimalHighlighted(d, removedHighlights) ? "bg-yellow-200" : ""}`}
-                onClick={() => handleRowClick(d)}
-                style={{ cursor: "pointer" }}
-              >
-                {/* 👈 יציב בלבד, לא index */}
-                <td className="border px-2 py-1">{i + 1}</td>
-                <td
-                  className="border px-1 py-1"
-                  onClick={e => e.stopPropagation()}
-                >
-                  <div className="flex flex-col items-center gap-1">
-                    <span
-                      className="text-blue-600 underline cursor-pointer"
-                      onClick={() => onEdit(d)}
-                    >
-                      Edit
-                    </span>
-                    <span
-                      className="text-red-600 underline cursor-pointer"
-                      onClick={() => handleDelete(i)}
-                    >
-                      Delete
-                    </span>
-                  </div>
-                </td>
-                <td className="border px-2 py-1">{d.date}</td>
-                <td className="border px-2 py-1">{d.animalName}</td>
-                <td className="border px-2 py-1">{d.animalType}</td>
-                <td className="border px-2 py-1">{d.bloodType}</td>
-                <td className="border px-2 py-1">{d.pcv}</td>
-                <td className="border px-2 py-1">{d.donated}</td>
-                <td className="border px-2 py-1">
-                  {(() => {
-                    if (!d.date) return "";
-                    const date = new Date(d.date);
-                    if (isNaN(date)) return "";
-                    const eligible = new Date(date);
-                    eligible.setDate(eligible.getDate() + 90);
-                    return eligible.toISOString().slice(0, 10);
-                  })()}
-                </td>
-              </tr>
-            ))}
-            {filteredDonors.length === 0 && (
+      {/* Desktop Table Layout */}
+      <div className="hidden md:block bg-white rounded-lg shadow-lg overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-sm">
+            <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
-                <td colSpan={9} className="py-4 text-gray-500">
-                  No data to display
-                </td>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">#</th>
+                <th className="px-4 py-3 text-center font-semibold text-gray-700">Actions</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Date</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Animal Name</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Animal Type</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Blood Type</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">PCV</th>
+                <th className="px-4 py-3 text-center font-semibold text-gray-700">Donated?</th>
+                <th className="px-4 py-3 text-left font-semibold text-gray-700">Next Eligible Date</th>
               </tr>
-            )}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {filteredDonors.length === 0 ? (
+                <tr>
+                  <td colSpan={9} className="px-4 py-12 text-center text-gray-500">
+                    <div className="text-4xl mb-4">🔍</div>
+                    <p>No data to display</p>
+                  </td>
+                </tr>
+              ) : (
+                filteredDonors.map((d, i) => (
+                  <tr
+                    key={d.id}
+                    className={`hover:bg-gray-50 cursor-pointer transition-colors duration-200 ${
+                      isAnimalHighlighted(d, removedHighlights) ? "bg-yellow-50" : ""
+                    }`}
+                    onClick={() => handleRowClick(d)}
+                  >
+                    <td className="px-4 py-3 text-gray-700">{i + 1}</td>
+                    <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                      <div className="flex justify-center gap-2">
+                        <button
+                          onClick={() => onEdit(d)}
+                          className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleDelete(i)}
+                          className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105"
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </td>
+                    <td className="px-4 py-3 text-gray-700">{d.date}</td>
+                    <td className="px-4 py-3 font-medium text-gray-800">{d.animalName}</td>
+                    <td className="px-4 py-3 text-gray-700">{d.animalType}</td>
+                    <td className="px-4 py-3 text-gray-700">{d.bloodType}</td>
+                    <td className="px-4 py-3 text-gray-700">{d.pcv}</td>
+                    <td className="px-4 py-3 text-center">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                        d.donated === 'Yes' 
+                          ? 'bg-green-100 text-green-800' 
+                          : 'bg-red-100 text-red-800'
+                      }`}>
+                        {d.donated}
+                      </span>
+                    </td>
+                    <td className="px-4 py-3 text-gray-700 text-sm">
+                      {(() => {
+                        if (!d.date) return "";
+                        const date = new Date(d.date);
+                        if (isNaN(date)) return "";
+                        const eligible = new Date(date);
+                        eligible.setDate(eligible.getDate() + 90);
+                        return eligible.toISOString().slice(0, 10);
+                      })()}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* MODAL */}
@@ -346,7 +458,7 @@ const TablesByLocation = ({ onEdit }) => {
 
               {isAnimalHighlighted(selectedDonor, removedHighlights) && (
                 <button
-                  className="bg-orange-500 hover:bg-orange-700 text-white font-bold py-2 px-4 rounded my-4 block mx-auto"
+                  className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 my-4 block mx-auto"
                   onClick={() => {
                     addRemovedHighlight(selectedDonor.id);
                     closeModal();

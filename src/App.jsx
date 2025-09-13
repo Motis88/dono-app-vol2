@@ -187,17 +187,17 @@ const App = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 flex flex-col">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex flex-col">
       {/* Top buttons */}
-      <div className="flex justify-center mb-6 gap-4 pt-7 md:pt-4" style={{paddingTop: 'env(safe-area-inset-top,2.7rem)'}}>
+      <div className="flex justify-center mb-8 gap-6 pt-8 md:pt-6" style={{paddingTop: 'env(safe-area-inset-top,3rem)'}}>
         <button
-          className="px-4 py-2 rounded bg-green-500 text-white font-bold shadow"
+          className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold px-8 py-3 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 border border-emerald-400"
           onClick={backupDonorsToFile}
         >
           Backup
         </button>
         <button
-          className="px-4 py-2 rounded bg-yellow-500 text-gray-800 font-bold shadow"
+          className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-semibold px-8 py-3 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 border border-amber-400"
           onClick={async () => {
             if (window.confirm('Are you sure you want to RESTORE from backup? This will overwrite all your current donors!')) {
               await restoreDonorsFromFile();
@@ -207,10 +207,19 @@ const App = () => {
           Restore
         </button>
       </div>
-
-      <div className="flex-1 overflow-y-auto p-4 pb-4" {...swipeHandlers}>
-        <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>}>
-          {view === 'form' && <DonorForm editingDonor={editingDonor} onCancelEdit={handleCancelEdit} onAddDonor={handleAddDonor} />}
+      <div className="flex-1 overflow-y-auto px-3 pb-6" {...swipeHandlers}>
+        <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-10 w-10 border-b-3 border-blue-600"></div></div>}>
+          {view === 'form' && (
+            <div className="bg-gradient-to-br from-white to-blue-50 p-3 rounded-3xl shadow-2xl w-full max-w-7xl mx-auto border border-blue-100 backdrop-blur-sm">
+              <div className="bg-white/90 p-8 rounded-2xl shadow-inner w-full">
+                <DonorForm 
+                  editingDonor={editingDonor} 
+                  onCancelEdit={handleCancelEdit} 
+                  onAddDonor={handleAddDonor} 
+                />
+              </div>
+            </div>
+          )}
           {view === 'table' && <TablesByLocation onEdit={(donor) => { setEditingDonor(donor); setView("form"); }} />}
           {view === 'dashboard' && <Dashboard />}
           {view === 'manual' && <ManualDonorList onEdit={(donor) => { setEditingDonor(donor); setView('form'); }} />}
@@ -218,41 +227,57 @@ const App = () => {
       </div>
 
       <div
-        className="fixed bottom-0 left-0 right-0 bg-white flex justify-around border-t shadow z-50"
+        className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm flex justify-around border-t border-gray-200 shadow-lg z-50"
         style={{
           bottom: '16px',
-          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 9px)',
-          minHeight: 38,
-          height: 38,
+          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)',
+          minHeight: 44,
+          height: 44,
         }}
       >
         <button
-          className={`flex-1 flex flex-col items-center py-1 ${view === 'form' ? 'text-blue-600 font-bold' : 'text-gray-500'}`}
+          className={`flex-1 flex flex-col items-center py-2 transition-all duration-300 rounded-t-xl ${
+            view === 'form' 
+              ? 'text-blue-600 font-bold bg-gradient-to-t from-blue-50 to-transparent shadow-inner' 
+              : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+          }`}
           onClick={() => setView('form')}
         >
-          <span style={{fontSize: 22}}>📝</span>
-          <span style={{fontSize: 13, marginTop: 2}}>Form</span>
+          <span style={{fontSize: 24}}>✍️</span>
+          <span style={{fontSize: 12, marginTop: 2}}>Form</span>
         </button>
         <button
-          className={`flex-1 flex flex-col items-center py-1 ${view === 'table' ? 'text-blue-600 font-bold' : 'text-gray-500'}`}
+          className={`flex-1 flex flex-col items-center py-2 transition-all duration-300 rounded-t-xl ${
+            view === 'table' 
+              ? 'text-blue-600 font-bold bg-gradient-to-t from-blue-50 to-transparent shadow-inner' 
+              : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+          }`}
           onClick={() => setView('table')}
         >
-          <span style={{fontSize: 22}}>📋</span>
-          <span style={{fontSize: 13, marginTop: 2}}>Table</span>
+          <span style={{fontSize: 24}}>📊</span>
+          <span style={{fontSize: 12, marginTop: 2}}>Table</span>
         </button>
         <button
-          className={`flex-1 flex flex-col items-center py-1 ${view === 'dashboard' ? 'text-blue-600 font-bold' : 'text-gray-500'}`}
+          className={`flex-1 flex flex-col items-center py-2 transition-all duration-300 rounded-t-xl ${
+            view === 'dashboard' 
+              ? 'text-blue-600 font-bold bg-gradient-to-t from-blue-50 to-transparent shadow-inner border-t-2 border-blue-500' 
+              : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+          }`}
           onClick={() => setView('dashboard')}
         >
-          <span style={{fontSize: 22}}>📊</span>
-          <span style={{fontSize: 13, marginTop: 2}}>Dashboard</span>
+          <span style={{fontSize: 24}}>📈</span>
+          <span style={{fontSize: 12, marginTop: 2}}>Dashboard</span>
         </button>
         <button
-          className={`flex-1 flex flex-col items-center py-1 ${view === 'manual' ? 'text-blue-600 font-bold' : 'text-gray-500'}`}
+          className={`flex-1 flex flex-col items-center py-2 transition-all duration-300 rounded-t-xl ${
+            view === 'manual' 
+              ? 'text-blue-600 font-bold bg-gradient-to-t from-blue-50 to-transparent shadow-inner' 
+              : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
+          }`}
           onClick={() => setView('manual')}
         >
-          <span style={{fontSize: 22}}>🩸</span>
-          <span style={{fontSize: 13, marginTop: 2}}>Owners</span>
+          <span style={{fontSize: 24}}>👥</span>
+          <span style={{fontSize: 12, marginTop: 2}}>Owners</span>
         </button>
       </div>
     </div>
