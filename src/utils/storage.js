@@ -235,5 +235,43 @@ export const donorStorage = {
       return false;
     }
     return storage.setItem(STORAGE_KEYS.REMOVED_HIGHLIGHTS, highlights);
+  },
+
+  /**
+   * Save draft form data
+   * @param {Object} formData - Form data to save as draft
+   * @returns {boolean} Success status
+   */
+  saveDraftForm(formData) {
+    if (!formData || typeof formData !== 'object') {
+      console.warn('saveDraftForm: Expected object, got:', typeof formData);
+      return false;
+    }
+    console.log('Attempting to save draft form:', formData);
+    const success = storage.setItem(STORAGE_KEYS.DRAFT_FORM, formData);
+    console.log('Draft form save result:', success);
+    return success;
+  },
+
+  /**
+   * Get draft form data
+   * @returns {Object|null} Draft form data or null
+   */
+  getDraftForm() {
+    console.log('Getting draft form data...');
+    const draft = storage.getItem(STORAGE_KEYS.DRAFT_FORM, null);
+    console.log('Retrieved draft form:', draft);
+    return draft;
+  },
+
+  /**
+   * Clear draft form data
+   * @returns {boolean} Success status
+   */
+  clearDraftForm() {
+    console.log('Clearing draft form data...');
+    const success = storage.removeItem(STORAGE_KEYS.DRAFT_FORM);
+    console.log('Draft form clear result:', success);
+    return success;
   }
 };

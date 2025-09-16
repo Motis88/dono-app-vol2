@@ -33,20 +33,44 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
 
   const [validationErrors, setValidationErrors] = useState([]);
 
+  // Save form data to localStorage whenever it changes (except when editing existing donor)
+  useEffect(() => {
+    if (!editingDonor) {
+      // Only save if form has meaningful data (not completely empty)
+      const hasData = Object.values(formData).some(value => 
+        value !== "" && value !== false && value !== null
+      );
+      if (hasData) {
+        console.log('Saving draft form:', formData);
+        const saved = donorStorage.saveDraftForm(formData);
+        console.log('Draft saved successfully:', saved);
+      }
+    }
+  }, [formData, editingDonor]);
+
   useEffect(() => {
     if (editingDonor) {
       setFormData(editingDonor);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } else {
-      // Load default values from localStorage (only if not editing)
-      const lastLocation = donorStorage.getLastLocation();
-      const lastDate = donorStorage.getLastDate();
-      setFormData((prev) => ({
-        ...prev,
-        location: lastLocation,
-        date: lastDate,
-        isPrivateOwner: false,
-      }));
+      // Load draft form data from localStorage (only if not editing)
+      const draftFormData = donorStorage.getDraftForm();
+      console.log('Loading draft form data:', draftFormData);
+      if (draftFormData) {
+        setFormData(draftFormData);
+        console.log('Draft form loaded successfully');
+      } else {
+        console.log('No draft form found, loading defaults');
+        // Fallback to just location and date if no draft exists
+        const lastLocation = donorStorage.getLastLocation();
+        const lastDate = donorStorage.getLastDate();
+        setFormData((prev) => ({
+          ...prev,
+          location: lastLocation,
+          date: lastDate,
+          isPrivateOwner: false,
+        }));
+      }
     }
   }, [editingDonor]);
 
@@ -119,8 +143,9 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
     }
 
     if (!editingDonor) {
-      // Reset form
+      // Reset form and clear draft
       resetForm();
+      donorStorage.clearDraftForm(); // Clear the saved draft after successful submission
     }
   };
 
@@ -151,6 +176,7 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
       ownerPhone: "",
     });
     setValidationErrors([]);
+    donorStorage.clearDraftForm(); // Also clear draft when manually resetting
   };
 
   return (
@@ -431,12 +457,21 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
             </button>
           </div>
         ) : (
-          <button 
-            type="submit" 
-            className="md:col-span-2 w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-3 sm:py-4 px-6 sm:px-8 rounded-lg sm:rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 mt-6 sm:mt-8 text-sm sm:text-base"
-          >
-            Submit
-          </button>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 md:col-span-2 mt-6 sm:mt-8">
+            <button 
+              type="submit" 
+              className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-3 sm:py-4 px-6 sm:px-8 rounded-lg sm:rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 text-sm sm:text-base"
+            >
+              Submit
+            </button>
+            <button 
+              type="button" 
+              onClick={resetForm}
+              className="w-full bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white py-3 sm:py-4 px-6 sm:px-8 rounded-lg sm:rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 text-sm sm:text-base"
+            >
+              Clear Form
+            </button>
+          </div>
         )}
       </form>
     </div>

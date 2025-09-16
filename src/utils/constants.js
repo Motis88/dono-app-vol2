@@ -5,7 +5,8 @@ export const STORAGE_KEYS = {
   LAST_LOCATION: "last_location",
   LAST_DATE: "last_date",
   ACTIVE_LOCATION: "active_location",
-  REMOVED_HIGHLIGHTS: "removed_highlights"
+  REMOVED_HIGHLIGHTS: "removed_highlights",
+  DRAFT_FORM: "draft_form"
 };
 
 export const FILE_NAMES = {
