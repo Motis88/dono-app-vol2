@@ -3,8 +3,10 @@ import PropTypes from 'prop-types';
 import { LOCATIONS } from '../utils/constants.js';
 import { donorStorage, safeJsonParse } from '../utils/storage.js';
 import { isAnimalHighlighted } from '../utils/donorUtils.js';
+import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
+import { Capacitor } from '@capacitor/core';
 
-// ---------- Helpers ----------
+// ---------- Help            💾 Export ({donors.length})rs ----------
 const normalizeLocation = (loc) =>
   (loc ?? '').toString().trim();
 
@@ -206,6 +208,109 @@ const TablesByLocation = ({ onEdit }) => {
     }
   };
 
+  const handleExportJSON = async () => {
+    try {
+      const exportData = JSON.stringify(donors, null, 2);
+      const now = new Date();
+      const dateStr = now.toISOString().slice(0, 10);
+      const timeStr = now.toTimeString().slice(0, 5).replace(':', '-');
+      const filename = `donor_data_${dateStr}_${timeStr}.json`;
+      
+      // Try Capacitor Filesystem first
+      try {
+        await Filesystem.writeFile({
+          path: filename,
+          data: exportData,
+          directory: Directory.Documents,
+          encoding: Encoding.UTF8
+        });
+        
+        alert(`✅ File saved successfully!\n\nSaved to: Documents/${filename}\n\nYou can find it in your phone's Documents folder or share it from there.`);
+        return;
+      } catch (fsError) {
+        console.warn('Filesystem failed:', fsError);
+        
+        // Fallback to clipboard
+        try {
+          await navigator.clipboard.writeText(exportData);
+          alert(`📋 Data copied to clipboard!\n\n(File save failed, using clipboard instead)\n\nOpen a notes app and paste to save as: ${filename}`);
+          return;
+        } catch (clipError) {
+          console.warn('Clipboard failed:', clipError);
+          
+          // Last resort: download in browser
+          const blob = new Blob([exportData], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+          
+          alert(`� File downloaded!\n\nCheck your Downloads folder for: ${filename}`);
+        }
+      }
+      
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert('❌ Export failed: ' + error.message);
+    }
+  };
+
+  const downloadFile = (data, filename) => {
+    try {
+      const blob = new Blob([data], { type: 'application/json;charset=utf-8' });
+      
+      // Try modern approach first
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([blob], filename, { type: 'application/json' })] })) {
+        const file = new File([blob], filename, { type: 'application/json' });
+        navigator.share({
+          title: 'Export Donor Data',
+          text: `Donor database backup - ${donors.length} records`,
+          files: [file]
+        }).then(() => {
+          alert('✅ File shared successfully!');
+        }).catch((error) => {
+          console.error('Web Share API failed:', error);
+          // Fallback to download
+          triggerDownload(blob, filename);
+        });
+      } else {
+        // Standard download approach
+        triggerDownload(blob, filename);
+      }
+    } catch (error) {
+      console.error('Download file failed:', error);
+      alert('❌ Download failed: ' + error.message);
+    }
+  };
+
+  const triggerDownload = (blob, filename) => {
+    try {
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      link.style.display = 'none';
+      
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      
+      // Clean up
+      setTimeout(() => {
+        window.URL.revokeObjectURL(url);
+      }, 1000);
+      
+      alert('✅ File downloaded successfully!');
+    } catch (error) {
+      console.error('Trigger download failed:', error);
+      alert('❌ Download trigger failed: ' + error.message);
+    }
+  };
+
   const handleImportJSON = (event) => {
     const file = event.target.files[0];
     if (!file) return;
@@ -264,14 +369,23 @@ const TablesByLocation = ({ onEdit }) => {
     <div className="p-4 max-w-7xl mx-auto">
       {/* Removed the testing message line */}
 
-      {/* Import JSON */}
-      <div className="flex flex-wrap justify-center gap-4 mb-6">
-        <button
-          onClick={() => fileInputRef.current?.click()}
-          className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-8 py-3 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
-        >
-          Import JSON
-        </button>
+      {/* Import/Export JSON - Simple and Clean */}
+      <div className="flex justify-center mb-6">
+        <div className="flex items-center gap-2 bg-gray-50 rounded-xl p-2 border">
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium shadow-sm hover:shadow-md transition-all duration-200"
+          >
+            📥 Import
+          </button>
+          <button
+            onClick={handleExportJSON}
+            className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium shadow-sm hover:shadow-md transition-all duration-200"
+            title={`Export ${donors.length} records to file`}
+          >
+            � Export JSON ({donors.length})
+          </button>
+        </div>
         <input
           ref={fileInputRef}
           type="file"
