@@ -247,10 +247,7 @@ export const donorStorage = {
       console.warn('saveDraftForm: Expected object, got:', typeof formData);
       return false;
     }
-    console.log('Attempting to save draft form:', formData);
-    const success = storage.setItem(STORAGE_KEYS.DRAFT_FORM, formData);
-    console.log('Draft form save result:', success);
-    return success;
+    return storage.setItem(STORAGE_KEYS.DRAFT_FORM, formData);
   },
 
   /**
@@ -258,10 +255,7 @@ export const donorStorage = {
    * @returns {Object|null} Draft form data or null
    */
   getDraftForm() {
-    console.log('Getting draft form data...');
-    const draft = storage.getItem(STORAGE_KEYS.DRAFT_FORM, null);
-    console.log('Retrieved draft form:', draft);
-    return draft;
+    return storage.getItem(STORAGE_KEYS.DRAFT_FORM, null);
   },
 
   /**
@@ -269,9 +263,6 @@ export const donorStorage = {
    * @returns {boolean} Success status
    */
   clearDraftForm() {
-    console.log('Clearing draft form data...');
-    const success = storage.removeItem(STORAGE_KEYS.DRAFT_FORM);
-    console.log('Draft form clear result:', success);
-    return success;
+    return storage.removeItem(STORAGE_KEYS.DRAFT_FORM);
   }
 };

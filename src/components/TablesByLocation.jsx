@@ -76,13 +76,38 @@ const TablesByLocation = ({ onEdit }) => {
   // טוען מה־storage + מנרמל + דה-דופ
   useEffect(() => {
     const donorsData = donorStorage.getDonors() || [];
-    const cleaned = dedupeById(donorsData).map(d => ({
-      ...d,
-      // נוודא שדות בסיסיים כטקסט
-      animalName: d.animalName ?? '',
-      animalType: d.animalType ?? '',
-      date: d.date ?? '',
-    }));
+    const cleaned = dedupeById(donorsData).map(d => {
+      const normalized = {
+        ...d,
+        // נוודא שדות בסיסיים כטקסט
+        animalName: d.animalName ?? '',
+        animalType: d.animalType ?? '',
+        date: d.date ?? '',
+      };
+
+      // Fix donated field for existing data too
+      if (normalized.donated !== undefined && normalized.donated !== null) {
+        const donatedValue = normalized.donated.toString().trim().toLowerCase();
+        if (donatedValue === 'yes' || donatedValue === 'true' || donatedValue === '1' || donatedValue === 'כן') {
+          normalized.donated = 'Yes';
+        } else if (donatedValue === 'no' || donatedValue === 'false' || donatedValue === '0' || donatedValue === 'לא') {
+          normalized.donated = 'No';
+        } else {
+          // For any other case (including already correct 'Yes'/'No'), normalize to first letter uppercase
+          const firstChar = donatedValue.charAt(0).toUpperCase();
+          const rest = donatedValue.slice(1).toLowerCase();
+          const normalized_donated = firstChar + rest;
+          if (normalized_donated === 'Yes' || normalized_donated === 'No') {
+            normalized.donated = normalized_donated;
+          } else {
+            // Default fallback - if it's not recognizable, assume 'No'
+            normalized.donated = 'No';
+          }
+        }
+      }
+      
+      return normalized;
+    });
     setDonors(cleaned);
     donorStorage.saveDonors(cleaned); // שומר "מיגרציה" כדי למנוע חזרה לבאג
   }, []);
@@ -199,9 +224,17 @@ const TablesByLocation = ({ onEdit }) => {
                 normalized.donated = 'Yes';
               } else if (donatedValue === 'no' || donatedValue === 'false' || donatedValue === '0' || donatedValue === 'לא') {
                 normalized.donated = 'No';
-              } else if (donatedValue !== 'yes' && donatedValue !== 'no') {
-                // Keep the original capitalized format if it's already correct
-                normalized.donated = normalized.donated.toString().trim();
+              } else {
+                // For any other case (including already correct 'Yes'/'No'), normalize to first letter uppercase
+                const firstChar = donatedValue.charAt(0).toUpperCase();
+                const rest = donatedValue.slice(1).toLowerCase();
+                const normalized_donated = firstChar + rest;
+                if (normalized_donated === 'Yes' || normalized_donated === 'No') {
+                  normalized.donated = normalized_donated;
+                } else {
+                  // Default fallback - if it's not recognizable, assume 'No'
+                  normalized.donated = 'No';
+                }
               }
             }
             return normalized;

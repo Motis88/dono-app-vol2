@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import PropTypes from 'prop-types';
 import { LOCATIONS, BLOOD_TYPES, DONATION_STATUSES } from '../utils/constants.js';
 import { donorStorage } from '../utils/storage.js';
@@ -32,21 +32,38 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
   });
 
   const [validationErrors, setValidationErrors] = useState([]);
+  const saveTimeoutRef = useRef(null);
 
-  // Save form data to localStorage whenever it changes (except when editing existing donor)
-  useEffect(() => {
-    if (!editingDonor) {
-      // Only save if form has meaningful data (not completely empty)
-      const hasData = Object.values(formData).some(value => 
-        value !== "" && value !== false && value !== null
-      );
-      if (hasData) {
-        console.log('Saving draft form:', formData);
-        const saved = donorStorage.saveDraftForm(formData);
-        console.log('Draft saved successfully:', saved);
-      }
+  // Debounced save function to avoid saving on every keystroke
+  const debouncedSave = useCallback((data) => {
+    if (saveTimeoutRef.current) {
+      clearTimeout(saveTimeoutRef.current);
     }
-  }, [formData, editingDonor]);
+    
+    saveTimeoutRef.current = setTimeout(() => {
+      if (!editingDonor) {
+        // Only save if form has meaningful data (not completely empty)
+        const hasData = Object.values(data).some(value => 
+          value !== "" && value !== false && value !== null
+        );
+        if (hasData) {
+          donorStorage.saveDraftForm(data);
+        }
+      }
+    }, 500); // Save after 500ms of no changes
+  }, [editingDonor]);
+
+  // Save form data to localStorage with debouncing
+  useEffect(() => {
+    debouncedSave(formData);
+    
+    // Cleanup timeout on unmount
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
+  }, [formData, debouncedSave]);
 
   useEffect(() => {
     if (editingDonor) {
@@ -55,12 +72,9 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
     } else {
       // Load draft form data from localStorage (only if not editing)
       const draftFormData = donorStorage.getDraftForm();
-      console.log('Loading draft form data:', draftFormData);
       if (draftFormData) {
         setFormData(draftFormData);
-        console.log('Draft form loaded successfully');
       } else {
-        console.log('No draft form found, loading defaults');
         // Fallback to just location and date if no draft exists
         const lastLocation = donorStorage.getLastLocation();
         const lastDate = donorStorage.getLastDate();
