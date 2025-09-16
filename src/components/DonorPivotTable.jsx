@@ -97,7 +97,7 @@ const DonorPivotTable = ({ donors }) => {
   };
 
   return (
-    <div className="w-full max-w-4xl mx-auto">
+    <div className="w-full max-w-7xl mx-auto">
       {/* ---- TITLE ---- */}
       <div className="font-bold text-xl sm:text-2xl mb-6 text-center text-blue-600 tracking-wide">
         Monthly Donor Summary
