@@ -1,6 +1,5 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
 import { Filesystem, Directory } from '@capacitor/filesystem';
-import { useSwipeable } from 'react-swipeable';
 import { VIEWS, FILE_NAMES } from './utils/constants.js';
 import { donorStorage, safeJsonParse } from './utils/storage.js';
 import { normalizeDonors, removeExactDuplicates } from './utils/donorUtils.js';
@@ -12,47 +11,9 @@ const TablesByLocation = lazy(() => import('./components/TablesByLocation'));
 const Dashboard = lazy(() => import('./components/DonorDashboard'));
 const ManualDonorList = lazy(() => import('./components/ManualDonorList'));
 
-/**
- * Check if target element is inside a horizontally scrollable element
- * @param {Element} target - Target element
- * @returns {boolean} True if inside scrollable element
- */
-function isInsideHorizontallyScrollableElement(target) {
-  while (target) {
-    try {
-      const style = window.getComputedStyle(target);
-      if (
-        (style.overflowX === "auto" || style.overflowX === "scroll") &&
-        target.scrollWidth > target.clientWidth
-      ) {
-        return true;
-      }
-    } catch (error) {
-      console.warn('Error checking scrollable element:', error);
-    }
-    target = target.parentElement;
-  }
-  return false;
-}
-
 const App = () => {
   const [view, setView] = useState('form');
   const [editingDonor, setEditingDonor] = useState(null);
-
-  const currentViewIdx = VIEWS.indexOf(view);
-
-  const swipeHandlers = useSwipeable({
-    onSwipedLeft: (e) => {
-      if (isInsideHorizontallyScrollableElement(e.event.target)) return;
-      if (currentViewIdx < VIEWS.length - 1) setView(VIEWS[currentViewIdx + 1]);
-    },
-    onSwipedRight: (e) => {
-      if (isInsideHorizontallyScrollableElement(e.event.target)) return;
-      if (currentViewIdx > 0) setView(VIEWS[currentViewIdx - 1]);
-    },
-    trackMouse: true,
-    delta: 10,
-  });
 
   useEffect(() => {
     // Initialize donors from localStorage with error handling
@@ -207,7 +168,7 @@ const App = () => {
           Restore
         </button>
       </div>
-      <div className="flex-1 overflow-y-auto px-3 pb-6" {...swipeHandlers}>
+      <div className="flex-1 overflow-y-auto px-3 pb-6">
         <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-10 w-10 border-b-3 border-blue-600"></div></div>}>
           {view === 'form' && (
             <div className="bg-gradient-to-br from-white to-blue-50 p-3 rounded-3xl shadow-2xl w-full max-w-7xl mx-auto border border-blue-100 backdrop-blur-sm">

@@ -27,7 +27,18 @@ const isDonatedYes = (str) => {
 };
 
 const DonorPivotTable = ({ donors }) => {
-  const [modal, setModal] = useState(null);
+  const [expandedMonths, setExpandedMonths] = useState(new Set());
+
+  // Toggle accordion section
+  const toggleMonth = (month) => {
+    const newExpanded = new Set(expandedMonths);
+    if (newExpanded.has(month)) {
+      newExpanded.delete(month);
+    } else {
+      newExpanded.add(month);
+    }
+    setExpandedMonths(newExpanded);
+  };
 
   // locations & months
   const locations = [...new Set(donors.map(d => d.location).filter(Boolean))];
@@ -60,7 +71,7 @@ const DonorPivotTable = ({ donors }) => {
     return row;
   });
 
-  // details for modal
+  // details for expanded sections
   const getMonthDetails = (month) => {
     const result = [];
     locations.forEach(loc => {
@@ -82,114 +93,132 @@ const DonorPivotTable = ({ donors }) => {
         result.push({ location: loc, dog, cat, total: dog + cat });
       }
     });
-    return result.sort((a, b) => b.total - a.total); // sort descending by total
+    return result.sort((a, b) => b.total - a.total);
   };
 
   return (
-    <div className="overflow-x-auto max-w-[370px] mx-auto">
+    <div className="w-full max-w-4xl mx-auto">
       {/* ---- TITLE ---- */}
-      <div className="font-bold text-lg mb-3 mt-2 text-center text-blue-600 tracking-wide">
+      <div className="font-bold text-xl sm:text-2xl mb-6 text-center text-blue-600 tracking-wide">
         Monthly Donor Summary
       </div>
-      {/* ---- TABLE ---- */}
-      <table className="min-w-max border-collapse border border-gray-300 bg-white shadow text-xs">
-        <thead>
-          <tr>
-            <th className="border px-2 py-1 bg-gray-100">Month</th>
-            {locations.map(loc => (
-              <React.Fragment key={loc}>
-                <th className="border px-2 py-1 bg-gray-50">{loc} Dog</th>
-                <th className="border px-2 py-1 bg-gray-50">{loc} Cat</th>
-              </React.Fragment>
-            ))}
-            <th className="border px-2 py-1 bg-blue-100">TOTAL DOG</th>
-            <th className="border px-2 py-1 bg-pink-100">TOTAL CAT</th>
-            <th className="border px-2 py-1 bg-gray-200">TOTAL</th>
-          </tr>
-        </thead>
-        <tbody>
-          {pivot.map(row => (
-            <tr key={row.month}>
-              <td
-                className="border px-2 py-1 font-semibold hover:bg-blue-100 cursor-pointer"
-                style={{ minWidth: 80 }}
-                onClick={() => setModal(row.month)}
+      
+      {/* ---- ACCORDION ---- */}
+      <div className="space-y-3 sm:space-y-4">
+        {pivot.map(row => {
+          const isExpanded = expandedMonths.has(row.month);
+          const monthDetails = getMonthDetails(row.month);
+          
+          return (
+            <div key={row.month} className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+              {/* Accordion Header */}
+              <button
+                onClick={() => toggleMonth(row.month)}
+                className="w-full p-4 sm:p-6 text-left bg-gradient-to-r from-blue-50 to-purple-50 hover:from-blue-100 hover:to-purple-100 transition-all duration-200 border-b border-gray-200"
               >
-                {formatMonth(row.month)}
-              </td>
-              {locations.map(loc => (
-                <React.Fragment key={loc}>
-                  <td className="border px-2 py-1 text-center">{row[`${loc}_Dog`]}</td>
-                  <td className="border px-2 py-1 text-center">{row[`${loc}_Cat`]}</td>
-                </React.Fragment>
-              ))}
-              <td className="border px-2 py-1 font-bold bg-blue-50 text-blue-800">{row["totalDog"]}</td>
-              <td className="border px-2 py-1 font-bold bg-pink-50 text-pink-800">{row["totalCat"]}</td>
-              <td className="border px-2 py-1 font-bold bg-gray-100">{row["total"]}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                <div className="flex items-center justify-between">
+                  <div className="flex-1">
+                    <h3 className="text-lg sm:text-xl font-semibold text-gray-800 mb-2">
+                      {formatMonth(row.month)}
+                    </h3>
+                    <div className="flex flex-wrap gap-3 sm:gap-6">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-blue-500 rounded-full"></div>
+                        <span className="text-sm sm:text-base text-blue-700 font-medium">{row.totalDog} Dogs</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-pink-500 rounded-full"></div>
+                        <span className="text-sm sm:text-base text-pink-700 font-medium">{row.totalCat} Cats</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-gray-600 rounded-full"></div>
+                        <span className="text-sm sm:text-base text-gray-700 font-semibold">{row.total} Total</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="ml-4 transform transition-transform duration-200 text-blue-600" style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                    <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </div>
+              </button>
 
-      {/* ---- MODAL ---- */}
-      {modal && (
-        <div
-          className="fixed inset-0 bg-black bg-opacity-30 flex items-center justify-center z-50"
-          onClick={() => setModal(null)}
-        >
-          <div
-            className="bg-white rounded-lg shadow-xl max-w-[320px] w-full p-4 text-xs"
-            onClick={e => e.stopPropagation()}
-          >
-            <div className="font-bold text-blue-600 mb-2 text-center text-sm">
-              {formatMonth(modal)} — Donor Locations
+              {/* Accordion Content */}
+              {isExpanded && (
+                <div className="p-4 sm:p-6 bg-gray-50 animate-fadeIn">
+                  <h4 className="text-base sm:text-lg font-semibold text-gray-800 mb-4">Location Breakdown</h4>
+                  
+                  {monthDetails.length > 0 ? (
+                    <div className="grid gap-3 sm:gap-4">
+                      {monthDetails.map(detail => (
+                        <div key={detail.location} className="bg-white rounded-lg p-4 shadow-sm border border-gray-100">
+                          <div className="flex items-center justify-between mb-3">
+                            <h5 className="font-medium text-gray-800 text-sm sm:text-base">{detail.location}</h5>
+                            <span className="text-sm font-semibold text-gray-600">{detail.total} donors</span>
+                          </div>
+                          <div className="flex gap-4 sm:gap-6">
+                            <div className="text-center">
+                              <div className="text-xl sm:text-2xl font-bold text-blue-600">{detail.dog}</div>
+                              <div className="text-xs sm:text-sm text-blue-500">Dogs</div>
+                            </div>
+                            <div className="text-center">
+                              <div className="text-xl sm:text-2xl font-bold text-pink-600">{detail.cat}</div>
+                              <div className="text-xs sm:text-sm text-pink-500">Cats</div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-gray-500">
+                      <div className="text-4xl mb-2">📊</div>
+                      <div className="text-sm sm:text-base">No donations recorded for this month</div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
-            <table className="w-full border border-gray-200 mb-2">
-              <thead>
-                <tr>
-                  <th className="border px-1 py-1 bg-gray-100 text-xs">Location</th>
-                  <th className="border px-1 py-1 bg-blue-50 text-xs">Dogs</th>
-                  <th className="border px-1 py-1 bg-pink-50 text-xs">Cats</th>
-                  <th className="border px-1 py-1 bg-gray-200 text-xs">Total</th>
-                </tr>
-              </thead>
-              <tbody>
-                {getMonthDetails(modal).map(row => (
-                  <tr key={row.location}>
-                    <td className="border px-1 py-1">{row.location}</td>
-                    <td className="border px-1 py-1 text-center text-blue-700 font-bold">{row.dog}</td>
-                    <td className="border px-1 py-1 text-center text-pink-600 font-bold">{row.cat}</td>
-                    <td className="border px-1 py-1 text-center">{row.total}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-            <button
-              className="w-full py-1 mt-2 bg-blue-500 hover:bg-blue-600 text-white rounded text-xs font-bold"
-              onClick={() => setModal(null)}
-            >
-              Close
-            </button>
-          </div>
-        </div>
-      )}
+          );
+        })}
+      </div>
 
       {/* ---- BAR CHART ---- */}
-      <div className="mt-8 bg-white rounded shadow p-2">
-        <h2 className="text-sm font-bold mb-2 text-center">Monthly Donor Summary (Chart)</h2>
-        <ResponsiveContainer width="100%" height={220}>
-          <BarChart
-            data={pivot.slice().reverse()}
-            margin={{ top: 10, right: 15, left: 0, bottom: 15 }}
-          >
-            <XAxis dataKey="month" tickFormatter={formatMonth} fontSize={10} angle={-40} textAnchor="end" height={60} />
-            <YAxis fontSize={10} />
-            <Tooltip labelFormatter={formatMonth} />
-            <Legend />
-            <Bar dataKey="totalDog" fill="#60a5fa" name="Total Dogs" />
-            <Bar dataKey="totalCat" fill="#f472b6" name="Total Cats" />
-          </BarChart>
-        </ResponsiveContainer>
+      <div className="mt-8 bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border border-gray-200">
+        <h2 className="text-lg sm:text-xl font-bold mb-4 text-center text-gray-800">Monthly Trends</h2>
+        <div className="bg-gray-50 rounded-lg p-3">
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart
+              data={pivot.slice().reverse()}
+              margin={{ top: 20, right: 20, left: 10, bottom: 60 }}
+            >
+              <XAxis 
+                dataKey="month" 
+                tickFormatter={formatMonth} 
+                fontSize={10} 
+                angle={-45} 
+                textAnchor="end" 
+                height={80}
+                interval={0}
+              />
+              <YAxis fontSize={11} />
+              <Tooltip 
+                labelFormatter={formatMonth}
+                contentStyle={{
+                  backgroundColor: 'white',
+                  border: '1px solid #e2e8f0',
+                  borderRadius: '8px',
+                  fontSize: '12px'
+                }}
+              />
+              <Legend 
+                wrapperStyle={{ fontSize: '12px' }}
+              />
+              <Bar dataKey="totalDog" fill="#3b82f6" name="Total Dogs" radius={[2, 2, 0, 0]} />
+              <Bar dataKey="totalCat" fill="#ec4899" name="Total Cats" radius={[2, 2, 0, 0]} />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
       </div>
     </div>
   );

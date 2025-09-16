@@ -8,6 +8,20 @@ import { isAnimalHighlighted } from '../utils/donorUtils.js';
 const normalizeLocation = (loc) =>
   (loc ?? '').toString().trim();
 
+const formatDate = (dateKey) => {
+  if (!dateKey || !dateKey.includes('-')) return dateKey;
+  try {
+    const date = new Date(dateKey);
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    });
+  } catch {
+    return dateKey;
+  }
+};
+
 const buildHeuristicId = (d) => {
   // fallback אם אין id היסטורי
   const parts = [
@@ -52,6 +66,7 @@ const TablesByLocation = ({ onEdit }) => {
   });
   const [search, setSearch] = useState("");
   const [animalTypeFilter, setAnimalTypeFilter] = useState("");
+  const [dateFilter, setDateFilter] = useState("");
   const [selectedDonor, setSelectedDonor] = useState(null);
   const [removedHighlights, setRemovedHighlights] = useState(() => {
     return donorStorage.getRemovedHighlights();
@@ -83,6 +98,26 @@ const TablesByLocation = ({ onEdit }) => {
     return [...map.values()];
   }, [donors]);
 
+  // חילוץ תאריכים זמינים מהנתונים
+  const availableDates = useMemo(() => {
+    const datesSet = new Set();
+    for (const d of donors) {
+      if (!d.date) continue;
+      
+      let dateKey = "";
+      if (d.date.includes("-") && d.date.length === 10) {
+        dateKey = d.date; // Already in YYYY-MM-DD format
+      } else if (d.date.includes("/")) {
+        const [day, month, year] = d.date.split("/");
+        dateKey = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+      }
+      
+      if (dateKey) datesSet.add(dateKey);
+    }
+    
+    return [...datesSet].sort().reverse(); // החדשים ביותר למעלה
+  }, [donors]);
+
   const handleLocationChange = (loc) => {
     const norm = normalizeLocation(loc);
     setActiveLocation(norm);
@@ -100,16 +135,40 @@ const TablesByLocation = ({ onEdit }) => {
     const normLoc = normalizeLocation(activeLocation);
     const s = search.trim().toLowerCase();
     const type = animalTypeFilter.trim().toLowerCase();
+    const dateFilterValue = dateFilter.trim();
 
     return donors
       .slice()
       .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
-      .filter((d) =>
-        normalizeLocation(d.location) === normLoc &&
-        (!type || (d.animalType && d.animalType.trim().toLowerCase() === type)) &&
-        (!s || (typeof d.animalName === "string" ? d.animalName.toLowerCase() : "").includes(s))
-      );
-  }, [donors, activeLocation, search, animalTypeFilter]);
+      .filter((d) => {
+        // Location filter
+        if (normalizeLocation(d.location) !== normLoc) return false;
+        
+        // Animal type filter
+        if (type && (!d.animalType || d.animalType.trim().toLowerCase() !== type)) return false;
+        
+        // Search filter
+        if (s && !(typeof d.animalName === "string" ? d.animalName.toLowerCase() : "").includes(s)) return false;
+        
+        // Date filter
+        if (dateFilterValue) {
+          if (!d.date) return false;
+          
+          // Normalize the donor date to YYYY-MM-DD format for comparison
+          let donorDateKey = "";
+          if (d.date.includes("-") && d.date.length === 10) {
+            donorDateKey = d.date; // Already in YYYY-MM-DD format
+          } else if (d.date.includes("/")) {
+            const [day, month, year] = d.date.split("/");
+            donorDateKey = `${year}-${month.padStart(2, "0")}-${day.padStart(2, "0")}`;
+          }
+          
+          if (donorDateKey !== dateFilterValue) return false;
+        }
+        
+        return true;
+      });
+  }, [donors, activeLocation, search, animalTypeFilter, dateFilter]);
 
   const handleDelete = (index) => {
     if (window.confirm("Delete this donor?")) {
@@ -213,7 +272,7 @@ const TablesByLocation = ({ onEdit }) => {
       </div>
 
       {/* Filters */}
-      <div className="max-w-2xl mx-auto mb-6 space-y-4">
+      <div className="max-w-4xl mx-auto mb-6 space-y-4">
         <div className="flex flex-col sm:flex-row gap-4 items-center">
           <div className="flex items-center gap-2 w-full sm:w-auto">
             <label htmlFor="animalTypeSelect" className="font-medium text-gray-700 whitespace-nowrap">Animal Type:</label>
@@ -221,22 +280,58 @@ const TablesByLocation = ({ onEdit }) => {
               id="animalTypeSelect"
               value={animalTypeFilter}
               onChange={e => setAnimalTypeFilter(e.target.value)}
-              className="flex-1 sm:flex-none border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+              className="flex-1 sm:flex-none border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
             >
-              <option value="">All</option>
+              <option value="">All Animals</option>
               {animalTypes.map(type => (
                 <option key={type} value={type}>{type}</option>
               ))}
             </select>
           </div>
+          
+          <div className="flex items-center gap-2 w-full sm:w-auto">
+            <label htmlFor="dateInput" className="font-medium text-gray-700 whitespace-nowrap">Date:</label>
+            <input
+              id="dateInput"
+              type="date"
+              value={dateFilter}
+              onChange={e => setDateFilter(e.target.value)}
+              className="flex-1 sm:flex-none border border-gray-300 rounded-lg px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm min-w-[140px]"
+            />
+          </div>
+          
           <input
             type="text"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search by animal name..."
-            className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            className="flex-1 border border-gray-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-sm"
           />
+          
+          {(search || animalTypeFilter || dateFilter) && (
+            <button
+              onClick={() => {
+                setSearch("");
+                setAnimalTypeFilter("");
+                setDateFilter("");
+              }}
+              className="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-700 rounded-lg transition-colors duration-200 whitespace-nowrap"
+              title="Clear all filters"
+            >
+              Clear All
+            </button>
+          )}
         </div>
+        
+        {/* Results count */}
+        {(search || animalTypeFilter || dateFilter) && (
+          <div className="text-center text-sm text-gray-600 bg-blue-50 rounded-lg p-2">
+            Showing {filteredDonors.length} results
+            {search && ` matching "${search}"`}
+            {animalTypeFilter && ` • ${animalTypeFilter} only`}
+            {dateFilter && ` • ${formatDate(dateFilter)} only`}
+          </div>
+        )}
       </div>
 
       {/* Mobile Card Layout */}
