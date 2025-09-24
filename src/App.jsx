@@ -4,6 +4,7 @@ import { VIEWS, FILE_NAMES } from './utils/constants.js';
 import { donorStorage, safeJsonParse } from './utils/storage.js';
 import { normalizeDonors, removeExactDuplicates } from './utils/donorUtils.js';
 import { Share } from '@capacitor/share';
+import { ThemeProvider, useTheme } from './contexts/ThemeContext.jsx';
 
 // Lazy load components to reduce bundle size
 const DonorForm = lazy(() => import('./components/DonorForm'));
@@ -11,7 +12,8 @@ const TablesByLocation = lazy(() => import('./components/TablesByLocation'));
 const Dashboard = lazy(() => import('./components/DonorDashboard'));
 const ManualDonorList = lazy(() => import('./components/ManualDonorList'));
 
-const App = () => {
+const AppContent = () => {
+  const { colors, isDarkMode, toggleTheme } = useTheme();
   const [view, setView] = useState('form');
   const [editingDonor, setEditingDonor] = useState(null);
 
@@ -148,9 +150,9 @@ const App = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 flex flex-col">
+    <div className={`min-h-screen ${colors.bg.primary} flex flex-col`}>
       {/* Top buttons */}
-      <div className="flex justify-center mb-8 gap-6 pt-8 md:pt-6" style={{paddingTop: 'env(safe-area-inset-top,3rem)'}}>
+      <div className="flex justify-center mb-8 gap-6 pt-8 md:pt-6">
         <button
           className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold px-8 py-3 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 border border-emerald-400"
           onClick={backupDonorsToFile}
@@ -167,12 +169,24 @@ const App = () => {
         >
           Restore
         </button>
+        {/* Dark Mode Toggle */}
+        <button
+          className={`px-6 py-3 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 font-semibold ${
+            isDarkMode 
+              ? 'bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white border border-yellow-400' 
+              : 'bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 text-white border border-slate-500'
+          }`}
+          onClick={toggleTheme}
+          title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+        >
+          {isDarkMode ? '☀️' : '🌙'}
+        </button>
       </div>
       <div className="flex-1 overflow-y-auto px-3 pb-6">
         <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-10 w-10 border-b-3 border-blue-600"></div></div>}>
           {view === 'form' && (
-            <div className="bg-gradient-to-br from-white to-blue-50 p-3 rounded-3xl shadow-2xl w-full max-w-7xl mx-auto border border-blue-100 backdrop-blur-sm">
-              <div className="bg-white/90 p-8 rounded-2xl shadow-inner w-full">
+            <div className={`${colors.bg.gradient} p-3 rounded-3xl shadow-2xl w-full max-w-7xl mx-auto border ${colors.border.primary} backdrop-blur-sm`}>
+              <div className={`${colors.bg.card} p-8 rounded-2xl shadow-inner w-full`}>
                 <DonorForm 
                   editingDonor={editingDonor} 
                   onCancelEdit={handleCancelEdit} 
@@ -190,10 +204,10 @@ const App = () => {
       <div
         className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm flex justify-around border-t border-gray-200 shadow-lg z-50"
         style={{
-          bottom: '16px',
-          paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)',
-          minHeight: 44,
-          height: 44,
+          bottom: 'env(safe-area-inset-bottom, 0px)',
+          paddingBottom: '8px',
+          paddingTop: '8px',
+          minHeight: 48,
         }}
       >
         <button
@@ -242,6 +256,14 @@ const App = () => {
         </button>
       </div>
     </div>
+  );
+};
+
+const App = () => {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
   );
 };
 

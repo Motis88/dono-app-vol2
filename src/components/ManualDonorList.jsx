@@ -1,8 +1,10 @@
 
 import React, { useState, useEffect } from "react";
 import { donorStorage } from '../utils/storage.js';
+import { useTheme } from '../contexts/ThemeContext.jsx';
 
 const ManualDonorList = ({ onEdit }) => {
+  const { colors } = useTheme();
   const [donors, setDonors] = useState([]);
   const [showProfile, setShowProfile] = useState(null);
 
@@ -110,10 +112,10 @@ const ManualDonorList = ({ onEdit }) => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'ready': return 'border-green-500 bg-green-50';
-      case 'soon': return 'border-yellow-500 bg-yellow-50';
-      case 'not-ready': return 'border-red-500 bg-red-50';
-      default: return 'border-gray-300 bg-gray-50';
+      case 'ready': return `border-green-500 ${colors.bg.tertiary}`;
+      case 'soon': return `border-yellow-500 ${colors.bg.tertiary}`;
+      case 'not-ready': return `border-red-500 ${colors.bg.tertiary}`;
+      default: return `${colors.border.primary} ${colors.bg.tertiary}`;
     }
   };
 
@@ -122,15 +124,15 @@ const ManualDonorList = ({ onEdit }) => {
       case 'ready': return 'text-green-700';
       case 'soon': return 'text-yellow-700';
       case 'not-ready': return 'text-red-700';
-      default: return 'text-gray-700';
+      default: return colors.text.primary;
     }
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-100 p-4 sm:p-6">
+    <div className={`min-h-screen ${colors.bg.primary} p-4 sm:p-6`}>
       <div className="max-w-6xl mx-auto">
         <div className="text-center mb-8">
-          <h1 className="text-3xl sm:text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-4">
+          <h1 className={`text-3xl sm:text-4xl font-bold ${colors.text.primary} mb-4`}>
             Private Owners
           </h1>
           <div className="w-24 h-1 bg-gradient-to-r from-blue-400 to-purple-400 mx-auto rounded-full"></div>
@@ -139,14 +141,14 @@ const ManualDonorList = ({ onEdit }) => {
         {donors.length === 0 ? (
           <div className="text-center py-16">
             <div className="text-6xl mb-4">🐕</div>
-            <h3 className="text-xl font-semibold text-gray-700 mb-2">No Private Owner Animals</h3>
-            <p className="text-gray-500">Add animals with private owners to see them here</p>
+            <h3 className={`text-xl font-semibold ${colors.text.primary} mb-2`}>No Private Owner Animals</h3>
+            <p className={colors.text.muted}>Add animals with private owners to see them here</p>
           </div>
         ) : (
           <>
             {/* Summary */}
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-              <div className="bg-white rounded-xl p-4 shadow-lg border border-green-200">
+              <div className={`${colors.bg.card} rounded-xl p-4 shadow-lg ${colors.border.primary} border`}>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-green-600">
                     {donors.filter(d => d.status === 'ready').length}
@@ -154,7 +156,7 @@ const ManualDonorList = ({ onEdit }) => {
                   <div className="text-sm text-green-600 font-medium">Ready to Donate</div>
                 </div>
               </div>
-              <div className="bg-white rounded-xl p-4 shadow-lg border border-yellow-200">
+              <div className={`${colors.bg.card} rounded-xl p-4 shadow-lg ${colors.border.primary} border`}>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-yellow-600">
                     {donors.filter(d => d.status === 'soon').length}
@@ -162,7 +164,7 @@ const ManualDonorList = ({ onEdit }) => {
                   <div className="text-sm text-yellow-600 font-medium">Available Soon</div>
                 </div>
               </div>
-              <div className="bg-white rounded-xl p-4 shadow-lg border border-red-200">
+              <div className={`${colors.bg.card} rounded-xl p-4 shadow-lg ${colors.border.primary} border`}>
                 <div className="text-center">
                   <div className="text-2xl font-bold text-red-600">
                     {donors.filter(d => d.status === 'not-ready').length}
@@ -177,14 +179,14 @@ const ManualDonorList = ({ onEdit }) => {
               {donors.map((d, i) => (
                 <div
                   key={i}
-                  className={`bg-white rounded-xl shadow-lg border-l-4 p-6 cursor-pointer transition-all duration-200 hover:shadow-xl hover:scale-105 ${getStatusColor(d.status)}`}
+                  className={`${colors.bg.card} rounded-xl shadow-lg border-l-4 p-6 cursor-pointer transition-all duration-200 hover:shadow-xl hover:scale-105 ${getStatusColor(d.status)}`}
                   onClick={() => setShowProfile(d)}
                 >
                   {/* Header */}
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex-1">
-                      <h3 className="text-xl font-bold text-gray-800 mb-1">{d.animalName || "Unknown"}</h3>
-                      <div className="text-sm text-gray-600">{d.animalType || "Unknown"} • {d.bloodType || "Unknown"}</div>
+                      <h3 className={`text-xl font-bold ${colors.text.primary} mb-1`}>{d.animalName || "Unknown"}</h3>
+                      <div className={`text-sm ${colors.text.secondary}`}>{d.animalType || "Unknown"} • {d.bloodType || "Unknown"}</div>
                     </div>
                     <div className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusTextColor(d.status)}`}>
                       {d.status === 'ready' ? 'READY' : d.status === 'soon' ? 'SOON' : 'WAITING'}
@@ -193,16 +195,16 @@ const ManualDonorList = ({ onEdit }) => {
 
                   {/* Owner Info */}
                   <div className="space-y-2 mb-4">
-                    <div className="flex items-center text-sm text-gray-700">
+                    <div className={`flex items-center text-sm ${colors.text.primary}`}>
                       <span className="font-medium w-16">Owner:</span>
                       <span className="truncate">{d.ownerName || "Unknown"}</span>
                     </div>
-                    <div className="flex items-center text-sm text-gray-700">
+                    <div className={`flex items-center text-sm ${colors.text.primary}`}>
                       <span className="font-medium w-16">Phone:</span>
                       <span className="truncate">{d.ownerPhone || "Unknown"}</span>
                     </div>
                     {d.fileNumber && (
-                      <div className="flex items-center text-sm text-gray-700">
+                      <div className={`flex items-center text-sm ${colors.text.primary}`}>
                         <span className="font-medium w-16">File #:</span>
                         <span className="truncate">{d.fileNumber}</span>
                       </div>
@@ -215,7 +217,7 @@ const ManualDonorList = ({ onEdit }) => {
                       {d.daysStatus}
                     </div>
                     {d.donationDate && (
-                      <div className="text-xs text-gray-500 mt-1">
+                      <div className={`text-xs ${colors.text.secondary} mt-1`}>
                         Last: {new Date(d.donationDate).toLocaleDateString()}
                       </div>
                     )}
@@ -246,7 +248,7 @@ const ManualDonorList = ({ onEdit }) => {
       {/* Enhanced Profile Modal */}
       {showProfile && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setShowProfile(null)}>
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-auto" onClick={e => e.stopPropagation()}>
+          <div className={`${colors.bg.card} rounded-2xl shadow-2xl w-full max-w-md mx-auto`} onClick={e => e.stopPropagation()}>
             {/* Header */}
             <div className={`p-6 rounded-t-2xl ${getStatusColor(showProfile.status)}`}>
               <div className="flex justify-between items-start">
@@ -259,7 +261,7 @@ const ManualDonorList = ({ onEdit }) => {
                 </div>
                 <button 
                   onClick={() => setShowProfile(null)} 
-                  className="text-gray-500 hover:text-gray-700 transition-colors"
+                  className={`${colors.text.secondary} hover:${colors.text.primary} transition-colors`}
                 >
                   <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -273,56 +275,56 @@ const ManualDonorList = ({ onEdit }) => {
               <div className="space-y-4">
                 {/* Owner Information */}
                 <div>
-                  <h4 className="font-semibold text-gray-800 mb-3">Owner Information</h4>
+                  <h4 className={`font-semibold ${colors.text.primary} mb-3`}>Owner Information</h4>
                   <div className="space-y-2">
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Name:</span>
-                      <span className="font-medium">{showProfile.ownerName || "Not specified"}</span>
+                      <span className={colors.text.secondary}>Name:</span>
+                      <span className={`font-medium ${colors.text.primary}`}>{showProfile.ownerName || "Not specified"}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Phone:</span>
-                      <span className="font-medium">{showProfile.ownerPhone || "Not specified"}</span>
+                      <span className={colors.text.secondary}>Phone:</span>
+                      <span className={`font-medium ${colors.text.primary}`}>{showProfile.ownerPhone || "Not specified"}</span>
                     </div>
                     {showProfile.fileNumber && (
                       <div className="flex justify-between">
-                        <span className="text-gray-600">File Number:</span>
-                        <span className="font-medium">{showProfile.fileNumber}</span>
+                        <span className={colors.text.secondary}>File Number:</span>
+                        <span className={`font-medium ${colors.text.primary}`}>{showProfile.fileNumber}</span>
                       </div>
                     )}
                   </div>
                 </div>
 
                 {/* Animal Details */}
-                <div className="border-t pt-4">
-                  <h4 className="font-semibold text-gray-800 mb-3">Animal Details</h4>
+                <div className={`border-t ${colors.border.primary} pt-4`}>
+                  <h4 className={`font-semibold ${colors.text.primary} mb-3`}>Animal Details</h4>
                   <div className="space-y-2">
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Type:</span>
-                      <span className="font-medium">{showProfile.animalType || "Not specified"}</span>
+                      <span className={colors.text.secondary}>Type:</span>
+                      <span className={`font-medium ${colors.text.primary}`}>{showProfile.animalType || "Not specified"}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className="text-gray-600">Blood Type:</span>
-                      <span className="font-medium">{showProfile.bloodType || "Not specified"}</span>
+                      <span className={colors.text.secondary}>Blood Type:</span>
+                      <span className={`font-medium ${colors.text.primary}`}>{showProfile.bloodType || "Not specified"}</span>
                     </div>
                     {showProfile.age && (
                       <div className="flex justify-between">
-                        <span className="text-gray-600">Age:</span>
-                        <span className="font-medium">{showProfile.age}</span>
+                        <span className={colors.text.secondary}>Age:</span>
+                        <span className={`font-medium ${colors.text.primary}`}>{showProfile.age}</span>
                       </div>
                     )}
                   </div>
                 </div>
 
                 {/* Donation Status */}
-                <div className="border-t pt-4">
-                  <h4 className="font-semibold text-gray-800 mb-3">Donation Status</h4>
+                <div className={`border-t ${colors.border.primary} pt-4`}>
+                  <h4 className={`font-semibold ${colors.text.primary} mb-3`}>Donation Status</h4>
                   <div className="space-y-2">
                     <div className={`p-3 rounded-lg ${getStatusColor(showProfile.status)}`}>
                       <div className={`font-medium ${getStatusTextColor(showProfile.status)}`}>
                         {showProfile.daysStatus}
                       </div>
                       {showProfile.donationDate && (
-                        <div className="text-sm text-gray-600 mt-1">
+                        <div className={`text-sm ${colors.text.secondary} mt-1`}>
                           Last donated: {new Date(showProfile.donationDate).toLocaleDateString()}
                         </div>
                       )}
@@ -332,9 +334,9 @@ const ManualDonorList = ({ onEdit }) => {
 
                 {/* Notes */}
                 {showProfile.notes && (
-                  <div className="border-t pt-4">
-                    <h4 className="font-semibold text-gray-800 mb-3">Notes</h4>
-                    <div className="text-gray-700 bg-gray-50 p-3 rounded-lg">
+                  <div className={`border-t ${colors.border.primary} pt-4`}>
+                    <h4 className={`font-semibold ${colors.text.primary} mb-3`}>Notes</h4>
+                    <div className={`${colors.text.primary} ${colors.bg.tertiary} p-3 rounded-lg`}>
                       {showProfile.notes}
                     </div>
                   </div>

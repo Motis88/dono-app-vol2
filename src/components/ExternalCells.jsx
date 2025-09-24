@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { storage, safeJsonParse } from '../utils/storage.js';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
+import { useTheme } from '../contexts/ThemeContext.jsx';
 
 const ExternalCells = () => {
+  const { colors } = useTheme();
   const [selectedMonth, setSelectedMonth] = useState('');
   const [monthData, setMonthData] = useState({
     wholeBloodCat: '',
@@ -123,18 +125,18 @@ const ExternalCells = () => {
   ];
 
   return (
-    <div className="max-w-7xl mx-auto p-4">
-      <h2 className="text-2xl font-bold text-center mb-6">External Cells Management</h2>
+    <div className={`max-w-7xl mx-auto p-4 ${colors.bg.primary} min-h-screen ${colors.text.primary}`}>
+      <h2 className={`text-2xl font-bold text-center mb-6 ${colors.text.primary}`}>External Cells Management</h2>
       
       {/* Month Selection */}
-      <div className="mb-6 bg-white rounded-lg shadow p-4">
-        <label className="block text-sm font-medium text-gray-700 mb-2">
+      <div className={`mb-6 ${colors.bg.card} rounded-lg shadow p-4`}>
+        <label className={`block text-sm font-medium ${colors.text.primary} mb-2`}>
           Select Month:
         </label>
         <select
           value={selectedMonth}
           onChange={(e) => setSelectedMonth(e.target.value)}
-          className="w-full p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+          className={`w-full p-3 ${colors.border.primary} border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${colors.bg.primary} ${colors.text.primary}`}
         >
           <option value="">Choose a month...</option>
           {months.map(month => (
@@ -147,15 +149,15 @@ const ExternalCells = () => {
 
       {/* Data Entry Form */}
       {selectedMonth && (
-        <div className="mb-6 bg-white rounded-lg shadow p-4">
-          <h3 className="text-lg font-semibold mb-4">
+        <div className={`mb-6 ${colors.bg.card} rounded-lg shadow p-4`}>
+          <h3 className={`text-lg font-semibold mb-4 ${colors.text.primary}`}>
             External Sales Data for {months.find(m => m.key === selectedMonth)?.name}
           </h3>
           
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {productTypes.map(product => (
               <div key={product.key} className="flex flex-col">
-                <label className="text-sm font-medium text-gray-700 mb-1">
+                <label className={`text-sm font-medium ${colors.text.primary} mb-1`}>
                   {product.label}
                 </label>
                 <input
@@ -164,7 +166,7 @@ const ExternalCells = () => {
                   value={monthData[product.key]}
                   onChange={handleInputChange}
                   min="0"
-                  className="p-3 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className={`p-3 ${colors.border.primary} border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 ${colors.bg.primary} ${colors.text.primary}`}
                   placeholder="Enter quantity..."
                 />
               </div>
@@ -173,7 +175,7 @@ const ExternalCells = () => {
           
           <button
             onClick={handleSave}
-            className="mt-4 px-6 py-3 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="mt-4 px-6 py-3 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-colors"
           >
             Save Data
           </button>
@@ -184,8 +186,8 @@ const ExternalCells = () => {
       {chartData.length > 0 && (
         <div className="space-y-6">
           {/* Trend Chart */}
-          <div className="bg-white rounded-lg shadow p-4">
-            <h3 className="text-lg font-semibold mb-4">Monthly Trends</h3>
+          <div className={`${colors.bg.card} rounded-lg shadow p-4`}>
+            <h3 className={`text-lg font-semibold mb-4 ${colors.text.primary}`}>Monthly Trends</h3>
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={chartData}>
                 <XAxis 
@@ -213,8 +215,8 @@ const ExternalCells = () => {
           </div>
 
           {/* Bar Chart */}
-          <div className="bg-white rounded-lg shadow p-4">
-            <h3 className="text-lg font-semibold mb-4">Monthly Comparison</h3>
+          <div className={`${colors.bg.card} rounded-lg shadow p-4`}>
+            <h3 className={`text-lg font-semibold mb-4 ${colors.text.primary}`}>Monthly Comparison</h3>
             <ResponsiveContainer width="100%" height={400}>
               <BarChart data={chartData}>
                 <XAxis 
@@ -239,37 +241,37 @@ const ExternalCells = () => {
           </div>
 
           {/* Summary Table */}
-          <div className="bg-white rounded-lg shadow p-4">
-            <h3 className="text-lg font-semibold mb-4">Data Summary</h3>
+          <div className={`${colors.bg.card} rounded-lg shadow p-4`}>
+            <h3 className={`text-lg font-semibold mb-4 ${colors.text.primary}`}>Data Summary</h3>
             <div className="overflow-x-auto">
-              <table className="min-w-full divide-y divide-gray-200">
-                <thead className="bg-gray-50">
+              <table className={`min-w-full divide-y ${colors.border.primary}`}>
+                <thead className={colors.bg.secondary}>
                   <tr>
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className={`px-4 py-3 text-left text-xs font-medium ${colors.text.secondary} uppercase tracking-wider`}>
                       Month
                     </th>
                     {productTypes.map(product => (
-                      <th key={product.key} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                      <th key={product.key} className={`px-4 py-3 text-left text-xs font-medium ${colors.text.secondary} uppercase tracking-wider`}>
                         {product.label.split(' (')[0]}
                       </th>
                     ))}
-                    <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                    <th className={`px-4 py-3 text-left text-xs font-medium ${colors.text.secondary} uppercase tracking-wider`}>
                       Total
                     </th>
                   </tr>
                 </thead>
-                <tbody className="bg-white divide-y divide-gray-200">
+                <tbody className={`${colors.bg.card} divide-y ${colors.border.primary}`}>
                   {chartData.map(row => (
                     <tr key={row.monthKey}>
-                      <td className="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">
+                      <td className={`px-4 py-3 whitespace-nowrap text-sm font-medium ${colors.text.primary}`}>
                         {row.month}
                       </td>
                       {productTypes.map(product => (
-                        <td key={product.key} className="px-4 py-3 whitespace-nowrap text-sm text-gray-500">
+                        <td key={product.key} className={`px-4 py-3 whitespace-nowrap text-sm ${colors.text.secondary}`}>
                           {allData[row.monthKey][product.key]}
                         </td>
                       ))}
-                      <td className="px-4 py-3 whitespace-nowrap text-sm font-bold text-gray-900">
+                      <td className={`px-4 py-3 whitespace-nowrap text-sm font-bold ${colors.text.primary}`}>
                         {row.total}
                       </td>
                     </tr>
@@ -282,8 +284,8 @@ const ExternalCells = () => {
       )}
 
       {chartData.length === 0 && (
-        <div className="bg-white rounded-lg shadow p-8 text-center">
-          <p className="text-gray-500">No data available yet. Select a month and enter some data to see charts and summary.</p>
+        <div className={`${colors.bg.card} rounded-lg shadow p-8 text-center`}>
+          <p className={colors.text.secondary}>No data available yet. Select a month and enter some data to see charts and summary.</p>
         </div>
       )}
     </div>

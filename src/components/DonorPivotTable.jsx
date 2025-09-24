@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { useTheme } from '../contexts/ThemeContext.jsx';
 
 const getMonthKey = (dateStr) => {
   if (!dateStr) return "";
@@ -27,6 +28,7 @@ const isDonatedYes = (str) => {
 };
 
 const DonorPivotTable = ({ donors }) => {
+  const { theme, colors } = useTheme();
   const [expandedMonths, setExpandedMonths] = useState(new Set());
 
   // Toggle accordion section
@@ -99,7 +101,7 @@ const DonorPivotTable = ({ donors }) => {
   return (
     <div className="w-full max-w-7xl mx-auto">
       {/* ---- TITLE ---- */}
-      <div className="font-bold text-xl sm:text-2xl mb-6 text-center text-blue-600 tracking-wide">
+      <div className={`font-bold text-xl sm:text-2xl mb-6 text-center ${colors.text.primary} tracking-wide`}>
         Monthly Donor Summary
       </div>
       
@@ -110,15 +112,15 @@ const DonorPivotTable = ({ donors }) => {
           const monthDetails = getMonthDetails(row.month);
           
           return (
-            <div key={row.month} className="bg-white rounded-xl sm:rounded-2xl shadow-lg border border-gray-200 overflow-hidden">
+            <div key={row.month} className={`${colors.bg.card} rounded-xl sm:rounded-2xl shadow-lg ${colors.border.primary} border overflow-hidden`}>
               {/* Accordion Header */}
               <button
                 onClick={() => toggleMonth(row.month)}
-                className="w-full p-4 sm:p-6 text-left bg-gradient-to-r from-blue-50 to-purple-50 hover:from-blue-100 hover:to-purple-100 transition-all duration-200 border-b border-gray-200"
+                className={`w-full p-4 sm:p-6 text-left ${colors.bg.secondary} hover:${colors.bg.tertiary} transition-all duration-200 ${colors.border.primary} border-b`}
               >
                 <div className="flex items-center justify-between">
                   <div className="flex-1">
-                    <h3 className="text-lg sm:text-xl font-semibold text-gray-800 mb-2">
+                    <h3 className={`text-lg sm:text-xl font-semibold ${colors.text.primary} mb-2`}>
                       {formatMonth(row.month)}
                     </h3>
                     <div className="flex flex-wrap gap-3 sm:gap-6">
@@ -132,11 +134,11 @@ const DonorPivotTable = ({ donors }) => {
                       </div>
                       <div className="flex items-center gap-2">
                         <div className="w-3 h-3 bg-gray-600 rounded-full"></div>
-                        <span className="text-sm sm:text-base text-gray-700 font-semibold">{row.total} Total</span>
+                        <span className={`text-sm sm:text-base ${colors.text.primary} font-semibold`}>{row.total} Total</span>
                       </div>
                     </div>
                   </div>
-                  <div className="ml-4 transform transition-transform duration-200 text-blue-600" style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>
+                  <div className={`ml-4 transform transition-transform duration-200 ${colors.text.primary}`} style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)' }}>
                     <svg className="w-5 h-5 sm:w-6 sm:h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                     </svg>
@@ -146,16 +148,16 @@ const DonorPivotTable = ({ donors }) => {
 
               {/* Accordion Content */}
               {isExpanded && (
-                <div className="p-4 sm:p-6 bg-gray-50 animate-fadeIn">
-                  <h4 className="text-base sm:text-lg font-semibold text-gray-800 mb-4">Location Breakdown</h4>
+                <div className={`p-4 sm:p-6 ${colors.bg.tertiary} animate-fadeIn`}>
+                  <h4 className={`text-base sm:text-lg font-semibold ${colors.text.primary} mb-4`}>Location Breakdown</h4>
                   
                   {monthDetails.length > 0 ? (
                     <div className="grid gap-3 sm:gap-4">
                       {monthDetails.map(detail => (
-                        <div key={detail.location} className="bg-white rounded-lg p-4 shadow-sm border border-gray-100">
+                        <div key={detail.location} className={`${colors.bg.card} rounded-lg p-4 shadow-sm ${colors.border.primary} border`}>
                           <div className="flex items-center justify-between mb-3">
-                            <h5 className="font-medium text-gray-800 text-sm sm:text-base">{detail.location}</h5>
-                            <span className="text-sm font-semibold text-gray-600">{detail.total} donors</span>
+                            <h5 className={`font-medium ${colors.text.primary} text-sm sm:text-base`}>{detail.location}</h5>
+                            <span className={`text-sm font-semibold ${colors.text.secondary}`}>{detail.total} donors</span>
                           </div>
                           <div className="flex gap-4 sm:gap-6">
                             <div className="text-center">
@@ -171,7 +173,7 @@ const DonorPivotTable = ({ donors }) => {
                       ))}
                     </div>
                   ) : (
-                    <div className="text-center py-8 text-gray-500">
+                    <div className={`text-center py-8 ${colors.text.secondary}`}>
                       <div className="text-4xl mb-2">📊</div>
                       <div className="text-sm sm:text-base">No donations recorded for this month</div>
                     </div>
@@ -184,9 +186,9 @@ const DonorPivotTable = ({ donors }) => {
       </div>
 
       {/* ---- BAR CHART ---- */}
-      <div className="mt-8 bg-white rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 border border-gray-200">
-        <h2 className="text-lg sm:text-xl font-bold mb-4 text-center text-gray-800">Monthly Trends</h2>
-        <div className="bg-gray-50 rounded-lg p-3">
+      <div className={`mt-8 ${colors.bg.card} rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 ${colors.border.primary} border`}>
+        <h2 className={`text-lg sm:text-xl font-bold mb-4 text-center ${colors.text.primary}`}>Monthly Trends</h2>
+        <div className={`${colors.bg.tertiary} rounded-lg p-3`}>
           <ResponsiveContainer width="100%" height={280}>
             <BarChart
               data={pivot.slice().reverse()}

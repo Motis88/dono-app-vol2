@@ -3,8 +3,14 @@ import PropTypes from 'prop-types';
 import { LOCATIONS, BLOOD_TYPES, DONATION_STATUSES } from '../utils/constants.js';
 import { donorStorage } from '../utils/storage.js';
 import { validateDonor, sanitizeDonor } from '../utils/donorUtils.js';
+import { useTheme } from '../contexts/ThemeContext.jsx';
 
-const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
+const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
+  const { colors } = useTheme();
+  
+  // Input styles for consistent theming
+  const inputStyles = `p-3 sm:p-4 h-12 sm:h-14 border-2 ${colors.border.input} rounded-lg sm:rounded-xl w-full text-sm focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 ${colors.border.focus} transition-all duration-200 ${colors.bg.input} ${colors.bg.inputHover} ${colors.text.primary} ${colors.text.placeholder}`;
+  const selectStyles = `p-3 sm:p-4 h-12 sm:h-14 border-2 ${colors.border.input} rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 ${colors.border.focus} transition-all duration-200 ${colors.bg.input} ${colors.bg.inputHover} ${colors.text.primary}`;
   const [formData, setFormData] = useState({
     date: "",
     location: "",
@@ -194,13 +200,13 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
   };
 
   return (
-    <div className="max-w-7xl mx-auto p-1 sm:p-2 lg:p-3 bg-white rounded-lg sm:rounded-2xl shadow-xl sm:shadow-2xl border border-gray-200 pb-20 sm:pb-24">
-      <h2 className="text-2xl sm:text-3xl font-bold text-center mb-6 sm:mb-8 text-gray-800 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">Donor Form</h2>
+    <div className={`max-w-7xl mx-auto p-1 sm:p-2 lg:p-3 ${colors.bg.form} rounded-lg sm:rounded-2xl shadow-xl sm:shadow-2xl ${colors.border.primary} border pb-20 sm:pb-24`}>
+      <h2 className={`text-2xl sm:text-3xl font-bold text-center mb-6 sm:mb-8 ${colors.text.primary} bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent`}>Donor Form</h2>
       {/* Validation Errors */}
       {validationErrors.length > 0 && (
-        <div className="mb-4 sm:mb-6 p-3 sm:p-5 bg-red-50 border border-red-200 rounded-lg sm:rounded-xl shadow-sm">
-          <h3 className="font-bold text-red-800 mb-2 sm:mb-3 text-sm sm:text-base">Please fix the following errors:</h3>
-          <ul className="list-disc list-inside text-red-700 space-y-1 text-sm sm:text-base">
+        <div className={`mb-4 sm:mb-6 p-3 sm:p-5 ${colors.bg.tertiary} ${colors.border.secondary} border rounded-lg sm:rounded-xl shadow-sm`}>
+          <h3 className={`font-bold ${colors.text.error} mb-2 sm:mb-3 text-sm sm:text-base`}>Please fix the following errors:</h3>
+          <ul className={`list-disc list-inside ${colors.text.error} space-y-1 text-sm sm:text-base`}>
             {validationErrors.map((error, index) => (
               <li key={index}>{error}</li>
             ))}
@@ -218,10 +224,10 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
               value={formData.date}
               onChange={handleChange}
               required
-              className="p-3 sm:p-4 h-12 sm:h-14 border-2 border-gray-300 rounded-lg sm:rounded-xl w-full text-sm focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 focus:border-blue-500 transition-all duration-200 peer bg-gray-50 hover:bg-white"
+              className={`${inputStyles} peer`}
             />
             {!formData.date && (
-              <span className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 text-gray-400 text-sm pointer-events-none select-none">
+              <span className={`absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 ${colors.text.muted} text-sm pointer-events-none select-none`}>
                 Date
               </span>
             )}
@@ -231,7 +237,7 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
             value={formData.location}
             onChange={handleChange}
             required
-            className="p-3 sm:p-4 h-12 sm:h-14 border-2 border-gray-300 rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 focus:border-blue-500 transition-all duration-200 bg-gray-50 hover:bg-white"
+            className={selectStyles}
           >
             <option value="">Select Location</option>
             {LOCATIONS.map(loc => <option key={loc} value={loc}>{loc}</option>)}
@@ -239,14 +245,14 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
         </div>
         {/* Animal Name & Weight */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-          <input name="animalName" placeholder="Animal Name" value={formData.animalName} onChange={handleChange} required className="p-3 sm:p-4 h-12 sm:h-14 border-2 border-gray-300 rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 focus:border-blue-500 transition-all duration-200 bg-gray-50 hover:bg-white placeholder-gray-500" />
-          <input name="weight" placeholder="Weight" value={formData.weight} onChange={handleChange} type="number" step="any" className="p-3 sm:p-4 h-12 sm:h-14 border-2 border-gray-300 rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 focus:border-blue-500 transition-all duration-200 bg-gray-50 hover:bg-white placeholder-gray-500" />
+          <input name="animalName" placeholder="Animal Name" value={formData.animalName} onChange={handleChange} required className={inputStyles} />
+          <input name="weight" placeholder="Weight" value={formData.weight} onChange={handleChange} type="number" step="any" className={inputStyles} />
         </div>
         {/* Age & Gender */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-          <input name="age" placeholder="Age" value={formData.age} onChange={handleChange} type="number" step="any" className="p-3 sm:p-4 h-12 sm:h-14 border-2 border-gray-300 rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 focus:border-blue-500 transition-all duration-200 bg-gray-50 hover:bg-white placeholder-gray-500" />
+          <input name="age" placeholder="Age" value={formData.age} onChange={handleChange} type="number" step="any" className={inputStyles} />
           <div className="flex flex-col gap-2 sm:gap-3 justify-center">
-            <div className="font-semibold text-gray-700 text-sm sm:text-base">Gender:</div>
+            <div className={`font-semibold ${colors.text.primary} text-sm sm:text-base`}>Gender:</div>
             <div className="flex flex-wrap gap-4 sm:gap-6">
               <label className="flex items-center cursor-pointer">
                 <input
@@ -257,7 +263,7 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
                   onChange={handleChange}
                   className="mr-2 w-4 h-4 text-blue-600"
                 />
-                <span className="text-gray-700 text-sm sm:text-base">Male</span>
+                <span className={`${colors.text.primary} text-sm sm:text-base`}>Male</span>
               </label>
               <label className="flex items-center cursor-pointer">
                 <input
@@ -268,15 +274,15 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
                   onChange={handleChange}
                   className="mr-2 w-4 h-4 text-blue-600"
                 />
-                <span className="text-gray-700 text-sm sm:text-base">Female</span>
+                <span className={`${colors.text.primary} text-sm sm:text-base`}>Female</span>
               </label>
             </div>
           </div>
         </div>
         {/* Animal Type (Dog/Cat) — רדיו */}
         <div className="flex flex-col gap-2 sm:gap-3">
-          <span className="font-semibold text-gray-700 text-sm sm:text-base">Animal Type:</span>
-          <div className="flex flex-wrap gap-6 sm:gap-8 p-3 sm:p-4 border-2 border-gray-300 rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 focus:border-blue-500 transition-all duration-200 bg-gray-50 hover:bg-white">
+          <span className={`font-semibold ${colors.text.primary} text-sm sm:text-base`}>Animal Type:</span>
+          <div className={`flex flex-wrap gap-6 sm:gap-8 p-3 sm:p-4 border-2 ${colors.border.input} rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 ${colors.border.focus} transition-all duration-200 ${colors.bg.input} ${colors.bg.inputHover}`}>
             <label className="flex items-center cursor-pointer">
               <input
                 type="radio"
@@ -286,7 +292,7 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
                 onChange={handleChange}
                 className="mr-2 sm:mr-3 w-4 h-4 text-blue-600"
               />
-              <span className="text-gray-700 text-sm sm:text-base">Dog</span>
+              <span className={`${colors.text.primary} text-sm sm:text-base`}>Dog</span>
             </label>
             <label className="flex items-center cursor-pointer">
               <input
@@ -297,15 +303,15 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
                 onChange={handleChange}
                 className="mr-2 sm:mr-3 w-4 h-4 text-blue-600"
               />
-              <span className="text-gray-700 text-sm sm:text-base">Cat</span>
+              <span className={`${colors.text.primary} text-sm sm:text-base`}>Cat</span>
             </label>
           </div>
         </div>
         {/* Blood Type — רדיו לפי Animal Type */}
         {formData.animalType && (
           <div className="flex flex-col gap-2 sm:gap-3">
-            <span className="font-semibold text-gray-700 text-sm sm:text-base">Blood Type:</span>
-            <div className="flex flex-wrap gap-4 sm:gap-8 p-3 sm:p-4 border-2 border-gray-300 rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 focus:border-blue-500 transition-all duration-200 bg-gray-50 hover:bg-white">
+            <span className={`font-semibold ${colors.text.primary} text-sm sm:text-base`}>Blood Type:</span>
+            <div className={`flex flex-wrap gap-4 sm:gap-8 p-3 sm:p-4 border-2 ${colors.border.input} rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 ${colors.border.focus} transition-all duration-200 ${colors.bg.input} ${colors.bg.inputHover}`}>
               {(formData.animalType === "Dog" ? BLOOD_TYPES.DOG : formData.animalType === "Cat" ? BLOOD_TYPES.CAT : []).map(type => (
                 <label key={type} className="flex items-center cursor-pointer">
                   <input
@@ -316,7 +322,7 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
                     onChange={handleChange}
                     className="mr-2 sm:mr-3 w-4 h-4 text-blue-600"
                   />
-                  <span className="text-gray-700 text-xs sm:text-base">{type}</span>
+                  <span className={`${colors.text.primary} text-xs sm:text-base`}>{type}</span>
                 </label>
               ))}
             </div>
@@ -326,7 +332,7 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
         {formData.animalType === 'Cat' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
             <div className="flex flex-col gap-2 sm:gap-3">
-              <span className="font-semibold text-gray-700 text-sm sm:text-base">FIV Status:</span>
+              <span className={`font-semibold ${colors.text.primary} text-sm sm:text-base`}>FIV Status:</span>
               <div className="flex flex-wrap gap-4 sm:gap-6 p-3 sm:p-4 border-2 border-gray-300 rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 focus:border-blue-500 transition-all duration-200 bg-gray-50 hover:bg-white">
                 {['Negative', 'Positive'].map(status => (
                   <label key={status} className="flex items-center cursor-pointer">
@@ -344,8 +350,8 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
               </div>
             </div>
             <div className="flex flex-col gap-2 sm:gap-3">
-              <span className="font-semibold text-gray-700 text-sm sm:text-base">FeLV Status:</span>
-              <div className="flex flex-wrap gap-4 sm:gap-6 p-3 sm:p-4 border-2 border-gray-300 rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 focus:border-blue-500 transition-all duration-200 bg-gray-50 hover:bg-white">
+              <span className={`font-semibold ${colors.text.primary} text-sm sm:text-base`}>FeLV Status:</span>
+              <div className={`flex flex-wrap gap-4 sm:gap-6 p-3 sm:p-4 border-2 ${colors.border.input} rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 ${colors.border.focus} transition-all duration-200 ${colors.bg.input} ${colors.bg.inputHover}`}>
                 {['Negative', 'Positive'].map(status => (
                   <label key={status} className="flex items-center cursor-pointer">
                     <input
@@ -365,17 +371,17 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
         )}
         {/* PCV, HCT, WBC, PLT */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-6">
-          <input name="pcv" type="number" step="any" value={formData.pcv} onChange={handleChange} placeholder="PCV" className="p-3 sm:p-4 h-12 sm:h-14 border-2 border-gray-300 rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 focus:border-blue-500 transition-all duration-200 bg-gray-50 hover:bg-white placeholder-gray-500" />
-          <input name="hct" type="number" step="any" value={formData.hct} onChange={handleChange} placeholder="HCT" className="p-3 sm:p-4 h-12 sm:h-14 border-2 border-gray-300 rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 focus:border-blue-500 transition-all duration-200 bg-gray-50 hover:bg-white placeholder-gray-500" />
-          <input name="wbc" type="number" step="any" value={formData.wbc} onChange={handleChange} placeholder="WBC" className="p-3 sm:p-4 h-12 sm:h-14 border-2 border-gray-300 rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 focus:border-blue-500 transition-all duration-200 bg-gray-50 hover:bg-white placeholder-gray-500" />
-          <input name="plt" type="number" step="any" value={formData.plt} onChange={handleChange} placeholder="PLT" className="p-3 sm:p-4 h-12 sm:h-14 border-2 border-gray-300 rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 focus:border-blue-500 transition-all duration-200 bg-gray-50 hover:bg-white placeholder-gray-500" />
+          <input name="pcv" type="number" step="any" value={formData.pcv} onChange={handleChange} placeholder="PCV" className={inputStyles} />
+          <input name="hct" type="number" step="any" value={formData.hct} onChange={handleChange} placeholder="HCT" className={inputStyles} />
+          <input name="wbc" type="number" step="any" value={formData.wbc} onChange={handleChange} placeholder="WBC" className={inputStyles} />
+          <input name="plt" type="number" step="any" value={formData.plt} onChange={handleChange} placeholder="PLT" className={inputStyles} />
         </div>
-        <input name="packedCell" placeholder="Packed Cell" value={formData.packedCell} onChange={handleChange} type="number" className="p-3 sm:p-4 h-12 sm:h-14 border-2 border-gray-300 rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 focus:border-blue-500 transition-all duration-200 bg-gray-50 hover:bg-white placeholder-gray-500" />
-        <input name="slideFindings" placeholder="Slide Findings" value={formData.slideFindings} onChange={handleChange} className="p-3 sm:p-4 h-12 sm:h-14 border-2 border-gray-300 rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 focus:border-blue-500 transition-all duration-200 bg-gray-50 hover:bg-white placeholder-gray-500" />
+        <input name="packedCell" placeholder="Packed Cell" value={formData.packedCell} onChange={handleChange} type="number" className={inputStyles} />
+        <input name="slideFindings" placeholder="Slide Findings" value={formData.slideFindings} onChange={handleChange} className={inputStyles} />
         {/* Donated? רדיו */}
         <div className="flex flex-col gap-2 sm:gap-3">
-          <span className="font-semibold text-gray-700 text-sm sm:text-base">Donated?</span>
-          <div className="flex flex-wrap gap-4 sm:gap-8 p-3 sm:p-4 border-2 border-gray-300 rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 focus:border-blue-500 transition-all duration-200 bg-gray-50 hover:bg-white">
+          <span className={`font-semibold ${colors.text.primary} text-sm sm:text-base`}>Donated?</span>
+          <div className={`flex flex-wrap gap-4 sm:gap-8 p-3 sm:p-4 border-2 ${colors.border.primary} rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 focus:border-blue-500 transition-all duration-200 ${colors.bg.secondary} hover:${colors.bg.tertiary}`}>
             <label className="flex items-center cursor-pointer">
               <input
                 type="radio"
@@ -385,7 +391,7 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
                 onChange={handleChange}
                 className="mr-2 sm:mr-3 w-4 h-4 text-blue-600"
               />
-              <span className="text-gray-700 text-sm sm:text-base">Yes</span>
+              <span className={`${colors.text.primary} text-sm sm:text-base`}>Yes</span>
             </label>
             <label className="flex items-center cursor-pointer">
               <input
@@ -396,7 +402,7 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
                 onChange={handleChange}
                 className="mr-2 sm:mr-3 w-4 h-4 text-blue-600"
               />
-              <span className="text-gray-700 text-sm sm:text-base">No</span>
+              <span className={`${colors.text.primary} text-sm sm:text-base`}>No</span>
             </label>
           </div>
         </div>
@@ -407,11 +413,11 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
           onChange={handleChange}
           type="number"
           inputMode="numeric"
-          className="p-3 sm:p-4 h-12 sm:h-14 border-2 border-gray-300 rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 focus:border-blue-500 transition-all duration-200 bg-gray-50 hover:bg-white placeholder-gray-500"
+          className={inputStyles}
         />
-        <textarea name="notes" placeholder="Notes" value={formData.notes} onChange={handleChange} rows={3} className="p-3 sm:p-4 border-2 border-gray-300 rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 focus:border-blue-500 transition-all duration-200 bg-gray-50 hover:bg-white placeholder-gray-500 md:col-span-2 resize-none" />
+        <textarea name="notes" placeholder="Notes" value={formData.notes} onChange={handleChange} rows={3} className={`p-3 sm:p-4 border-2 ${colors.border.input} rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 ${colors.border.focus} transition-all duration-200 ${colors.bg.input} ${colors.bg.inputHover} ${colors.text.primary} ${colors.text.placeholder} md:col-span-2 resize-none`} />
         {/* === צ'קבוקס "בעלים פרטי" ממש לפני ה-Submit === */}
-        <div className="flex items-center mt-4 sm:mt-6 p-3 sm:p-4 bg-blue-50 rounded-lg sm:rounded-xl border-2 border-blue-200">
+        <div className={`flex items-center mt-4 sm:mt-6 p-3 sm:p-4 ${colors.bg.tertiary} rounded-lg sm:rounded-xl border-2 ${colors.border.primary}`}>
           <input
             type="checkbox"
             id="isPrivateOwner"
@@ -429,27 +435,27 @@ const DonorForm = ({ onAddDonor, editingDonor, onCancelEdit }) => {
             }
             className="mr-2 sm:mr-3 w-4 sm:w-5 h-4 sm:h-5 text-blue-600"
           />
-          <label htmlFor="isPrivateOwner" className="font-semibold text-gray-700 cursor-pointer text-sm sm:text-base">בעלים פרטי</label>
+          <label htmlFor="isPrivateOwner" className={`font-semibold ${colors.text.primary} cursor-pointer text-sm sm:text-base`}>בעלים פרטי</label>
         </div>
         {formData.isPrivateOwner && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mt-3 sm:mt-4 mb-3 sm:mb-4 p-4 sm:p-6 bg-gray-50 rounded-lg sm:rounded-xl border-2 border-gray-200">
+          <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mt-3 sm:mt-4 mb-3 sm:mb-4 p-4 sm:p-6 ${colors.bg.tertiary} rounded-lg sm:rounded-xl border-2 ${colors.border.primary}`}>
             <input
               placeholder="Owner Name"
               value={formData.ownerName || ""}
               onChange={e => setFormData(f => ({ ...f, ownerName: e.target.value }))}
-              className="p-3 sm:p-4 h-12 sm:h-14 border-2 border-gray-300 rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 focus:border-blue-500 transition-all duration-200 bg-white hover:bg-gray-50 placeholder-gray-500"
+              className={inputStyles}
             />
             <input
               placeholder="File Number"
               value={formData.fileNumber || ""}
               onChange={e => setFormData(f => ({ ...f, fileNumber: e.target.value }))}
-              className="p-3 sm:p-4 h-12 sm:h-14 border-2 border-gray-300 rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 focus:border-blue-500 transition-all duration-200 bg-white hover:bg-gray-50 placeholder-gray-500"
+              className={inputStyles}
             />
             <input
               placeholder="Phone Number"
               value={formData.ownerPhone || ""}
               onChange={e => setFormData(f => ({ ...f, ownerPhone: e.target.value }))}
-              className="p-3 sm:p-4 h-12 sm:h-14 border-2 border-gray-300 rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 focus:border-blue-500 transition-all duration-200 bg-white hover:bg-gray-50 placeholder-gray-500"
+              className={inputStyles}
             />
           </div>
         )}
