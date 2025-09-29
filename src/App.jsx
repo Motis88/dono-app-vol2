@@ -1,4 +1,5 @@
 import React, { useState, useEffect, Suspense, lazy } from 'react';
+import { FiMenu } from 'react-icons/fi';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { VIEWS, FILE_NAMES } from './utils/constants.js';
 import { donorStorage, safeJsonParse } from './utils/storage.js';
@@ -14,6 +15,7 @@ const ManualDonorList = lazy(() => import('./components/ManualDonorList'));
 
 const AppContent = () => {
   const { colors, isDarkMode, toggleTheme } = useTheme();
+  const [showMenu, setShowMenu] = useState(false);
   const [view, setView] = useState('form');
   const [editingDonor, setEditingDonor] = useState(null);
 
@@ -151,38 +153,51 @@ const AppContent = () => {
 
   return (
     <div className={`min-h-screen ${colors.bg.primary} flex flex-col`}>
-      {/* Top buttons */}
-      <div className="flex justify-center mb-8 gap-6 pt-8 md:pt-6">
-        <button
-          className="bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700 text-white font-semibold px-8 py-3 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 border border-emerald-400"
-          onClick={backupDonorsToFile}
-        >
-          Backup
-        </button>
-        <button
-          className="bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-semibold px-8 py-3 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 border border-amber-400"
-          onClick={async () => {
-            if (window.confirm('Are you sure you want to RESTORE from backup? This will overwrite all your current donors!')) {
-              await restoreDonorsFromFile();
-            }
-          }}
-        >
-          Restore
-        </button>
-        {/* Dark Mode Toggle */}
-        <button
-          className={`px-6 py-3 rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 font-semibold ${
-            isDarkMode 
-              ? 'bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white border border-yellow-400' 
-              : 'bg-gradient-to-r from-slate-600 to-slate-700 hover:from-slate-700 hover:to-slate-800 text-white border border-slate-500'
-          }`}
-          onClick={toggleTheme}
-          title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-        >
-          {isDarkMode ? '☀️' : '🌙'}
-        </button>
-      </div>
-      <div className="flex-1 overflow-y-auto px-3 pb-6">
+      {/* Modern Top Navigation Bar */}
+      <div style={{marginTop: '40px'}}></div>
+      <nav className={`w-full z-30 shadow-md ${colors.bg.card} border-b ${colors.border.primary}`} style={{position:'sticky',top:0}}>
+        <div className="max-w-7xl mx-auto flex items-center justify-between px-3 py-1.5 min-h-[44px]">
+          <div className="flex items-center gap-2">
+            <span className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent select-none">Dono App</span>
+            <div className="hidden md:flex gap-1 ml-4">
+              <button onClick={()=>setView('form')} className={`px-2.5 py-1 rounded-lg font-semibold transition-all duration-200 ${view==='form'? 'bg-blue-600 text-white' : 'text-blue-600 hover:bg-blue-50'}`}>Form</button>
+              <button onClick={()=>setView('table')} className={`px-2.5 py-1 rounded-lg font-semibold transition-all duration-200 ${view==='table'? 'bg-blue-600 text-white' : 'text-blue-600 hover:bg-blue-50'}`}>Table</button>
+              <button onClick={()=>setView('dashboard')} className={`px-2.5 py-1 rounded-lg font-semibold transition-all duration-200 ${view==='dashboard'? 'bg-blue-600 text-white' : 'text-blue-600 hover:bg-blue-50'}`}>Dashboard</button>
+              <button onClick={()=>setView('manual')} className={`px-2.5 py-1 rounded-lg font-semibold transition-all duration-200 ${view==='manual'? 'bg-blue-600 text-white' : 'text-blue-600 hover:bg-blue-50'}`}>Owners</button>
+            </div>
+          </div>
+          <div className="flex items-center gap-1">
+            <button onClick={()=>setShowMenu(v=>!v)} className="p-1.5 rounded-full hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-400">
+              <FiMenu size={22} className={colors.text.primary} />
+            </button>
+            {/* Popup menu */}
+            {showMenu && (
+              <div className={`absolute right-4 top-12 bg-white dark:bg-gray-900 border ${colors.border.primary} rounded-xl shadow-xl p-2 flex flex-col gap-1 z-50 min-w-[120px]`}>
+                <button
+                  className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow hover:from-emerald-600 hover:to-emerald-700 border border-emerald-400"
+                  onClick={()=>{backupDonorsToFile();setShowMenu(false);}}
+                >Backup</button>
+                <button
+                  className="bg-gradient-to-r from-amber-500 to-amber-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow hover:from-amber-600 hover:to-amber-700 border border-amber-400"
+                  onClick={async()=>{if(window.confirm('Are you sure you want to RESTORE from backup? This will overwrite all your current donors!')){await restoreDonorsFromFile();} setShowMenu(false);}}
+                >Restore</button>
+                <button
+                  className={`text-xs font-bold px-3 py-1.5 rounded-lg shadow border ${isDarkMode ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white border-yellow-400' : 'bg-gradient-to-r from-slate-600 to-slate-700 text-white border-slate-500'}`}
+                  onClick={()=>{toggleTheme();setShowMenu(false);}}
+                >{isDarkMode ? '☀️ Light' : '🌙 Dark'}</button>
+              </div>
+            )}
+          </div>
+        </div>
+        {/* Mobile nav */}
+        <div className="flex md:hidden justify-center gap-1 pb-1">
+          <button onClick={()=>setView('form')} className={`px-2.5 py-1 rounded-lg font-semibold transition-all duration-200 ${view==='form'? 'bg-blue-600 text-white' : 'text-blue-600 hover:bg-blue-50'}`}>Form</button>
+          <button onClick={()=>setView('table')} className={`px-2.5 py-1 rounded-lg font-semibold transition-all duration-200 ${view==='table'? 'bg-blue-600 text-white' : 'text-blue-600 hover:bg-blue-50'}`}>Table</button>
+          <button onClick={()=>setView('dashboard')} className={`px-2.5 py-1 rounded-lg font-semibold transition-all duration-200 ${view==='dashboard'? 'bg-blue-600 text-white' : 'text-blue-600 hover:bg-blue-50'}`}>Dashboard</button>
+          <button onClick={()=>setView('manual')} className={`px-2.5 py-1 rounded-lg font-semibold transition-all duration-200 ${view==='manual'? 'bg-blue-600 text-white' : 'text-blue-600 hover:bg-blue-50'}`}>Owners</button>
+        </div>
+      </nav>
+  <div className="flex-1 overflow-y-auto px-3 pb-2 pt-1">
         <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-10 w-10 border-b-3 border-blue-600"></div></div>}>
           {view === 'form' && (
             <div className={`${colors.bg.gradient} p-3 rounded-3xl shadow-2xl w-full max-w-7xl mx-auto border ${colors.border.primary} backdrop-blur-sm`}>
@@ -201,60 +216,7 @@ const AppContent = () => {
         </Suspense>
       </div>
 
-      <div
-        className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-sm flex justify-around border-t border-gray-200 shadow-lg z-50"
-        style={{
-          bottom: 'env(safe-area-inset-bottom, 0px)',
-          paddingBottom: '8px',
-          paddingTop: '8px',
-          minHeight: 48,
-        }}
-      >
-        <button
-          className={`flex-1 flex flex-col items-center py-2 transition-all duration-300 rounded-t-xl ${
-            view === 'form' 
-              ? 'text-blue-600 font-bold bg-gradient-to-t from-blue-50 to-transparent shadow-inner' 
-              : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-          }`}
-          onClick={() => setView('form')}
-        >
-          <span style={{fontSize: 24}}>✍️</span>
-          <span style={{fontSize: 12, marginTop: 2}}>Form</span>
-        </button>
-        <button
-          className={`flex-1 flex flex-col items-center py-2 transition-all duration-300 rounded-t-xl ${
-            view === 'table' 
-              ? 'text-blue-600 font-bold bg-gradient-to-t from-blue-50 to-transparent shadow-inner' 
-              : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-          }`}
-          onClick={() => setView('table')}
-        >
-          <span style={{fontSize: 24}}>📊</span>
-          <span style={{fontSize: 12, marginTop: 2}}>Table</span>
-        </button>
-        <button
-          className={`flex-1 flex flex-col items-center py-2 transition-all duration-300 rounded-t-xl ${
-            view === 'dashboard' 
-              ? 'text-blue-600 font-bold bg-gradient-to-t from-blue-50 to-transparent shadow-inner border-t-2 border-blue-500' 
-              : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-          }`}
-          onClick={() => setView('dashboard')}
-        >
-          <span style={{fontSize: 24}}>📈</span>
-          <span style={{fontSize: 12, marginTop: 2}}>Dashboard</span>
-        </button>
-        <button
-          className={`flex-1 flex flex-col items-center py-2 transition-all duration-300 rounded-t-xl ${
-            view === 'manual' 
-              ? 'text-blue-600 font-bold bg-gradient-to-t from-blue-50 to-transparent shadow-inner' 
-              : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
-          }`}
-          onClick={() => setView('manual')}
-        >
-          <span style={{fontSize: 24}}>👥</span>
-          <span style={{fontSize: 12, marginTop: 2}}>Owners</span>
-        </button>
-      </div>
+      {/* Removed bottom tab navigation for a cleaner UI */}
     </div>
   );
 };
