@@ -2,7 +2,7 @@ import React, { useState, useEffect, useCallback, useRef } from "react";
 import PropTypes from 'prop-types';
 import { LOCATIONS, BLOOD_TYPES, DONATION_STATUSES } from '../utils/constants.js';
 import { donorStorage } from '../utils/storage.js';
-import { validateDonor, sanitizeDonor } from '../utils/donorUtils.js';
+import { validateDonor, sanitizeDonor, normalizeBloodType } from '../utils/donorUtils.js';
 import { useTheme } from '../contexts/ThemeContext.jsx';
 
 const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
@@ -73,7 +73,12 @@ const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
 
   useEffect(() => {
     if (editingDonor) {
-      setFormData(editingDonor);
+      // Normalize blood type when editing imported donors
+      const normalizedDonor = {
+        ...editingDonor,
+        bloodType: normalizeBloodType(editingDonor.bloodType, editingDonor.animalType)
+      };
+      setFormData(normalizedDonor);
       window.scrollTo({ top: 0, behavior: "smooth" });
     } else {
       // Load draft form data from localStorage (only if not editing)
@@ -134,6 +139,11 @@ const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
 
     // Sanitize donor data before submitting
     const sanitizedData = sanitizeDonor(formData);
+    
+    // Ensure blood type is preserved from formData
+    if (formData.bloodType) {
+      sanitizedData.bloodType = formData.bloodType;
+    }
 
     if (formData.isPrivateOwner) {
       sanitizedData.ownerName = formData.ownerName || "";
@@ -312,19 +322,22 @@ const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
           <div className="flex flex-col gap-2 sm:gap-3">
             <span className={`font-semibold ${colors.text.primary} text-sm sm:text-base`}>Blood Type:</span>
             <div className={`flex flex-wrap gap-4 sm:gap-8 p-3 sm:p-4 border-2 ${colors.border.input} rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 ${colors.border.focus} transition-all duration-200 ${colors.bg.input} ${colors.bg.inputHover}`}>
-              {(formData.animalType === "Dog" ? BLOOD_TYPES.DOG : formData.animalType === "Cat" ? BLOOD_TYPES.CAT : []).map(type => (
-                <label key={type} className="flex items-center cursor-pointer">
-                  <input
-                    type="radio"
-                    name="bloodType"
-                    value={type}
-                    checked={formData.bloodType === type}
-                    onChange={handleChange}
-                    className="mr-2 sm:mr-3 w-4 h-4 text-blue-600"
-                  />
-                  <span className={`${colors.text.primary} text-xs sm:text-base`}>{type}</span>
-                </label>
-              ))}
+              {(formData.animalType === "Dog" ? BLOOD_TYPES.DOG : formData.animalType === "Cat" ? BLOOD_TYPES.CAT : []).map(type => {
+                const isChecked = formData.bloodType === type;
+                return (
+                  <label key={type} className="flex items-center cursor-pointer">
+                    <input
+                      type="radio"
+                      name="bloodType"
+                      value={type}
+                      checked={isChecked}
+                      onChange={handleChange}
+                      className="mr-2 sm:mr-3 w-4 h-4 text-blue-600"
+                    />
+                    <span className={`${colors.text.primary} text-xs sm:text-base`}>{type}</span>
+                  </label>
+                );
+              })}
             </div>
           </div>
         )}

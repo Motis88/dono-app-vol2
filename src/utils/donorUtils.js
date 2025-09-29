@@ -1,4 +1,41 @@
 import { v4 as uuidv4 } from 'uuid';
+import { BLOOD_TYPES } from './constants.js';
+
+/**
+ * Normalize blood type values to match app constants
+ * @param {string} bloodType - Blood type value to normalize
+ * @param {string} animalType - Animal type (Dog/Cat)
+ * @returns {string} Normalized blood type or original value
+ */
+export const normalizeBloodType = (bloodType, animalType) => {
+  if (!bloodType || !animalType) return bloodType;
+  
+  const normalizedInput = String(bloodType).trim().toUpperCase();
+  const type = String(animalType).toLowerCase();
+  
+  if (type === 'dog') {
+    // Handle DEA variations
+    if (normalizedInput.includes('DEA') && normalizedInput.includes('POSITIVE')) {
+      return 'DEA 1.1 Positive';
+    }
+    if (normalizedInput.includes('DEA') && normalizedInput.includes('NEGATIVE')) {
+      return 'DEA 1.1 Negative';
+    }
+    if (normalizedInput.includes('POSITIVE')) {
+      return 'DEA 1.1 Positive';
+    }
+    if (normalizedInput.includes('NEGATIVE')) {
+      return 'DEA 1.1 Negative';
+    }
+  } else if (type === 'cat') {
+    // Handle cat blood types
+    if (normalizedInput === 'A') return 'A';
+    if (normalizedInput === 'B') return 'B';
+    if (normalizedInput === 'AB') return 'AB';
+  }
+  
+  return bloodType; // Return original if no match found
+};
 
 /**
  * Check if a name is meaningful (contains letters, not just digits)
@@ -29,18 +66,24 @@ export const normalizeDonors = (donors) => {
       return { id: uuidv4(), ...donor };
     }
 
-    if (donor.id) return donor;
+    // Normalize blood type first
+    let normalizedDonor = { ...donor };
+    if (donor.bloodType && donor.animalType) {
+      normalizedDonor.bloodType = normalizeBloodType(donor.bloodType, donor.animalType);
+    }
 
-    const { animalType, animalName = "", ownerName = "" } = donor;
+    if (normalizedDonor.id) return normalizedDonor;
+
+    const { animalType, animalName = "", ownerName = "" } = normalizedDonor;
     const isCat = animalType?.toLowerCase() === "cat";
     const hasGoodName = isMeaningfulName(animalName);
     
     if (isCat && !hasGoodName) {
-      return { ...donor, id: uuidv4() };
+      return { ...normalizedDonor, id: uuidv4() };
     }
     
     const baseId = `${animalName.trim().toLowerCase()}_${ownerName.trim().toLowerCase()}`;
-    return { ...donor, id: baseId };
+    return { ...normalizedDonor, id: baseId };
   });
 };
 
@@ -162,8 +205,8 @@ export const sanitizeDonor = (donor) => {
   
   // Sanitize string fields
   const stringFields = [
-    'animalName', 'ownerName', 'location', 'animalType', 'bloodType',
-    'gender', 'fiv', 'felv', 'donated', 'slideFindings', 'notes'
+    'animalName', 'ownerName', 'location', 'animalType', 'gender', 
+    'fiv', 'felv', 'donated', 'slideFindings', 'notes'
   ];
   
   stringFields.forEach(field => {
@@ -178,6 +221,18 @@ export const sanitizeDonor = (donor) => {
       sanitized[field] = '';
     }
   });
+
+  // Handle blood type with normalization
+  if (donor.bloodType !== undefined && donor.bloodType !== null) {
+    const normalizedBloodType = normalizeBloodType(donor.bloodType, donor.animalType);
+    sanitized.bloodType = String(normalizedBloodType)
+      .replace(/<script[^>]*>.*?<\/script>/gi, '')
+      .replace(/javascript:/gi, '')
+      .replace(/on\w+\s*=/gi, '')
+      .trim();
+  } else {
+    sanitized.bloodType = '';
+  }
 
   // Handle numeric fields
   const numericFields = ['age', 'weight', 'pcv', 'hct', 'wbc', 'plt', 'packedCell', 'volume'];

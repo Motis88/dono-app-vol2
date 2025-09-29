@@ -1,16 +1,30 @@
 
 import React, { useState, useEffect } from "react";
 import { donorStorage } from '../utils/storage.js';
+import { isAnimalHighlighted, normalizeBloodType } from '../utils/donorUtils.js';
 import { useTheme } from '../contexts/ThemeContext.jsx';
+import { BLOOD_TYPES } from '../utils/constants.js';
 
-const ManualDonorList = ({ onEdit }) => {
+// Helper to uniquely match animal records
+function isSameAnimal(a, b) {
+  if (!a || !b) return false;
+  return (
+    a.animalName === b.animalName &&
+    a.ownerName === b.ownerName &&
+    (a.fileNumber ? a.fileNumber === b.fileNumber : true)
+  );
+}
+
+const ManualDonorList = ({ onEdit, onNewDonation }) => {
   const { colors } = useTheme();
   const [donors, setDonors] = useState([]);
   const [showProfile, setShowProfile] = useState(null);
+  const [bloodTypeFilter, setBloodTypeFilter] = useState("");
 
   useEffect(() => {
     refreshDonors();
-  }, []);
+    // eslint-disable-next-line
+  }, [bloodTypeFilter]);
 
   // Calculate donation eligibility status
   const calculateDonationStatus = (lastDonationDate) => {
@@ -50,7 +64,7 @@ const ManualDonorList = ({ onEdit }) => {
   const refreshDonors = () => {
     const all = donorStorage.getDonors();
     // For each private owner animal, find its last donation date
-    const privateAnimals = all.filter(x => x.isPrivateOwner).map(animal => {
+    let privateAnimals = all.filter(x => x.isPrivateOwner).map(animal => {
       // Find all donations for this animal (by id or by animalName+ownerName)
       const matches = all.filter(d =>
         d.isPrivateOwner &&
@@ -64,7 +78,6 @@ const ManualDonorList = ({ onEdit }) => {
         }
         return latest;
       }, null);
-      
       const donationInfo = calculateDonationStatus(lastDonation);
       return { 
         ...animal, 
@@ -73,22 +86,22 @@ const ManualDonorList = ({ onEdit }) => {
       };
     });
 
+    // Filter by blood type if selected
+    if (bloodTypeFilter) {
+      privateAnimals = privateAnimals.filter(a => a.bloodType === bloodTypeFilter);
+    }
+
     // Smart sorting: Ready -> Soon -> Not Ready, then by days until ready (ascending)
     const sorted = privateAnimals.sort((a, b) => {
       const statusOrder = { 'ready': 0, 'soon': 1, 'not-ready': 2 };
-      
       if (statusOrder[a.status] !== statusOrder[b.status]) {
         return statusOrder[a.status] - statusOrder[b.status];
       }
-      
-      // Within the same status, sort by days until ready (ready animals by days since donation desc)
       if (a.status === 'ready' && b.status === 'ready') {
-        return b.daysUntilReady - a.daysUntilReady; // More days since = higher priority
+        return b.daysUntilReady - a.daysUntilReady;
       }
-      
       return a.daysUntilReady - b.daysUntilReady;
     });
-
     setDonors(sorted);
   };
 
@@ -120,29 +133,55 @@ const ManualDonorList = ({ onEdit }) => {
   };
 
   const getStatusTextColor = (status) => {
-    switch (status) {
-      case 'ready': return 'text-green-700';
-      case 'soon': return 'text-yellow-700';
-      case 'not-ready': return 'text-red-700';
-      default: return colors.text.primary;
+    // Improve contrast for dark mode
+    if (colors.isDarkMode) {
+      switch (status) {
+        case 'ready': return 'text-green-300';
+        case 'soon': return 'text-yellow-200';
+        case 'not-ready': return 'text-red-300';
+        default: return 'text-gray-100';
+      }
+    } else {
+      switch (status) {
+        case 'ready': return 'text-green-700';
+        case 'soon': return 'text-yellow-700';
+        case 'not-ready': return 'text-red-700';
+        default: return colors.text.primary;
+      }
     }
   };
 
   return (
     <div className={`min-h-screen ${colors.bg.primary} p-4 sm:p-6`}>
-      <div className="max-w-6xl mx-auto">
+  <div className="max-w-6xl mx-auto">
         <div className="text-center mb-8">
           <h1 className={`text-3xl sm:text-4xl font-bold ${colors.text.primary} mb-4`}>
             Private Owners
           </h1>
-          <div className="w-24 h-1 bg-gradient-to-r from-blue-400 to-purple-400 mx-auto rounded-full"></div>
+          <div className={`w-24 h-1 bg-gradient-to-r from-blue-400 to-purple-400 mx-auto rounded-full ${colors.isDarkMode ? 'opacity-80' : ''}`}></div>
+        </div>
+        {/* Blood Type Filter */}
+        <div className="mb-6 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
+          <label className={`font-semibold ${colors.text.primary}`}>Filter by Blood Type:</label>
+          <select
+            className={`p-2 rounded-lg border ${colors.border.primary} ${colors.bg.input} ${colors.text.primary} w-48`}
+            value={bloodTypeFilter}
+            onChange={e => setBloodTypeFilter(e.target.value)}
+          >
+            <option value="">All</option>
+            <option value="DEA 1.1 Positive">DEA 1.1 Positive (Dog)</option>
+            <option value="DEA 1.1 Negative">DEA 1.1 Negative (Dog)</option>
+            <option value="A">A (Cat)</option>
+            <option value="AB">AB (Cat)</option>
+            <option value="B">B (Cat)</option>
+          </select>
         </div>
 
         {donors.length === 0 ? (
           <div className="text-center py-16">
             <div className="text-6xl mb-4">🐕</div>
             <h3 className={`text-xl font-semibold ${colors.text.primary} mb-2`}>No Private Owner Animals</h3>
-            <p className={colors.text.muted}>Add animals with private owners to see them here</p>
+            <p className={`${colors.text.muted} ${colors.isDarkMode ? 'text-gray-400' : ''}`}>Add animals with private owners to see them here</p>
           </div>
         ) : (
           <>
@@ -186,7 +225,7 @@ const ManualDonorList = ({ onEdit }) => {
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex-1">
                       <h3 className={`text-xl font-bold ${colors.text.primary} mb-1`}>{d.animalName || "Unknown"}</h3>
-                      <div className={`text-sm ${colors.text.secondary}`}>{d.animalType || "Unknown"} • {d.bloodType || "Unknown"}</div>
+                      <div className={`text-sm ${colors.text.secondary} ${colors.isDarkMode ? 'text-gray-300' : ''}`}>{d.animalType || "Unknown"} • {d.bloodType || "Unknown"}</div>
                     </div>
                     <div className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusTextColor(d.status)}`}>
                       {d.status === 'ready' ? 'READY' : d.status === 'soon' ? 'SOON' : 'WAITING'}
@@ -196,17 +235,17 @@ const ManualDonorList = ({ onEdit }) => {
                   {/* Owner Info */}
                   <div className="space-y-2 mb-4">
                     <div className={`flex items-center text-sm ${colors.text.primary}`}>
-                      <span className="font-medium w-16">Owner:</span>
-                      <span className="truncate">{d.ownerName || "Unknown"}</span>
+                      <span className={`font-medium w-16 ${colors.isDarkMode ? 'text-gray-300' : ''}`}>Owner:</span>
+                      <span className={`truncate ${colors.isDarkMode ? 'text-gray-100' : ''}`}>{d.ownerName || "Unknown"}</span>
                     </div>
                     <div className={`flex items-center text-sm ${colors.text.primary}`}>
-                      <span className="font-medium w-16">Phone:</span>
-                      <span className="truncate">{d.ownerPhone || "Unknown"}</span>
+                      <span className={`font-medium w-16 ${colors.isDarkMode ? 'text-gray-300' : ''}`}>Phone:</span>
+                      <span className={`truncate ${colors.isDarkMode ? 'text-gray-100' : ''}`}>{d.ownerPhone || "Unknown"}</span>
                     </div>
                     {d.fileNumber && (
                       <div className={`flex items-center text-sm ${colors.text.primary}`}>
-                        <span className="font-medium w-16">File #:</span>
-                        <span className="truncate">{d.fileNumber}</span>
+                        <span className={`font-medium w-16 ${colors.isDarkMode ? 'text-gray-300' : ''}`}>File #:</span>
+                        <span className={`truncate ${colors.isDarkMode ? 'text-gray-100' : ''}`}>{d.fileNumber}</span>
                       </div>
                     )}
                   </div>
@@ -246,14 +285,21 @@ const ManualDonorList = ({ onEdit }) => {
       </div>
 
       {/* Enhanced Profile Modal */}
-      {showProfile && (
+      {showProfile && (() => {
+        // Get all donor records for this animal (by unique match)
+        const allDonors = donorStorage.getDonors();
+        const history = allDonors
+          .filter(d => d.isPrivateOwner && isSameAnimal(d, showProfile))
+          .sort((a, b) => new Date(b.date) - new Date(a.date));
+
+        return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setShowProfile(null)}>
           <div className={`${colors.bg.card} rounded-2xl shadow-2xl w-full max-w-md mx-auto`} onClick={e => e.stopPropagation()}>
             {/* Header */}
             <div className={`p-6 rounded-t-2xl ${getStatusColor(showProfile.status)}`}>
               <div className="flex justify-between items-start">
                 <div className="flex-1">
-                  <h3 className="text-2xl font-bold text-gray-800 mb-2">{showProfile.animalName}</h3>
+                  <h3 className={`text-2xl font-bold mb-2 ${colors.isDarkMode ? 'text-white' : 'text-gray-900'}`}>{showProfile.animalName}</h3>
                   <div className={`inline-block px-3 py-1 rounded-full text-sm font-semibold ${getStatusTextColor(showProfile.status)}`}>
                     {showProfile.status === 'ready' ? 'Ready to Donate' : 
                      showProfile.status === 'soon' ? 'Available Soon' : 'Not Ready Yet'}
@@ -278,17 +324,17 @@ const ManualDonorList = ({ onEdit }) => {
                   <h4 className={`font-semibold ${colors.text.primary} mb-3`}>Owner Information</h4>
                   <div className="space-y-2">
                     <div className="flex justify-between">
-                      <span className={colors.text.secondary}>Name:</span>
-                      <span className={`font-medium ${colors.text.primary}`}>{showProfile.ownerName || "Not specified"}</span>
+                      <span className={`${colors.text.secondary} ${colors.isDarkMode ? 'text-gray-300' : ''}`}>Name:</span>
+                      <span className={`font-medium ${colors.text.primary} ${colors.isDarkMode ? 'text-gray-100' : ''}`}>{showProfile.ownerName || "Not specified"}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className={colors.text.secondary}>Phone:</span>
-                      <span className={`font-medium ${colors.text.primary}`}>{showProfile.ownerPhone || "Not specified"}</span>
+                      <span className={`${colors.text.secondary} ${colors.isDarkMode ? 'text-gray-300' : ''}`}>Phone:</span>
+                      <span className={`font-medium ${colors.text.primary} ${colors.isDarkMode ? 'text-gray-100' : ''}`}>{showProfile.ownerPhone || "Not specified"}</span>
                     </div>
                     {showProfile.fileNumber && (
                       <div className="flex justify-between">
-                        <span className={colors.text.secondary}>File Number:</span>
-                        <span className={`font-medium ${colors.text.primary}`}>{showProfile.fileNumber}</span>
+                        <span className={`${colors.text.secondary} ${colors.isDarkMode ? 'text-gray-300' : ''}`}>File Number:</span>
+                        <span className={`font-medium ${colors.text.primary} ${colors.isDarkMode ? 'text-gray-100' : ''}`}>{showProfile.fileNumber}</span>
                       </div>
                     )}
                   </div>
@@ -299,32 +345,59 @@ const ManualDonorList = ({ onEdit }) => {
                   <h4 className={`font-semibold ${colors.text.primary} mb-3`}>Animal Details</h4>
                   <div className="space-y-2">
                     <div className="flex justify-between">
-                      <span className={colors.text.secondary}>Type:</span>
-                      <span className={`font-medium ${colors.text.primary}`}>{showProfile.animalType || "Not specified"}</span>
+                      <span className={`${colors.text.secondary} ${colors.isDarkMode ? 'text-gray-300' : ''}`}>Type:</span>
+                      <span className={`font-medium ${colors.text.primary} ${colors.isDarkMode ? 'text-gray-100' : ''}`}>{showProfile.animalType || "Not specified"}</span>
                     </div>
                     <div className="flex justify-between">
-                      <span className={colors.text.secondary}>Blood Type:</span>
-                      <span className={`font-medium ${colors.text.primary}`}>{showProfile.bloodType || "Not specified"}</span>
+                      <span className={`${colors.text.secondary} ${colors.isDarkMode ? 'text-gray-300' : ''}`}>Blood Type:</span>
+                      <span className={`font-medium ${colors.text.primary} ${colors.isDarkMode ? 'text-gray-100' : ''}`}>{showProfile.bloodType || "Not specified"}</span>
                     </div>
                     {showProfile.age && (
                       <div className="flex justify-between">
-                        <span className={colors.text.secondary}>Age:</span>
-                        <span className={`font-medium ${colors.text.primary}`}>{showProfile.age}</span>
+                        <span className={`${colors.text.secondary} ${colors.isDarkMode ? 'text-gray-300' : ''}`}>Age:</span>
+                        <span className={`font-medium ${colors.text.primary} ${colors.isDarkMode ? 'text-gray-100' : ''}`}>{showProfile.age}</span>
                       </div>
                     )}
                   </div>
+                </div>
+
+                {/* Donation/Test History */}
+                <div className={`border-t ${colors.border.primary} pt-4`}>
+                  <h4 className={`font-semibold ${colors.text.primary} mb-3`}>Donation & Test History</h4>
+                  {history.length === 0 ? (
+                    <div className={`${colors.text.secondary} ${colors.isDarkMode ? 'text-gray-400' : ''}`}>No donation or test records found.</div>
+                  ) : (
+                    <div className="space-y-2 max-h-48 overflow-y-auto pr-1">
+                      {history.map((rec, idx) => (
+                        <div key={idx} className={`rounded-lg p-3 ${colors.bg.tertiary} border ${colors.border.primary}` + (colors.isDarkMode ? ' text-gray-100' : '')}>
+                          <div className="flex justify-between items-center">
+                            <span className={`font-semibold text-sm ${colors.isDarkMode ? 'text-white' : 'text-gray-900'}`}>{rec.date ? new Date(rec.date).toLocaleDateString() : 'No date'}</span>
+                            <span className={`text-xs ${colors.isDarkMode ? 'text-white' : 'text-gray-600'}`}>{rec.location || 'Unknown location'}</span>
+                          </div>
+                          {rec.tests && Array.isArray(rec.tests) && rec.tests.length > 0 && (
+                            <div className={`mt-1 text-xs ${colors.isDarkMode ? 'text-gray-200' : ''}`}>
+                              <span className="font-semibold">Tests:</span> {rec.tests.map((t, i) => typeof t === 'string' ? t : t.name || '').join(', ')}
+                            </div>
+                          )}
+                          {rec.notes && (
+                            <div className={`mt-1 text-xs ${colors.isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>{rec.notes}</div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {/* Donation Status */}
                 <div className={`border-t ${colors.border.primary} pt-4`}>
                   <h4 className={`font-semibold ${colors.text.primary} mb-3`}>Donation Status</h4>
                   <div className="space-y-2">
-                    <div className={`p-3 rounded-lg ${getStatusColor(showProfile.status)}`}>
+                    <div className={`p-3 rounded-lg ${getStatusColor(showProfile.status)}` + (colors.isDarkMode ? ' text-gray-100' : '')}>
                       <div className={`font-medium ${getStatusTextColor(showProfile.status)}`}>
                         {showProfile.daysStatus}
                       </div>
                       {showProfile.donationDate && (
-                        <div className={`text-sm ${colors.text.secondary} mt-1`}>
+                        <div className={`text-sm ${colors.text.secondary} mt-1` + (colors.isDarkMode ? ' text-gray-300' : '')}>
                           Last donated: {new Date(showProfile.donationDate).toLocaleDateString()}
                         </div>
                       )}
@@ -336,7 +409,7 @@ const ManualDonorList = ({ onEdit }) => {
                 {showProfile.notes && (
                   <div className={`border-t ${colors.border.primary} pt-4`}>
                     <h4 className={`font-semibold ${colors.text.primary} mb-3`}>Notes</h4>
-                    <div className={`${colors.text.primary} ${colors.bg.tertiary} p-3 rounded-lg`}>
+                    <div className={`${colors.text.primary} ${colors.bg.tertiary} p-3 rounded-lg` + (colors.isDarkMode ? ' text-gray-100' : '')}>
                       {showProfile.notes}
                     </div>
                   </div>
@@ -346,6 +419,48 @@ const ManualDonorList = ({ onEdit }) => {
 
             {/* Actions */}
             <div className="flex gap-3 p-6 pt-0">
+              <button
+                onClick={() => {
+                  setShowProfile(null);
+                  // Prepare new donation object
+                  const { date, tests, notes, daysStatus, status, daysUntilReady, donationDate, ...baseAnimal } = showProfile;
+                  let cleanAnimal = { ...baseAnimal };
+                  const all = donorStorage.getDonors();
+                  // 1. Auto-fill blood type from previous donations if missing
+                  if (!cleanAnimal.bloodType) {
+                    const prev = all.find(d => d.isPrivateOwner && d.animalName === cleanAnimal.animalName && d.ownerName === cleanAnimal.ownerName && d.bloodType);
+                    if (prev) {
+                      cleanAnimal.bloodType = normalizeBloodType(prev.bloodType, prev.animalType);
+                    }
+                  } else {
+                    // Normalize existing blood type
+                    cleanAnimal.bloodType = normalizeBloodType(cleanAnimal.bloodType, cleanAnimal.animalType);
+                  }
+                  // 2. Age: recalculate based on first donation's age and date
+                  const firstDonation = all
+                    .filter(d => d.isPrivateOwner && d.animalName === cleanAnimal.animalName && d.ownerName === cleanAnimal.ownerName && d.age && d.date)
+                    .sort((a, b) => new Date(a.date) - new Date(b.date))[0];
+                  if (firstDonation) {
+                    const firstAge = parseFloat(firstDonation.age);
+                    const firstDate = new Date(firstDonation.date);
+                    const now = new Date();
+                    if (!isNaN(firstAge)) {
+                      const diffYears = (now - firstDate) / (1000*60*60*24*365.25);
+                      const newAge = (firstAge + diffYears).toFixed(1);
+                      cleanAnimal.age = newAge;
+                    }
+                  }
+                  // 3. Weight: always empty
+                  cleanAnimal.weight = '';
+                  // 4. Donated: always empty
+                  cleanAnimal.donated = '';
+                  // 5. Date, tests, notes: always empty
+                  if (onNewDonation) onNewDonation(cleanAnimal);
+                }}
+                className="flex-1 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold py-3 px-4 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105"
+              >
+                New Donation
+              </button>
               <button
                 onClick={() => {
                   setShowProfile(null);
@@ -364,7 +479,8 @@ const ManualDonorList = ({ onEdit }) => {
             </div>
           </div>
         </div>
-      )}
+        );
+      })()}
     </div>
   );
 };

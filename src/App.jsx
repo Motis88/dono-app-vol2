@@ -212,7 +212,13 @@ const AppContent = () => {
           )}
           {view === 'table' && <TablesByLocation onEdit={(donor) => { setEditingDonor(donor); setView("form"); }} />}
           {view === 'dashboard' && <Dashboard />}
-          {view === 'manual' && <ManualDonorList onEdit={(donor) => { setEditingDonor(donor); setView('form'); }} />}
+          {view === 'manual' && <ManualDonorList 
+            onEdit={(donor) => { setEditingDonor(donor); setView('form'); }}
+            onNewDonation={(donor) => {
+              setEditingDonor({ ...donor, date: '', tests: [], notes: '' });
+              setView('form');
+            }}
+          />}
         </Suspense>
       </div>
 
