@@ -41,7 +41,7 @@ const AppContent = () => {
     try {
       const donors = donorStorage.getDonors();
       if (donors.length === 0) {
-        if (showAlert) alert("⛔ No data to backup.");
+        if (showAlert) alert("⛔ No data to backup");
         return;
       }
       const dataString = JSON.stringify(donors);
@@ -53,11 +53,11 @@ const AppContent = () => {
           directory: Directory.Data,
           encoding: 'utf8',
         });
-        if (showAlert) alert(`📦 Backup saved! Total donors: ${donors.length}`);
+        if (showAlert) alert(`📦 Backup saved successfully!\n\nTotal donors: ${donors.length}`);
       } catch (err) {
         // Fallback: שיתוף קובץ אם יש שגיאת הרשאה
         if (err?.message?.includes('EACCES') || err?.message?.includes('Permission denied')) {
-          if (showAlert) alert('אין הרשאה לכתיבה ל-Data. משתף קובץ דרך מערכת השיתוף.');
+          if (showAlert) alert('No permission to write to Data folder. Attempting to share file...');
           try {
             await Share.share({
               title: 'Donor Backup',
@@ -66,7 +66,7 @@ const AppContent = () => {
               dialogTitle: 'Share Donor Backup File',
             });
           } catch (shareErr) {
-            alert('שיתוף הקובץ נכשל: ' + (shareErr?.message || shareErr));
+            alert('File share failed: ' + (shareErr?.message || shareErr));
           }
         } else {
           console.error("Backup error:", err);
@@ -99,11 +99,11 @@ const AppContent = () => {
           });
         } catch (errData) {
           if (errData?.message?.includes('permission') || errDoc?.message?.includes('permission')) {
-            alert('❌ Restore failed: Missing storage permissions.');
+            alert('❌ Restore failed: Missing storage permissions');
             return;
           }
           if (errData?.message?.includes('not found') || errDoc?.message?.includes('not found')) {
-            alert('❌ Restore failed: Backup file not found in Documents or Data folder.');
+            alert('❌ Restore failed: Backup file not found');
             return;
           }
           alert('❌ Restore failed: ' + (errData?.message || errDoc?.message));
@@ -112,13 +112,13 @@ const AppContent = () => {
       }
       const parsed = safeJsonParse(result.data, []);
       if (!Array.isArray(parsed)) {
-        alert('❌ Restore failed: Invalid backup file format.');
+        alert('❌ Restore failed: Invalid backup file format');
         return;
       }
       const normalized = normalizeDonors(parsed);
       const cleaned = removeExactDuplicates(normalized);
       donorStorage.saveDonors(cleaned);
-      alert(`✅ Restore succeeded! Total donors restored: ${cleaned.length}`);
+      alert(`✅ Restore successful!\n\nTotal donors: ${cleaned.length}`);
       window.location.reload();
     } catch (err) {
       console.error("Restore error:", err);
@@ -142,7 +142,7 @@ const AppContent = () => {
       backupDonorsToFile(false);
     } catch (error) {
       console.error("Error adding donor:", error);
-      alert("Error adding donor. Please try again.");
+      alert("❌ Error adding donor. Please try again.");
     }
   };
 
@@ -160,10 +160,10 @@ const AppContent = () => {
           <div className="flex items-center gap-2">
             <span className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent select-none">Dono App</span>
             <div className="hidden md:flex gap-1 ml-4">
-              <button onClick={()=>setView('form')} className={`px-2.5 py-1 rounded-lg font-semibold transition-all duration-200 ${view==='form'? 'bg-blue-600 text-white' : 'text-blue-600 hover:bg-blue-50'}`}>Form</button>
-              <button onClick={()=>setView('table')} className={`px-2.5 py-1 rounded-lg font-semibold transition-all duration-200 ${view==='table'? 'bg-blue-600 text-white' : 'text-blue-600 hover:bg-blue-50'}`}>Table</button>
-              <button onClick={()=>setView('dashboard')} className={`px-2.5 py-1 rounded-lg font-semibold transition-all duration-200 ${view==='dashboard'? 'bg-blue-600 text-white' : 'text-blue-600 hover:bg-blue-50'}`}>Dashboard</button>
-              <button onClick={()=>setView('manual')} className={`px-2.5 py-1 rounded-lg font-semibold transition-all duration-200 ${view==='manual'? 'bg-blue-600 text-white' : 'text-blue-600 hover:bg-blue-50'}`}>Owners</button>
+              <button onClick={()=>setView('form')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-lg ${view==='form'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Add Donor Form">📝</button>
+              <button onClick={()=>setView('table')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-lg ${view==='table'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Donors Table">📋</button>
+              <button onClick={()=>setView('dashboard')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-lg ${view==='dashboard'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Dashboard & Statistics">📊</button>
+              <button onClick={()=>setView('manual')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-lg ${view==='manual'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Private Owners">👥</button>
             </div>
           </div>
           <div className="flex items-center gap-1">
@@ -190,11 +190,11 @@ const AppContent = () => {
           </div>
         </div>
         {/* Mobile nav */}
-        <div className="flex md:hidden justify-center gap-1 pb-1">
-          <button onClick={()=>setView('form')} className={`px-2.5 py-1 rounded-lg font-semibold transition-all duration-200 ${view==='form'? 'bg-blue-600 text-white' : 'text-blue-600 hover:bg-blue-50'}`}>Form</button>
-          <button onClick={()=>setView('table')} className={`px-2.5 py-1 rounded-lg font-semibold transition-all duration-200 ${view==='table'? 'bg-blue-600 text-white' : 'text-blue-600 hover:bg-blue-50'}`}>Table</button>
-          <button onClick={()=>setView('dashboard')} className={`px-2.5 py-1 rounded-lg font-semibold transition-all duration-200 ${view==='dashboard'? 'bg-blue-600 text-white' : 'text-blue-600 hover:bg-blue-50'}`}>Dashboard</button>
-          <button onClick={()=>setView('manual')} className={`px-2.5 py-1 rounded-lg font-semibold transition-all duration-200 ${view==='manual'? 'bg-blue-600 text-white' : 'text-blue-600 hover:bg-blue-50'}`}>Owners</button>
+        <div className="flex md:hidden justify-center gap-2 pb-1">
+          <button onClick={()=>setView('form')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-xl ${view==='form'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Form">📝</button>
+          <button onClick={()=>setView('table')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-xl ${view==='table'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Table">📋</button>
+          <button onClick={()=>setView('dashboard')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-xl ${view==='dashboard'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Stats">📊</button>
+          <button onClick={()=>setView('manual')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-xl ${view==='manual'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Owners">👥</button>
         </div>
       </nav>
   <div className="flex-1 overflow-y-auto px-3 pb-2 pt-1">

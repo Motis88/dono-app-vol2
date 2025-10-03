@@ -145,11 +145,15 @@ const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
       sanitizedData.bloodType = formData.bloodType;
     }
 
-    if (formData.isPrivateOwner) {
+    // Auto-mark as private owner if owner name exists
+    const hasOwnerInfo = formData.ownerName?.trim() || formData.ownerPhone?.trim() || formData.fileNumber?.trim();
+    if (formData.isPrivateOwner || hasOwnerInfo) {
+      sanitizedData.isPrivateOwner = true;
       sanitizedData.ownerName = formData.ownerName || "";
       sanitizedData.fileNumber = formData.fileNumber || "";
       sanitizedData.ownerPhone = formData.ownerPhone || "";
     } else {
+      sanitizedData.isPrivateOwner = false;
       sanitizedData.ownerName = "";
       sanitizedData.fileNumber = "";
       sanitizedData.ownerPhone = "";
@@ -346,7 +350,7 @@ const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
             <div className="flex flex-col gap-2 sm:gap-3">
               <span className={`font-semibold ${colors.text.primary} text-sm sm:text-base`}>FIV Status:</span>
-              <div className="flex flex-wrap gap-4 sm:gap-6 p-3 sm:p-4 border-2 border-gray-300 rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 focus:border-blue-500 transition-all duration-200 bg-gray-50 hover:bg-white">
+              <div className={`flex flex-wrap gap-4 sm:gap-6 p-3 sm:p-4 border-2 ${colors.border.input} rounded-lg sm:rounded-xl w-full focus:outline-none focus:ring-2 sm:focus:ring-3 focus:ring-blue-400 ${colors.border.focus} transition-all duration-200 ${colors.bg.input} ${colors.bg.inputHover}`}>
                 {['Negative', 'Positive'].map(status => (
                   <label key={status} className="flex items-center cursor-pointer">
                     <input
@@ -357,7 +361,7 @@ const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
                       onChange={handleChange}
                       className="mr-2 sm:mr-3 w-4 h-4 text-blue-600"
                     />
-                    <span className="text-gray-700 text-sm sm:text-base">{status}</span>
+                    <span className={`${colors.text.primary} text-sm sm:text-base`}>{status}</span>
                   </label>
                 ))}
               </div>
@@ -375,7 +379,7 @@ const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
                       onChange={handleChange}
                       className="mr-2 sm:mr-3 w-4 h-4 text-blue-600"
                     />
-                    <span className="text-gray-700 text-sm sm:text-base">{status}</span>
+                    <span className={`${colors.text.primary} text-sm sm:text-base`}>{status}</span>
                   </label>
                 ))}
               </div>
@@ -448,7 +452,7 @@ const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
             }
             className="mr-2 sm:mr-3 w-4 sm:w-5 h-4 sm:h-5 text-blue-600"
           />
-          <label htmlFor="isPrivateOwner" className={`font-semibold ${colors.text.primary} cursor-pointer text-sm sm:text-base`}>בעלים פרטי</label>
+          <label htmlFor="isPrivateOwner" className={`font-semibold ${colors.text.primary} cursor-pointer text-sm sm:text-base`}>Private Owner</label>
         </div>
         {formData.isPrivateOwner && (
           <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mt-3 sm:mt-4 mb-3 sm:mb-4 p-4 sm:p-6 ${colors.bg.tertiary} rounded-lg sm:rounded-xl border-2 ${colors.border.primary}`}>
@@ -465,10 +469,17 @@ const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
               className={inputStyles}
             />
             <input
-              placeholder="Phone Number"
+              placeholder="Owner Phone Number"
               value={formData.ownerPhone || ""}
-              onChange={e => setFormData(f => ({ ...f, ownerPhone: e.target.value }))}
+              onChange={e => {
+                const value = e.target.value;
+                // Allow only digits, spaces, hyphens, and plus sign
+                const sanitized = value.replace(/[^0-9\s\-+]/g, '');
+                setFormData(f => ({ ...f, ownerPhone: sanitized }));
+              }}
               className={inputStyles}
+              type="tel"
+              inputMode="tel"
             />
           </div>
         )}

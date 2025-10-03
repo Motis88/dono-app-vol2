@@ -106,10 +106,13 @@ const ManualDonorList = ({ onEdit, onNewDonation }) => {
   };
 
   const handleDelete = (index) => {
-    if (!window.confirm("Delete this donor?")) return;
+    const donorToDelete = donors[index];
+    if (!donorToDelete) return;
+    
+    if (!window.confirm(`❌ Delete this donor?\n\nName: ${donorToDelete.animalName}\nOwner: ${donorToDelete.ownerName}\nType: ${donorToDelete.animalType}\nPhone: ${donorToDelete.ownerPhone || 'N/A'}`)) return;
+    
     const all = donorStorage.getDonors();
     const privateOwners = all.filter(x => x.isPrivateOwner);
-    const donorToDelete = privateOwners[index];
     const origIdx = all.findIndex(d =>
       d.isPrivateOwner &&
       d.ownerName === donorToDelete.ownerName &&
