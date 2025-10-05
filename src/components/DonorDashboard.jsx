@@ -8,6 +8,19 @@ const DonorDashboard = () => {
   const { colors } = useTheme();
   const donors = donorStorage.getDonors();
 
+  // Calculate key statistics
+  const totalDonations = donors.filter(d => d.donated === 'Yes').length;
+  const totalDonors = donors.length;
+  const privateOwners = donors.filter(d => d.isPrivateOwner).length;
+  
+  // Calculate eligible donors (90+ days since last donation)
+  const eligibleDonors = donors.filter(d => {
+    if (!d.date) return false;
+    const lastDate = new Date(d.date);
+    const today = new Date();
+    const daysSince = Math.floor((today - lastDate) / (1000 * 60 * 60 * 24));
+    return daysSince >= 90;
+  }).length;
 
   // Pie chart colors
   const dogColors = ['#3b82f6', '#f59e42'];
@@ -27,6 +40,89 @@ const DonorDashboard = () => {
     value: catDonors.filter(d => d.bloodType === type).length
   }));
 
+  // Export statistics to CSV
+  const handleExportStats = async () => {
+    try {
+      const now = new Date();
+      const dateStr = now.toISOString().slice(0, 10);
+      
+      // Build statistics CSV
+      let csvContent = '# Dono App Statistics Export\\n';
+      csvContent += `Generated: ${now.toLocaleString()}\\n\\n`;
+      
+      // Summary stats
+      csvContent += 'Summary Statistics\\n';
+      csvContent += 'Metric,Value\\n';
+      csvContent += `Total Donors,${totalDonors}\\n`;
+      csvContent += `Successful Donations,${totalDonations}\\n`;
+      csvContent += `Ready to Donate (90+ days),${eligibleDonors}\\n`;
+      csvContent += `Private Owners,${privateOwners}\\n`;
+      csvContent += `Success Rate,${totalDonors > 0 ? Math.round((totalDonations / totalDonors) * 100) : 0}%\\n`;
+      csvContent += '\\n';
+      
+      // Dog blood types
+      csvContent += 'Dog Blood Type Distribution\\n';
+      csvContent += 'Blood Type,Count,Percentage\\n';
+      dogData.forEach(item => {
+        const percent = dogDonors.length > 0 ? Math.round((item.value / dogDonors.length) * 100) : 0;
+        csvContent += `${item.name},${item.value},${percent}%\\n`;
+      });
+      csvContent += `Total Dogs,${dogDonors.length},100%\\n`;
+      csvContent += '\\n';
+      
+      // Cat blood types
+      csvContent += 'Cat Blood Type Distribution\\n';
+      csvContent += 'Blood Type,Count,Percentage\\n';
+      catData.forEach(item => {
+        const percent = catDonors.length > 0 ? Math.round((item.value / catDonors.length) * 100) : 0;
+        csvContent += `${item.name},${item.value},${percent}%\\n`;
+      });
+      csvContent += `Total Cats,${catDonors.length},100%\\n`;
+      
+      // Download
+      const { Capacitor } = await import('@capacitor/core');
+      const BOM = '\\uFEFF';
+      const fullContent = BOM + csvContent;
+      
+      if (Capacitor.isNativePlatform()) {
+        // Mobile
+        const { Filesystem, Directory } = await import('@capacitor/filesystem');
+        const { Share } = await import('@capacitor/share');
+        const filename = `donor_statistics_${dateStr}.csv`;
+        
+        const result = await Filesystem.writeFile({
+          path: filename,
+          data: btoa(unescape(encodeURIComponent(fullContent))),
+          directory: Directory.Cache
+        });
+        
+        await Share.share({
+          title: 'Export Statistics',
+          text: 'Donor statistics CSV file',
+          url: result.uri,
+          dialogTitle: 'Save or Share Statistics'
+        });
+      } else {
+        // Web
+        const blob = new Blob([fullContent], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `donor_statistics_${dateStr}.csv`;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
+      
+      alert('✅ Statistics exported successfully!');
+    } catch (error) {
+      console.error('Export failed:', error);
+      alert('❌ Export failed: ' + error.message);
+    }
+  };
+
   return (
     <div className={`min-h-screen ${colors.bg.primary} p-2 sm:p-4`}>
       <div className="max-w-7xl mx-auto">
@@ -36,9 +132,44 @@ const DonorDashboard = () => {
               Donor Dashboard
             </h1>
             <div className="w-16 sm:w-24 h-1 bg-gradient-to-r from-blue-400 to-purple-400 mx-auto rounded-full"></div>
+            
+            {/* Export Statistics Button */}
+            <button
+              onClick={handleExportStats}
+              className="mt-3 bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-md hover:shadow-lg transition-all duration-200"
+              title="Export statistics summary to CSV"
+            >
+              📊 Export Statistics
+            </button>
           </div>
           
-
+          {/* Key Statistics Summary */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6">
+            <div className={`${colors.bg.gradient} rounded-xl p-4 shadow-lg border ${colors.border.primary}`}>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-blue-600">{totalDonors}</div>
+                <div className={`text-sm ${colors.text.secondary} mt-1`}>Total Animals</div>
+              </div>
+            </div>
+            <div className={`${colors.bg.gradient} rounded-xl p-4 shadow-lg border ${colors.border.primary}`}>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-green-600">{totalDonations}</div>
+                <div className={`text-sm ${colors.text.secondary} mt-1`}>Successful Donations</div>
+              </div>
+            </div>
+            <div className={`${colors.bg.gradient} rounded-xl p-4 shadow-lg border ${colors.border.primary}`}>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-yellow-600">{eligibleDonors}</div>
+                <div className={`text-sm ${colors.text.secondary} mt-1`}>Ready to Donate</div>
+              </div>
+            </div>
+            <div className={`${colors.bg.gradient} rounded-xl p-4 shadow-lg border ${colors.border.primary}`}>
+              <div className="text-center">
+                <div className="text-3xl font-bold text-purple-600">{privateOwners}</div>
+                <div className={`text-sm ${colors.text.secondary} mt-1`}>Private Owners</div>
+              </div>
+            </div>
+          </div>
 
           {/* Monthly Statistics Table */}
           <div className={`${colors.bg.gradient} rounded-xl sm:rounded-2xl p-2 sm:p-4 mb-8`}>

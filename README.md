@@ -1,5 +1,24 @@
 
-# Dono App Vol2 - Blood Donation Management System
+# Dono App Vol2 - B### 📦 Inventory Management
+- **Blood product stock tracking** for all product types
+- **Automatic inventory updates** from monthly Medicine Usage CSV imports
+- **Low stock alerts** (threshold: 10 units per product)
+- **Product categorization** by species (dog/cat) and type (whole blood, plasma, pRBC)
+- **Usage history** with detailed tracking
+- **Manual adjustments** for received/used quantities
+- Clear product codes: `FRESH BLOOD`, `WHOLE BLOOD DOG/CAT`, `PLASMA DOG/CAT`, `PC DOG/CAT`
+- Smart matching for product name variations
+- Modern gradient UI with animated effects
+
+### 💰 Financial Tracker
+- **Revenue tracking** from Item Sales reports
+- **Total revenue** display (excl. & incl. VAT)
+- **Product-level sales** analytics
+- **Average price per unit** calculations
+- **Sales history** with detailed import records
+- Financial summary cards with key metrics
+- Beautiful gradient design (emerald → green → teal)
+- Export-ready financial dataation Management System
 
 ## About the Application
 Dono App Vol2 is a comprehensive blood donation management system for veterinary clinics. The application tracks animal donors across multiple clinic locations with complete blood work data, donor eligibility tracking, and private owner management.
@@ -19,7 +38,16 @@ Dono App Vol2 is a comprehensive blood donation management system for veterinary
 - Location-based filtering and organization
 - Hebrew location support: רחובות, בית עובד, איגוד ערים דן, פתחיה, חולון, חיצוני
 
-### 🔍 Advanced Search & Filtering
+### � Inventory Management (NEW!)
+- **Blood product stock tracking** for all product types
+- **Automatic inventory updates** from monthly sales CSV imports
+- **Low stock alerts** (threshold: 10 units per product)
+- **Product categorization** by species (dog/cat) and type (whole blood, plasma, pRBC)
+- **Sales history** with detailed tracking
+- **Manual adjustments** for received/used quantities
+- Supports clinic management system codes (mdmdog001, mdpcat007, etc.)
+
+### �🔍 Advanced Search & Filtering
 - **Free-text search** across all donor fields
 - Filter by animal type, blood type, date, and location
 - Search supports Hebrew and English with diacritic normalization
@@ -29,10 +57,13 @@ Dono App Vol2 is a comprehensive blood donation management system for veterinary
 - Monthly donation statistics
 - Sample size tracking
 - Visual breakdown of donor populations
+- **Export statistics to CSV**
 
 ### 💾 Data Management
 - **Import/Export** JSON files
-- Automatic backup system
+- **CSV Export** with UTF-8 BOM for Excel compatibility
+- **Automatic backup system** with weekly reminders
+- **Last backup indicator** showing backup age
 - Data normalization and deduplication
 - Blood type auto-correction for imported data
 

@@ -12,6 +12,8 @@ const DonorForm = lazy(() => import('./components/DonorForm'));
 const TablesByLocation = lazy(() => import('./components/TablesByLocation'));
 const Dashboard = lazy(() => import('./components/DonorDashboard'));
 const ManualDonorList = lazy(() => import('./components/ManualDonorList'));
+const InventoryManager = lazy(() => import('./components/InventoryManager'));
+const FinancialTracker = lazy(() => import('./components/FinancialTracker'));
 
 const AppContent = () => {
   const { colors, isDarkMode, toggleTheme } = useTheme();
@@ -35,6 +37,60 @@ const AppContent = () => {
       donorStorage.removeEditingDonor();
       setView('form');
     }
+
+    // Check for backup reminder (once a week)
+    const checkBackupReminder = () => {
+      const lastBackup = localStorage.getItem('last_backup_time');
+      const lastReminderDismissed = localStorage.getItem('backup_reminder_dismissed');
+      
+      if (!lastBackup) {
+        // No backup ever made - show reminder
+        showBackupReminder();
+        return;
+      }
+
+      const backupDate = new Date(lastBackup);
+      const now = new Date();
+      const daysSince = Math.floor((now - backupDate) / (1000 * 60 * 60 * 24));
+      
+      // Check if reminder was dismissed today
+      if (lastReminderDismissed) {
+        const dismissDate = new Date(lastReminderDismissed);
+        const daysSinceDismiss = Math.floor((now - dismissDate) / (1000 * 60 * 60 * 24));
+        if (daysSinceDismiss < 1) {
+          // Reminder was dismissed today, don't show again
+          return;
+        }
+      }
+
+      // Show reminder if 7+ days since last backup
+      if (daysSince >= 7) {
+        showBackupReminder();
+      }
+    };
+
+    const showBackupReminder = () => {
+      const lastBackup = localStorage.getItem('last_backup_time');
+      const daysSince = lastBackup 
+        ? Math.floor((new Date() - new Date(lastBackup)) / (1000 * 60 * 60 * 24))
+        : null;
+      
+      const message = daysSince 
+        ? `⚠️ Backup Reminder\n\nLast backup was ${daysSince} days ago.\nIt's recommended to backup your data regularly.\n\nWould you like to backup now?`
+        : `⚠️ Backup Reminder\n\nNo backup found.\nIt's recommended to backup your data regularly.\n\nWould you like to backup now?`;
+      
+      if (window.confirm(message)) {
+        backupDonorsToFile();
+      } else {
+        // User dismissed - don't show again today
+        localStorage.setItem('backup_reminder_dismissed', new Date().toISOString());
+      }
+    };
+
+    // Run backup check after a small delay to not block UI
+    const timer = setTimeout(checkBackupReminder, 2000);
+    
+    return () => clearTimeout(timer);
   }, []);
 
   const backupDonorsToFile = async (showAlert = true) => {
@@ -53,6 +109,10 @@ const AppContent = () => {
           directory: Directory.Data,
           encoding: 'utf8',
         });
+        
+        // Save backup timestamp
+        localStorage.setItem('last_backup_time', new Date().toISOString());
+        
         if (showAlert) alert(`📦 Backup saved successfully!\n\nTotal donors: ${donors.length}`);
       } catch (err) {
         // Fallback: שיתוף קובץ אם יש שגיאת הרשאה
@@ -164,37 +224,66 @@ const AppContent = () => {
               <button onClick={()=>setView('table')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-lg ${view==='table'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Donors Table">📋</button>
               <button onClick={()=>setView('dashboard')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-lg ${view==='dashboard'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Dashboard & Statistics">📊</button>
               <button onClick={()=>setView('manual')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-lg ${view==='manual'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Private Owners">👥</button>
+              <button onClick={()=>setView('inventory')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-lg ${view==='inventory'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Inventory Management">📦</button>
+              <button onClick={()=>setView('financial')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-lg ${view==='financial'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Financial Tracker">💰</button>
             </div>
           </div>
           <div className="flex items-center gap-1">
             <button onClick={()=>setShowMenu(v=>!v)} className="p-1.5 rounded-full hover:bg-blue-100 focus:outline-none focus:ring-2 focus:ring-blue-400">
               <FiMenu size={22} className={colors.text.primary} />
             </button>
-            {/* Popup menu */}
+            {/* Popup menu with backdrop */}
             {showMenu && (
-              <div className={`absolute right-4 top-12 bg-white dark:bg-gray-900 border ${colors.border.primary} rounded-xl shadow-xl p-2 flex flex-col gap-1 z-50 min-w-[120px]`}>
-                <button
-                  className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow hover:from-emerald-600 hover:to-emerald-700 border border-emerald-400"
-                  onClick={()=>{backupDonorsToFile();setShowMenu(false);}}
-                >Backup</button>
-                <button
-                  className="bg-gradient-to-r from-amber-500 to-amber-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow hover:from-amber-600 hover:to-amber-700 border border-amber-400"
-                  onClick={async()=>{if(window.confirm('Are you sure you want to RESTORE from backup? This will overwrite all your current donors!')){await restoreDonorsFromFile();} setShowMenu(false);}}
-                >Restore</button>
-                <button
-                  className={`text-xs font-bold px-3 py-1.5 rounded-lg shadow border ${isDarkMode ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white border-yellow-400' : 'bg-gradient-to-r from-slate-600 to-slate-700 text-white border-slate-500'}`}
-                  onClick={()=>{toggleTheme();setShowMenu(false);}}
-                >{isDarkMode ? '☀️ Light' : '🌙 Dark'}</button>
-              </div>
+              <>
+                {/* Backdrop - closes menu on click */}
+                <div 
+                  className="fixed inset-0 z-40" 
+                  onClick={() => setShowMenu(false)}
+                />
+                {/* Menu */}
+                <div className={`absolute right-4 top-12 bg-white dark:bg-gray-900 border ${colors.border.primary} rounded-xl shadow-xl p-2 flex flex-col gap-1 z-50 min-w-[160px]`}>
+                  {/* Last Backup Indicator */}
+                  {(() => {
+                    const lastBackup = localStorage.getItem('last_backup_time');
+                    if (lastBackup) {
+                      const backupDate = new Date(lastBackup);
+                      const now = new Date();
+                      const daysSince = Math.floor((now - backupDate) / (1000 * 60 * 60 * 24));
+                      const isOld = daysSince > 7;
+                      return (
+                        <div className={`text-xs px-2 py-1 rounded ${isOld ? 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200' : 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200'}`}>
+                          Last backup: {daysSince === 0 ? 'Today' : `${daysSince}d ago`}
+                          {isOld && ' ⚠️'}
+                        </div>
+                      );
+                    }
+                    return null;
+                  })()}
+                  <button
+                    className="bg-gradient-to-r from-emerald-500 to-emerald-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow hover:from-emerald-600 hover:to-emerald-700 border border-emerald-400"
+                    onClick={()=>{backupDonorsToFile();setShowMenu(false);}}
+                  >Backup</button>
+                  <button
+                    className="bg-gradient-to-r from-amber-500 to-amber-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow hover:from-amber-600 hover:to-amber-700 border border-amber-400"
+                    onClick={async()=>{if(window.confirm('Are you sure you want to RESTORE from backup? This will overwrite all your current donors!')){await restoreDonorsFromFile();} setShowMenu(false);}}
+                  >Restore</button>
+                  <button
+                    className={`text-xs font-bold px-3 py-1.5 rounded-lg shadow border ${isDarkMode ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white border-yellow-400' : 'bg-gradient-to-r from-slate-600 to-slate-700 text-white border-slate-500'}`}
+                    onClick={()=>{toggleTheme();setShowMenu(false);}}
+                  >{isDarkMode ? '☀️ Light' : '🌙 Dark'}</button>
+                </div>
+              </>
             )}
           </div>
         </div>
         {/* Mobile nav */}
-        <div className="flex md:hidden justify-center gap-2 pb-1">
+        <div className="flex md:hidden justify-center gap-2 pb-1 overflow-x-auto">
           <button onClick={()=>setView('form')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-xl ${view==='form'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Form">📝</button>
           <button onClick={()=>setView('table')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-xl ${view==='table'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Table">📋</button>
           <button onClick={()=>setView('dashboard')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-xl ${view==='dashboard'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Stats">📊</button>
           <button onClick={()=>setView('manual')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-xl ${view==='manual'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Owners">👥</button>
+          <button onClick={()=>setView('inventory')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-xl ${view==='inventory'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Inventory">📦</button>
+          <button onClick={()=>setView('financial')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-xl ${view==='financial'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Financial">💰</button>
         </div>
       </nav>
   <div className="flex-1 overflow-y-auto px-3 pb-2 pt-1">
@@ -219,6 +308,8 @@ const AppContent = () => {
               setView('form');
             }}
           />}
+          {view === 'inventory' && <InventoryManager />}
+          {view === 'financial' && <FinancialTracker />}
         </Suspense>
       </div>
 

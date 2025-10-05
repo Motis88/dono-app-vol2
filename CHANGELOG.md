@@ -2,6 +2,103 @@
 
 All notable changes to Dono App Vol2 will be documented in this file.
 
+## [2.3.0] - 2025-10-05
+
+### Added
+- **📦 Inventory Management Module**: Complete blood product inventory tracking
+  - Track stock levels for all blood product types (whole blood, plasma, pRBC)
+  - Separate tracking for dogs and cats
+  - **Monthly CSV import from Medicine Usage reports** (actual usage tracking)
+  - Automatic stock deduction based on real usage (Administered/Dispensed)
+  - Manual stock adjustments (add/remove)
+  - Low stock alerts (threshold: 10 units)
+  - Received/Used counters for each product
+  - Usage history tracking
+  - Modern gradient design with animated effects
+  - **Smart product matching** - handles variations with "חיצוני" suffix and codes
+
+- **💰 Financial Tracker Module**: Comprehensive sales and revenue analytics
+  - Track total revenue (excl. & incl. VAT)
+  - **Monthly CSV import from Item Sales reports**
+  - Product-level revenue breakdown
+  - Quantity sold tracking per product
+  - Average price per unit calculations
+  - Sales history with detailed import records
+  - Financial summary cards with key metrics
+  - Beautiful gradient design (emerald → green → teal)
+  - Revenue analytics and trends
+
+- **Product Code System**: Clear, descriptive codes for all blood products
+  - `FRESH BLOOD` - Fresh whole blood (dog)
+  - `WHOLE BLOOD DOG` - Whole blood for dogs
+  - `WHOLE BLOOD CAT` - Whole blood for cats
+  - `PLASMA DOG` - Plasma for dogs
+  - `PLASMA CAT` - Plasma for cats
+  - `PC DOG` - Packed red blood cells for dogs (pRBC)
+  - `PC CAT` - Packed red blood cells for cats (pRBC)
+
+- **Dual Navigation System**: 6 main sections
+  - 📝 Form - Add/Edit donors
+  - 📋 Table - View all donors
+  - 📊 Dashboard - Statistics & analytics
+  - 👥 Private Owners - Contact management
+  - 📦 Inventory - Stock management (Medicine Usage)
+  - 💰 Financial - Revenue tracking (Item Sales)
+
+### Improved
+- **Menu Backdrop**: Menu now closes when clicking anywhere outside of it
+  - Better UX - no need to click menu button again
+  - Standard modal behavior
+  - Backdrop overlay prevents accidental interactions
+- **Inventory UI Design**: Complete visual overhaul
+  - Gradient color schemes (indigo → purple → pink)
+  - Modern rounded corners and shadows
+  - Color-coded summary cards (blue, red, emerald)
+  - Species badges with gradients (blue for dogs, orange for cats)
+  - Enhanced low stock alert with gradient backgrounds
+  - Hover effects on buttons with scale transforms
+  - Import modal with backdrop blur effect
+
+### Technical
+- New `InventoryManager.jsx` component with full CRUD operations
+- localStorage-based inventory persistence
+- PapaCSV integration for sales report parsing
+- Blood product definitions matching clinic codes
+
+## [2.1.0] - 2025-10-05
+
+### Added
+- **Dashboard Statistics Summary**: Key metrics displayed at top of dashboard
+  - Total animals count (all records)
+  - Successful donations count
+  - Ready to donate count (90+ days eligible)
+  - Private owners count
+- **Export Statistics to CSV**: Export summary statistics from dashboard
+  - Includes all key metrics
+  - Blood type distribution for dogs and cats
+  - Success rate percentage
+  - Mobile-friendly file sharing
+- **Last Backup Indicator**: Shows when last backup was created
+  - Displays days since last backup in menu
+  - Warning indicator if backup is older than 7 days
+  - Helps remind to backup regularly
+- **Timestamp Tracking**: Automatic tracking of backup creation time
+- **Weekly Backup Reminder**: Smart notification system
+  - Checks once per week (7+ days since last backup)
+  - Shows reminder 2 seconds after app load
+  - One-click backup from reminder dialog
+  - Daily dismissal - won't show again same day
+  - Displays days since last backup in message
+
+### Improved
+- Dashboard UI with cleaner statistics layout
+- Better visual hierarchy for key metrics
+- Enhanced data safety awareness
+- Clarified terminology: "Total Animals" instead of "Total Donors"
+
+### Removed
+- Quick Add mode toggle and functionality (not useful in practice)
+
 ## [2.0.2] - 2025-10-03
 
 ### Added

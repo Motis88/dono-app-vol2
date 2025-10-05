@@ -1,7 +1,20 @@
 # Dono App Vol2 - AI Coding Agent Instructions
 
 ## Project Overview
-Blood donation management system for veterinary clinics built as a Capacitor hybrid mobile app (React + Vite). Tracks animal donors across multiple clinic locations with comprehensive blood work data.
+**Personal blood bank management application** for veterinary practice - **single-user system** (not multi-user).
+Built as a Capacitor hybrid mobile app (React + Vite) for Android/iOS.
+
+### Primary Purpose
+- **Blood donor database management** - Track potential and actual donors across multiple clinic locations
+- **Data collection for statistical analysis** - Accumulate comprehensive blood work data as sample size grows
+- **Donation eligibility tracking** - Monitor 90-day intervals for re-donation
+- **Private owner coordination** - Manage contact information for animals with private owners
+
+### Key Design Principles
+- **Personal workflow optimization** - UI/UX tailored for single veterinarian use
+- **Data-first approach** - Every field matters for future statistical analysis
+- **Offline-capable** - localStorage-based to work without internet
+- **Simple backup/restore** - No cloud sync, manual JSON/CSV export for safety
 
 ## Core Architecture
 
