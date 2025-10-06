@@ -27,7 +27,7 @@ const MonthlyReport = () => {
     setGenerating(true);
     
     try {
-      const donors = donorStorage.getDonors();
+      const donors = donorStorage.getDonors() || [];
       const inventoryData = JSON.parse(localStorage.getItem('blood_inventory') || '{"current": {}, "sales": []}');
       const financialData = JSON.parse(localStorage.getItem('financial_data') || '{"transactions": []}');
       
@@ -50,7 +50,9 @@ const MonthlyReport = () => {
         volume: { total: 0, dog: 0, cat: 0 }
       };
       
-      LOCATIONS.forEach(loc => {
+      // Ensure LOCATIONS is available
+      const locations = LOCATIONS || [];
+      locations.forEach(loc => {
         donorStats.byLocation[loc] = { total: 0, donated: 0 };
       });
       
@@ -92,7 +94,7 @@ const MonthlyReport = () => {
       });
       
       // Filter financial transactions by month
-      const monthTransactions = financialData.transactions.filter(transaction => {
+      const monthTransactions = (financialData.transactions || []).filter(transaction => {
         if (!transaction.date) return false;
         const transactionMonth = transaction.date.slice(0, 7);
         return transactionMonth === monthYear;
