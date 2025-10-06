@@ -197,6 +197,30 @@ const AppContent = () => {
       const cleaned = removeExactDuplicates(merged);
       
       donorStorage.saveDonors(cleaned);
+      
+      // Calculate and add blood products to inventory if donated
+      const bloodProducts = donorStorage.calculateBloodProducts(donorWithId);
+      if (Object.keys(bloodProducts).length > 0) {
+        const success = donorStorage.addToInventory(bloodProducts);
+        if (success) {
+          const productNames = Object.keys(bloodProducts).map(key => {
+            if (key.includes('מלא')) return 'דם מלא חתול';
+            if (key.includes('תרכיז') && key.includes('חתול')) return 'תרכיז תאים חתול';
+            if (key.includes('תרכיז') && key.includes('כלב')) return 'תרכיז תאים כלב';
+            if (key.includes('פלסמה') && key.includes('חתול')) return 'פלסמה חתול';
+            if (key.includes('פלסמה') && key.includes('כלב')) return 'פלסמה כלב';
+            return key;
+          }).join(' + ');
+          
+          const totalQuantity = Object.values(bloodProducts).reduce((sum, qty) => sum + qty, 0);
+          
+          // Show success message with inventory update
+          setTimeout(() => {
+            alert(`✅ תורם נוסף בהצלחה!\n\n🩸 מוצרי דם נוספו למלאי:\n${productNames}\n\n📦 סה"כ יחידות שנוספו: ${totalQuantity}\n\n💡 ניתן לצפות בעדכון בלשונית "ספירת מלאי"`);
+          }, 500);
+        }
+      }
+      
       setEditingDonor(null);
       setView("table");
       backupDonorsToFile(false);

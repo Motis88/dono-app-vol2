@@ -38,7 +38,108 @@ const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
   });
 
   const [validationErrors, setValidationErrors] = useState([]);
+  const [animalSuggestions, setAnimalSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [selectedSuggestion, setSelectedSuggestion] = useState(null);
   const saveTimeoutRef = useRef(null);
+  const suggestionsRef = useRef(null);
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (suggestionsRef.current && !suggestionsRef.current.contains(event.target)) {
+        setShowSuggestions(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  // Search for similar animals in history
+  const searchSimilarAnimals = useCallback((animalName, location) => {
+    if (!animalName || animalName.trim().length < 2 || /^\d+$/.test(animalName.trim())) {
+      setAnimalSuggestions([]);
+      setShowSuggestions(false);
+      return;
+    }
+
+    const allDonors = donorStorage.getDonors();
+    const namePattern = animalName.toLowerCase().trim();
+    
+    // Find animals with similar names from the same location
+    const suggestions = allDonors
+      .filter(donor => 
+        donor.location === location &&
+        donor.animalName &&
+        donor.animalName.toLowerCase().includes(namePattern) &&
+        donor.animalName.toLowerCase() !== namePattern && // Don't suggest exact matches
+        (!editingDonor || donor.id !== editingDonor.id) // Don't suggest the donor being edited
+      )
+      .reduce((unique, donor) => {
+        // Remove duplicates by animalName
+        const exists = unique.find(d => d.animalName === donor.animalName);
+        if (!exists) {
+          unique.push(donor);
+        }
+        return unique;
+      }, [])
+      .slice(0, 5); // Limit to 5 suggestions
+
+    setAnimalSuggestions(suggestions);
+    setShowSuggestions(suggestions.length > 0);
+  }, [editingDonor]);
+
+  // Handle animal name input change
+  const handleAnimalNameChange = (value) => {
+    setFormData(prev => ({ ...prev, animalName: value }));
+    setSelectedSuggestion(null); // Clear selected suggestion when user types
+    searchSimilarAnimals(value, formData.location);
+  };
+
+  // Apply suggestion to form
+  const applySuggestion = (suggestion) => {
+    setFormData(prev => ({
+      ...prev,
+      id: suggestion.id, // Keep the same ID for continued tracking
+      animalName: suggestion.animalName,
+      age: suggestion.age || prev.age,
+      weight: suggestion.weight || prev.weight,
+      gender: suggestion.gender || prev.gender,
+      animalType: suggestion.animalType || prev.animalType,
+      bloodType: suggestion.bloodType || prev.bloodType,
+      isPrivateOwner: suggestion.isPrivateOwner || prev.isPrivateOwner,
+      ownerName: suggestion.ownerName || prev.ownerName,
+      fileNumber: suggestion.fileNumber || prev.fileNumber,
+      ownerPhone: suggestion.ownerPhone || prev.ownerPhone,
+      // Keep current date and location
+      date: prev.date,
+      location: prev.location,
+      // Reset donation-specific fields for new entry
+      donated: "",
+      volume: "",
+      notes: "",
+      pcv: "",
+      hct: "",
+      wbc: "",
+      plt: "",
+      packedCell: "",
+      slideFindings: "",
+      fiv: prev.animalType === suggestion.animalType ? suggestion.fiv || "" : "",
+      felv: prev.animalType === suggestion.animalType ? suggestion.felv || "" : "",
+    }));
+    setShowSuggestions(false);
+    setSelectedSuggestion(suggestion);
+  };
+
+  // Clear suggestion and create new donor
+  const clearSuggestion = () => {
+    setSelectedSuggestion(null);
+    setFormData(prev => ({
+      ...prev,
+      id: undefined, // Remove ID to create new donor
+    }));
+  };
 
   // Debounced save function to avoid saving on every keystroke
   const debouncedSave = useCallback((data) => {
@@ -103,23 +204,35 @@ const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
     const { name, value, type, checked } = e.target;
     const finalValue = type === 'checkbox' ? checked : value;
 
+    // Special handling for animal name - trigger suggestions
+    if (name === 'animalName') {
+      handleAnimalNameChange(finalValue);
+      return;
+    }
+
     setFormData(prev => {
       let newForm = {
         ...prev,
         [name]: finalValue,
         // Reset blood type and test results when animal type changes
         ...(name === "animalType" ? { bloodType: "", fiv: "", felv: "" } : {}),
+        // Clear suggestions and selected suggestion when location changes
+        ...(name === "location" ? {} : {}),
       };
 
-    // Save location and date to localStorage for convenience
-    if (name === "location") {
-      donorStorage.saveLastLocation(finalValue);
-    }
-    if (name === "date" && typeof finalValue === 'string') {
-      donorStorage.saveLastDate(finalValue);
-    }
-    return newForm;
-  });
+      // Save location and date to localStorage for convenience
+      if (name === "location") {
+        donorStorage.saveLastLocation(finalValue);
+        // Clear suggestions when location changes
+        setShowSuggestions(false);
+        setAnimalSuggestions([]);
+        setSelectedSuggestion(null);
+      }
+      if (name === "date" && typeof finalValue === 'string') {
+        donorStorage.saveLastDate(finalValue);
+      }
+      return newForm;
+    });
 
     // Clear validation errors when user starts fixing them
     if (validationErrors.length > 0) {
@@ -259,7 +372,76 @@ const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
         </div>
         {/* Animal Name & Weight */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
-          <input name="animalName" placeholder="Animal Name" value={formData.animalName} onChange={handleChange} required className={inputStyles} />
+          <div className="relative" ref={suggestionsRef}>
+            <input 
+              name="animalName" 
+              placeholder="Animal Name" 
+              value={formData.animalName} 
+              onChange={handleChange} 
+              required 
+              className={inputStyles}
+              autoComplete="off"
+            />
+            {/* Animal Suggestions Dropdown */}
+            {showSuggestions && animalSuggestions.length > 0 && (
+              <div className="absolute top-full left-0 right-0 z-50 bg-white dark:bg-gray-800 border-2 border-blue-300 dark:border-blue-600 rounded-lg shadow-xl mt-1 max-h-60 overflow-y-auto">
+                <div className="p-2 bg-blue-50 dark:bg-blue-900/30 border-b border-blue-200 dark:border-blue-700">
+                  <span className="text-xs font-semibold text-blue-700 dark:text-blue-300">🔍 תורמים דומים במיקום זה:</span>
+                </div>
+                {animalSuggestions.map((suggestion, index) => (
+                  <div
+                    key={suggestion.id || index}
+                    onClick={() => applySuggestion(suggestion)}
+                    className="p-3 hover:bg-blue-50 dark:hover:bg-blue-900/30 cursor-pointer border-b border-gray-100 dark:border-gray-700 last:border-b-0 transition-colors"
+                  >
+                    <div className="flex justify-between items-start">
+                      <div className="flex-1">
+                        <div className="font-semibold text-blue-800 dark:text-blue-200">{suggestion.animalName}</div>
+                        <div className="text-xs text-gray-600 dark:text-gray-400 mt-1">
+                          {suggestion.animalType && <span className="mr-2">🐾 {suggestion.animalType}</span>}
+                          {suggestion.bloodType && <span className="mr-2">🩸 {suggestion.bloodType}</span>}
+                          {suggestion.age && <span className="mr-2">📅 {suggestion.age}</span>}
+                          {suggestion.weight && <span>⚖️ {suggestion.weight}kg</span>}
+                        </div>
+                        {suggestion.isPrivateOwner && suggestion.ownerName && (
+                          <div className="text-xs text-green-600 dark:text-green-400 mt-1">
+                            👤 {suggestion.ownerName}
+                          </div>
+                        )}
+                      </div>
+                      <div className="text-xs text-blue-600 dark:text-blue-400 ml-2">לחץ להעתקה</div>
+                    </div>
+                  </div>
+                ))}
+                <div className="p-2 bg-gray-50 dark:bg-gray-800 text-center">
+                  <button
+                    type="button"
+                    onClick={() => setShowSuggestions(false)}
+                    className="text-xs text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
+                  >
+                    ✕ סגור הצעות
+                  </button>
+                </div>
+              </div>
+            )}
+            {/* Selected suggestion indicator */}
+            {selectedSuggestion && (
+              <div className="absolute -bottom-8 left-0 right-0 bg-green-100 dark:bg-green-900/30 border border-green-300 dark:border-green-600 rounded-lg p-2 mt-1">
+                <div className="flex items-center gap-2 text-xs">
+                  <span className="text-green-600 dark:text-green-400 font-semibold">✓ משתמש בנתוני תורם קיים:</span>
+                  <span className="text-green-700 dark:text-green-300 font-bold">{selectedSuggestion.animalName}</span>
+                  <button
+                    type="button"
+                    onClick={clearSuggestion}
+                    className="ml-auto text-green-600 dark:text-green-400 hover:text-green-800 dark:hover:text-green-200"
+                    title="נקה בחירה וחזור לתורם חדש"
+                  >
+                    ✕
+                  </button>
+                </div>
+              </div>
+            )}
+          </div>
           <input name="weight" placeholder="Weight" value={formData.weight} onChange={handleChange} type="number" step="any" className={inputStyles} />
         </div>
         {/* Age & Gender */}

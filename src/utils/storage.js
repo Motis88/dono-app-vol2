@@ -264,5 +264,77 @@ export const donorStorage = {
    */
   clearDraftForm() {
     return storage.removeItem(STORAGE_KEYS.DRAFT_FORM);
+  },
+
+  /**
+   * Calculate blood products from donor data
+   * @param {Object} donor - Donor data
+   * @returns {Object} Blood products to add to inventory
+   */
+  calculateBloodProducts(donor) {
+    const products = {};
+    
+    // Only process if donated = "כן" and has volume
+    if (donor.donated !== "כן" || !donor.volume || isNaN(parseInt(donor.volume))) {
+      return products;
+    }
+
+    const volume = parseInt(donor.volume);
+    const animalType = donor.animalType?.toLowerCase().trim();
+
+    if (animalType === "חתול" || animalType === "cat") {
+      if (volume === 30) {
+        // 30ml from cat = whole blood
+        products['מנת דם מלא- חתול  mdm cat'] = 1;
+      } else if (volume >= 40) {
+        // 40ml+ from cat = pRBC + plasma
+        products['מנת דם תרכיז תאים-גדול-חתול  mdttbig cat'] = 1;
+        products['מנת דם פלסמה חתול  mdp cat'] = 1;
+      }
+    } else if (animalType === "כלב" || animalType === "dog") {
+      // Any dog donation = pRBC + plasma (regardless of volume)
+      products['מנת דם תרכיז תאים כלב  mdtt dog'] = 1;
+      products['מנת דם פלסמה כלב  mdp dog'] = 1;
+    }
+
+    return products;
+  },
+
+  /**
+   * Add blood products to inventory
+   * @param {Object} products - Products to add {productKey: quantity}
+   * @returns {boolean} Success status
+   */
+  addToInventory(products) {
+    try {
+      const INVENTORY_STORAGE_KEY = 'blood_inventory';
+      const currentInventory = storage.getItem(INVENTORY_STORAGE_KEY, { current: {}, sales: [] });
+      
+      Object.keys(products).forEach(productKey => {
+        const quantity = products[productKey];
+        
+        if (!currentInventory.current[productKey]) {
+          currentInventory.current[productKey] = {
+            stock: 0,
+            received: 0,
+            used: 0,
+            external: 0,
+            lastUpdated: new Date().toISOString(),
+          };
+        }
+        
+        // Add to stock and received
+        currentInventory.current[productKey].stock += quantity;
+        currentInventory.current[productKey].received += quantity;
+        currentInventory.current[productKey].lastUpdated = new Date().toISOString();
+      });
+      
+      currentInventory.lastUpdated = new Date().toISOString();
+      
+      return storage.setItem(INVENTORY_STORAGE_KEY, currentInventory);
+    } catch (error) {
+      console.error('Error adding to inventory:', error);
+      return false;
+    }
   }
 };

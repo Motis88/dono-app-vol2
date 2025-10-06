@@ -375,59 +375,31 @@ const InventoryManager = () => {
         </div>
 
         {/* Summary Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-          <div className="bg-gradient-to-br from-blue-50 to-cyan-50 dark:from-blue-900/30 dark:to-cyan-900/30 p-6 rounded-2xl shadow-lg border-2 border-blue-200 dark:border-blue-700 hover:shadow-xl transition-all">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-4xl">📊</div>
-              <div className="text-3xl font-extrabold text-blue-600 dark:text-blue-400">{getTotalStock()}</div>
+
+        {/* Symmetric Summary Cards */}
+  <div className="grid grid-cols-3 gap-3 mb-6 w-full max-w-sm mx-auto">
+          {/* Total Units in Stock */}
+          <div className="bg-white/80 dark:bg-gray-800/80 border border-blue-300 dark:border-blue-700 rounded-xl shadow flex flex-col items-center justify-center text-center aspect-square min-w-[80px] min-h-[80px] p-0">
+            <div className="flex flex-col justify-center items-center h-full w-full">
+              <span className="text-xl md:text-2xl font-extrabold text-blue-600 dark:text-blue-300 mb-1">{getTotalStock()}</span>
+              <span className="text-xs md:text-sm font-semibold text-blue-800 dark:text-blue-300">Total Units in Stock</span>
             </div>
-            <div className="text-sm font-semibold text-blue-800 dark:text-blue-300">Total Units in Stock</div>
           </div>
-          <div className="bg-gradient-to-br from-red-50 to-orange-50 dark:from-red-900/30 dark:to-orange-900/30 p-6 rounded-2xl shadow-lg border-2 border-red-200 dark:border-red-700 hover:shadow-xl transition-all">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-4xl">⚠️</div>
-              <div className="text-3xl font-extrabold text-red-600 dark:text-red-400">{lowStockProducts.length}</div>
+          {/* Low Stock Alerts */}
+          <div className="bg-white/80 dark:bg-gray-800/80 border border-red-300 dark:border-red-700 rounded-xl shadow flex flex-col items-center justify-center text-center aspect-square min-w-[80px] min-h-[80px] p-0">
+            <div className="flex flex-col justify-center items-center h-full w-full">
+              <span className="text-xl md:text-2xl font-extrabold text-red-600 dark:text-red-400 mb-1">{lowStockProducts.length}</span>
+              <span className="text-xs md:text-sm font-semibold text-red-800 dark:text-red-300">Low Stock Alerts</span>
             </div>
-            <div className="text-sm font-semibold text-red-800 dark:text-red-300">Low Stock Alerts</div>
           </div>
-          <div className="bg-gradient-to-br from-emerald-50 to-teal-50 dark:from-emerald-900/30 dark:to-teal-900/30 p-6 rounded-2xl shadow-lg border-2 border-emerald-200 dark:border-emerald-700 hover:shadow-xl transition-all">
-            <div className="flex items-center justify-between mb-2">
-              <div className="text-4xl">📈</div>
-              <div className="text-3xl font-extrabold text-emerald-600 dark:text-emerald-400">{monthlySales.length}</div>
+          {/* Usage Reports Imported */}
+          <div className="bg-white/80 dark:bg-gray-800/80 border border-emerald-300 dark:border-emerald-700 rounded-xl shadow flex flex-col items-center justify-center text-center aspect-square min-w-[80px] min-h-[80px] p-0">
+            <div className="flex flex-col justify-center items-center h-full w-full">
+              <span className="text-xl md:text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 mb-1">{monthlySales.length}</span>
+              <span className="text-xs md:text-sm font-semibold text-emerald-800 dark:text-emerald-300">Usage Reports Imported</span>
             </div>
-            <div className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">Usage Reports Imported</div>
           </div>
         </div>
-
-        {/* Monthly External Sales Summary */}
-        {Object.keys(externalSummary).length > 0 && (
-          <div className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 border-2 border-blue-400 dark:border-blue-600 rounded-2xl p-6 mb-8 shadow-lg">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="text-3xl">🏥</div>
-              <h3 className="text-xl md:text-2xl font-bold text-blue-800 dark:text-blue-200">External Sales - Current Month</h3>
-            </div>
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 space-y-2">
-              {Object.keys(externalSummary).map(productKey => {
-                const data = externalSummary[productKey];
-                return (
-                  <div key={productKey} className="rounded-lg bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 overflow-hidden">
-                    {/* Centered Product header */}
-                    <div className="px-3 py-2 border-b border-blue-200 dark:border-blue-700 text-center">
-                      <span className="text-[10px] text-blue-700 dark:text-blue-300 font-semibold whitespace-nowrap">
-                        {BLOOD_PRODUCTS[productKey].code}
-                      </span>
-                    </div>
-                    {/* Stats */}
-                    <div className="px-3 py-2 text-center">
-                      <div className="text-[10px] text-blue-600 dark:text-blue-400 font-semibold">Units</div>
-                      <div className="text-base font-extrabold text-blue-800 dark:text-blue-200">{data.units.toFixed(1)}</div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
 
         {/* Inventory Cards - Separated by Species */}
         <div className="space-y-8">
@@ -558,6 +530,36 @@ const InventoryManager = () => {
             </div>
           </div>
         </div>
+
+        {/* External Sales at Bottom */}
+        {Object.keys(externalSummary).length > 0 && (
+          <div className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 border-2 border-blue-400 dark:border-blue-600 rounded-2xl p-6 mt-8 shadow-lg">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="text-3xl">🏥</div>
+              <h3 className="text-xl md:text-2xl font-bold text-blue-800 dark:text-blue-200">External Sales - Current Month</h3>
+            </div>
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 space-y-2">
+              {Object.keys(externalSummary).map(productKey => {
+                const data = externalSummary[productKey];
+                return (
+                  <div key={productKey} className="rounded-lg bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 overflow-hidden">
+                    {/* Centered Product header */}
+                    <div className="px-3 py-2 border-b border-blue-200 dark:border-blue-700 text-center">
+                      <span className="text-[10px] text-blue-700 dark:text-blue-300 font-semibold whitespace-nowrap">
+                        {BLOOD_PRODUCTS[productKey].code}
+                      </span>
+                    </div>
+                    {/* Stats */}
+                    <div className="px-3 py-2 text-center">
+                      <div className="text-[10px] text-blue-600 dark:text-blue-400 font-semibold">Units</div>
+                      <div className="text-base font-extrabold text-blue-800 dark:text-blue-200">{data.units.toFixed(1)}</div>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Import History */}
         {monthlySales.length > 0 && (
