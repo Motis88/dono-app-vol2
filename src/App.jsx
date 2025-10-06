@@ -251,7 +251,6 @@ const AppContent = () => {
               <button onClick={()=>setView('manual')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-lg ${view==='manual'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Private Owners">👥</button>
               <button onClick={()=>setView('inventory')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-lg ${view==='inventory'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Inventory Management">📦</button>
               <button onClick={()=>setView('financial')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-lg ${view==='financial'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Financial Tracker">💰</button>
-              <button onClick={()=>setView('monthly-report')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-lg ${view==='monthly-report'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Monthly Report">📄</button>
             </div>
           </div>
           <div className="flex items-center gap-1">
@@ -294,6 +293,10 @@ const AppContent = () => {
                     onClick={async()=>{if(window.confirm('Are you sure you want to RESTORE from backup? This will overwrite all your current donors!')){await restoreDonorsFromFile();} setShowMenu(false);}}
                   >Restore</button>
                   <button
+                    className="bg-gradient-to-r from-purple-500 to-indigo-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow hover:from-purple-600 hover:to-indigo-700 border border-purple-400"
+                    onClick={()=>{setView('monthly-report');setShowMenu(false);}}
+                  >📊 Monthly Report</button>
+                  <button
                     className={`text-xs font-bold px-3 py-1.5 rounded-lg shadow border ${isDarkMode ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white border-yellow-400' : 'bg-gradient-to-r from-slate-600 to-slate-700 text-white border-slate-500'}`}
                     onClick={()=>{toggleTheme();setShowMenu(false);}}
                   >{isDarkMode ? '☀️ Light' : '🌙 Dark'}</button>
@@ -310,7 +313,6 @@ const AppContent = () => {
           <button onClick={()=>setView('manual')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-xl ${view==='manual'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Owners">👥</button>
           <button onClick={()=>setView('inventory')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-xl ${view==='inventory'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Inventory">📦</button>
           <button onClick={()=>setView('financial')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-xl ${view==='financial'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Financial">💰</button>
-          <button onClick={()=>setView('monthly-report')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-xl ${view==='monthly-report'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Report">📄</button>
         </div>
       </nav>
   <div className="flex-1 overflow-y-auto px-3 pb-2 pt-1">

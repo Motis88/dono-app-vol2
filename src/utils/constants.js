@@ -20,6 +20,6 @@ export const BLOOD_TYPES = {
   CAT: ['A', 'AB', 'B']
 };
 
-export const VIEWS = ['form', 'table', 'dashboard', 'external-cells', 'inventory', 'financial', 'monthly-report'];
+export const VIEWS = ['form', 'table', 'dashboard', 'external-cells', 'inventory', 'financial'];
 
 export const DONATION_STATUSES = ['Positive', 'Negative', 'Unknown'];
