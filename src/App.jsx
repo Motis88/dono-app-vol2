@@ -14,6 +14,7 @@ const Dashboard = lazy(() => import('./components/DonorDashboard'));
 const ManualDonorList = lazy(() => import('./components/ManualDonorList'));
 const InventoryManager = lazy(() => import('./components/InventoryManager'));
 const FinancialTracker = lazy(() => import('./components/FinancialTracker'));
+const MonthlyReport = lazy(() => import('./components/MonthlyReport'));
 
 const AppContent = () => {
   const { colors, isDarkMode, toggleTheme } = useTheme();
@@ -250,6 +251,7 @@ const AppContent = () => {
               <button onClick={()=>setView('manual')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-lg ${view==='manual'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Private Owners">👥</button>
               <button onClick={()=>setView('inventory')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-lg ${view==='inventory'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Inventory Management">📦</button>
               <button onClick={()=>setView('financial')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-lg ${view==='financial'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Financial Tracker">💰</button>
+              <button onClick={()=>setView('monthly-report')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-lg ${view==='monthly-report'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Monthly Report">📄</button>
             </div>
           </div>
           <div className="flex items-center gap-1">
@@ -308,6 +310,7 @@ const AppContent = () => {
           <button onClick={()=>setView('manual')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-xl ${view==='manual'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Owners">👥</button>
           <button onClick={()=>setView('inventory')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-xl ${view==='inventory'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Inventory">📦</button>
           <button onClick={()=>setView('financial')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-xl ${view==='financial'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Financial">💰</button>
+          <button onClick={()=>setView('monthly-report')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-xl ${view==='monthly-report'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Report">📄</button>
         </div>
       </nav>
   <div className="flex-1 overflow-y-auto px-3 pb-2 pt-1">
@@ -334,6 +337,7 @@ const AppContent = () => {
           />}
           {view === 'inventory' && <InventoryManager />}
           {view === 'financial' && <FinancialTracker />}
+          {view === 'monthly-report' && <MonthlyReport />}
         </Suspense>
       </div>
 
