@@ -101,7 +101,8 @@ const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
   const applySuggestion = (suggestion) => {
     setFormData(prev => ({
       ...prev,
-      id: suggestion.id, // Keep the same ID for continued tracking
+      // DON'T keep the same ID - generate a new one for new donation entry
+      // id: suggestion.id, // Removed this line to allow new donation entries
       animalName: suggestion.animalName,
       age: suggestion.age || prev.age,
       weight: suggestion.weight || prev.weight,
@@ -185,15 +186,19 @@ const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
       // Load draft form data from localStorage (only if not editing)
       const draftFormData = donorStorage.getDraftForm();
       if (draftFormData) {
-        setFormData(draftFormData);
+        const today = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
+        setFormData({
+          ...draftFormData,
+          date: today // Always use today's date, even if draft has different date
+        });
       } else {
-        // Fallback to just location and date if no draft exists
+        // Fallback to just location and today's date if no draft exists
         const lastLocation = donorStorage.getLastLocation();
-        const lastDate = donorStorage.getLastDate();
+        const today = new Date().toISOString().split('T')[0]; // Format: YYYY-MM-DD
         setFormData((prev) => ({
           ...prev,
           location: lastLocation,
-          date: lastDate,
+          date: today, // Always use today's date as default
           isPrivateOwner: false,
         }));
       }

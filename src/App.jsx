@@ -14,13 +14,14 @@ const Dashboard = lazy(() => import('./components/DonorDashboard'));
 const ManualDonorList = lazy(() => import('./components/ManualDonorList'));
 const InventoryManager = lazy(() => import('./components/InventoryManager'));
 const FinancialTracker = lazy(() => import('./components/FinancialTracker'));
-const MonthlyReport = lazy(() => import('./components/MonthlyReport'));
 
 const AppContent = () => {
   const { colors, isDarkMode, toggleTheme } = useTheme();
   const [showMenu, setShowMenu] = useState(false);
   const [view, setView] = useState('form');
   const [editingDonor, setEditingDonor] = useState(null);
+  const [locationFilter, setLocationFilter] = useState(null); // For dashboard -> table navigation
+  const [monthFilter, setMonthFilter] = useState(null); // For filtering by specific month
 
   useEffect(() => {
     // Initialize donors from localStorage with error handling
@@ -236,6 +237,13 @@ const AppContent = () => {
     setView('table');
   };
 
+  // Handle location click from dashboard
+  const handleLocationClick = (location, month = null) => {
+    setLocationFilter(location);
+    setMonthFilter(month);
+    setView('table');
+  };
+
   return (
     <div className={`min-h-screen ${colors.bg.primary} flex flex-col`}>
       {/* Modern Top Navigation Bar */}
@@ -293,10 +301,6 @@ const AppContent = () => {
                     onClick={async()=>{if(window.confirm('Are you sure you want to RESTORE from backup? This will overwrite all your current donors!')){await restoreDonorsFromFile();} setShowMenu(false);}}
                   >Restore</button>
                   <button
-                    className="bg-gradient-to-r from-purple-500 to-indigo-600 text-white text-xs font-bold px-3 py-1.5 rounded-lg shadow hover:from-purple-600 hover:to-indigo-700 border border-purple-400"
-                    onClick={()=>{setView('monthly-report');setShowMenu(false);}}
-                  >📊 Monthly Report</button>
-                  <button
                     className={`text-xs font-bold px-3 py-1.5 rounded-lg shadow border ${isDarkMode ? 'bg-gradient-to-r from-yellow-500 to-orange-500 text-white border-yellow-400' : 'bg-gradient-to-r from-slate-600 to-slate-700 text-white border-slate-500'}`}
                     onClick={()=>{toggleTheme();setShowMenu(false);}}
                   >{isDarkMode ? '☀️ Light' : '🌙 Dark'}</button>
@@ -318,8 +322,8 @@ const AppContent = () => {
   <div className="flex-1 overflow-y-auto px-3 pb-2 pt-1">
         <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-10 w-10 border-b-3 border-blue-600"></div></div>}>
           {view === 'form' && (
-            <div className={`${colors.bg.gradient} p-3 rounded-3xl shadow-2xl w-full max-w-7xl mx-auto border ${colors.border.primary} backdrop-blur-sm`}>
-              <div className={`${colors.bg.card} p-8 rounded-2xl shadow-inner w-full`}>
+            <div className="w-full mx-auto p-2 md:p-4 space-y-6 bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 min-h-screen">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
                 <DonorForm 
                   editingDonor={editingDonor} 
                   onCancelEdit={handleCancelEdit} 
@@ -328,18 +332,45 @@ const AppContent = () => {
               </div>
             </div>
           )}
-          {view === 'table' && <TablesByLocation onEdit={(donor) => { setEditingDonor(donor); setView("form"); }} />}
-          {view === 'dashboard' && <Dashboard />}
-          {view === 'manual' && <ManualDonorList 
-            onEdit={(donor) => { setEditingDonor(donor); setView('form'); }}
-            onNewDonation={(donor) => {
-              setEditingDonor({ ...donor, date: '', tests: [], notes: '' });
-              setView('form');
-            }}
-          />}
-          {view === 'inventory' && <InventoryManager />}
-          {view === 'financial' && <FinancialTracker />}
-          {view === 'monthly-report' && <MonthlyReport />}
+          {view === 'table' && (
+            <div className="w-full mx-auto p-2 md:p-4 space-y-6 bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 min-h-screen">
+              <TablesByLocation 
+                onEdit={(donor) => { setEditingDonor(donor); setView('form'); }} 
+                locationFilter={locationFilter}
+                monthFilter={monthFilter}
+                onClearFilter={() => {
+                  setLocationFilter(null);
+                  setMonthFilter(null);
+                }}
+              />
+            </div>
+          )}
+          {view === 'dashboard' && (
+            <div className="w-full mx-auto p-2 md:p-4 space-y-6 bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 min-h-screen">
+              <Dashboard onLocationClick={handleLocationClick} />
+            </div>
+          )}
+          {view === 'manual' && (
+            <div className="w-full mx-auto p-2 md:p-4 space-y-6 bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 min-h-screen">
+              <ManualDonorList 
+                onEdit={(donor) => { setEditingDonor(donor); setView('form'); }}
+                onNewDonation={(donor) => {
+                  setEditingDonor({ ...donor, date: '', tests: [], notes: '' });
+                  setView('form');
+                }}
+              />
+            </div>
+          )}
+          {view === 'inventory' && (
+            <div className="w-full mx-auto p-2 md:p-4 space-y-6 bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 min-h-screen">
+              <InventoryManager />
+            </div>
+          )}
+          {view === 'financial' && (
+            <div className="w-full mx-auto p-2 md:p-4 space-y-6 bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 min-h-screen">
+              <FinancialTracker />
+            </div>
+          )}
         </Suspense>
       </div>
 

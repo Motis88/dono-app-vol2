@@ -74,16 +74,9 @@ export const normalizeDonors = (donors) => {
 
     if (normalizedDonor.id) return normalizedDonor;
 
-    const { animalType, animalName = "", ownerName = "" } = normalizedDonor;
-    const isCat = animalType?.toLowerCase() === "cat";
-    const hasGoodName = isMeaningfulName(animalName);
-    
-    if (isCat && !hasGoodName) {
-      return { ...normalizedDonor, id: uuidv4() };
-    }
-    
-    const baseId = `${animalName.trim().toLowerCase()}_${ownerName.trim().toLowerCase()}`;
-    return { ...normalizedDonor, id: baseId };
+    // Always generate unique ID for each donation entry
+    // This ensures multiple donations from same animal are tracked separately
+    return { ...normalizedDonor, id: uuidv4() };
   });
 };
 

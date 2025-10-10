@@ -27,7 +27,7 @@ const isDonatedYes = (str) => {
   );
 };
 
-const DonorPivotTable = ({ donors }) => {
+const DonorPivotTable = ({ donors, onLocationClick }) => {
   const { theme, colors } = useTheme();
   const [expandedMonths, setExpandedMonths] = useState(new Set());
 
@@ -154,7 +154,12 @@ const DonorPivotTable = ({ donors }) => {
                   {monthDetails.length > 0 ? (
                     <div className="grid gap-3 sm:gap-4">
                       {monthDetails.map(detail => (
-                        <div key={detail.location} className={`${colors.bg.card} rounded-lg p-4 shadow-sm ${colors.border.primary} border`}>
+                        <div 
+                          key={detail.location} 
+                          className={`${colors.bg.card} rounded-lg p-4 shadow-sm ${colors.border.primary} border cursor-pointer hover:shadow-md transition-all duration-200 hover:scale-105`}
+                          onClick={() => onLocationClick && onLocationClick(detail.location, row.month)}
+                          title={`Click to view ${detail.location} donors for ${formatMonth(row.month)}`}
+                        >
                           <div className="flex items-center justify-between mb-3">
                             <h5 className={`font-medium ${colors.text.primary} text-sm sm:text-base`}>{detail.location}</h5>
                             <span className={`text-sm font-semibold ${colors.text.secondary}`}>{detail.total} donors</span>

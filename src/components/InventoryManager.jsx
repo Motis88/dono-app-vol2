@@ -22,8 +22,14 @@ const InventoryManager = () => {
   const { colors } = useTheme();
   const [inventory, setInventory] = useState({});
   const [monthlySales, setMonthlySales] = useState([]);
+  // Track last known cumulative usage per product
+  const [lastCumulativeUsage, setLastCumulativeUsage] = useState({});
   const [showImport, setShowImport] = useState(false);
   const [importing, setImporting] = useState(false);
+  // SET modal state (global)
+  const [showSetModal, setShowSetModal] = useState(false);
+  const [setValue, setSetValue] = useState('');
+  const [setProductKey, setSetProductKey] = useState(null);
 
   useEffect(() => {
     loadInventory();
@@ -67,180 +73,119 @@ const InventoryManager = () => {
     }));
   };
 
-  const updateStock = (productKey, change, type = 'manual') => {
+  // SET always sets absolute stock
+  const updateStock = (productKey, newValue, type = 'manual') => {
     setInventory(prev => {
       const updated = { ...prev };
       if (!updated[productKey]) {
         updated[productKey] = { stock: 0, received: 0, used: 0, lastUpdated: new Date().toISOString() };
       }
-      
-      // Allow negative stock (it's temporary until manual update in clinic system)
-      const newStock = updated[productKey].stock + change;
-      
-      if (type === 'received') {
-        updated[productKey].received += change;
-      } else if (type === 'used') {
-        updated[productKey].used += Math.abs(change);
-      }
-      
-      updated[productKey].stock = newStock;
+      // SET: overwrite stock
+      updated[productKey].stock = newValue;
       updated[productKey].lastUpdated = new Date().toISOString();
-      
       saveInventory(updated, monthlySales);
-      
-      // Check for low stock alert (including negative)
+      // Alerts
       if (updated[productKey].stock < LOW_STOCK_THRESHOLD) {
         const message = updated[productKey].stock < 0 
           ? `⚠️ Negative Stock Alert!\n\n${BLOOD_PRODUCTS[productKey].name_he}\nCurrent stock: ${updated[productKey].stock} units\n\n⚠️ Remember to update received units from donations!`
           : `⚠️ Low Stock Alert!\n\n${BLOOD_PRODUCTS[productKey].name_he}\nCurrent stock: ${updated[productKey].stock} units\n\nConsider ordering more stock.`;
-        
         setTimeout(() => alert(message), 500);
       }
-      
       return updated;
     });
   };
 
+  // --- CUMULATIVE USAGE IMPORT LOGIC ---
   const importUsageCSV = async (file) => {
     setImporting(true);
     try {
       const text = await file.text();
-      
       Papa.parse(text, {
         complete: (results) => {
           const data = results.data;
           let totalImported = 0;
-          const currentStockByProduct = {}; // Current stock FROM the file
-          const usageByProduct = {}; // Daily usage (difference from previous day)
-          const externalUsage = {}; // Track external sales separately
-          
-          // Parse CSV rows - Medicine_usage format
-          // Looking for the STOCK column (current inventory), not cumulative usage
+          const cumulativeByProduct = {};
+          const deltaByProduct = {};
+          const externalUsage = {};
+          // Parse CSV rows
           data.forEach((row, index) => {
-            // Skip header rows and section headers
             if (index < 2 || !row[3]) return;
-            
             const medicineName = row[3]?.trim();
-            
-            // Column 4 should be current stock, column 7 is usage
-            const stockStr = row[4]?.replace(',', '.') || '0';
-            const currentStock = parseFloat(stockStr);
-            
-            const usageStr = row[7]?.replace(',', '.') || '0';
-            const dailyUsage = parseFloat(usageStr);
-            
-            // Check if external (חיצוני in the name)
-            const isExternal = medicineName.includes('חיצוני') || medicineName.includes("'חיצוני'") || medicineName.includes('" חיצוני "');
-            
-            // Try to match medicine name to product
+            const cumulativeStr = row[7]?.replace(',', '.') || '0';
+            const cumulativeUsage = parseFloat(cumulativeStr);
+            // זיהוי חיצוני גמיש (עברית/אנגלית, רווחים, סוגריים, גרשיים, דש, גרשיים בודדים/כפולים)
+            const isExternal = /[-–—\s'"\(\)\[\]]*['"]?חיצוני['"]?|['"]?external['"]?/i.test(medicineName);
             let matchedProduct = null;
-            
-            // Direct match
             if (BLOOD_PRODUCTS[medicineName]) {
               matchedProduct = medicineName;
             } else {
-              // Partial match - check if medicine name contains any product key
               Object.keys(BLOOD_PRODUCTS).forEach(productKey => {
-                const productBase = productKey.split(' - ')[0]; // Remove suffix like "חיצוני"
+                const productBase = productKey.split(' - ')[0];
                 if (medicineName.includes(productBase) || medicineName.includes(BLOOD_PRODUCTS[productKey].code)) {
                   matchedProduct = productKey;
                 }
               });
             }
-            
             if (matchedProduct) {
-              // Store current stock from file
-              if (currentStock >= 0) {
-                currentStockByProduct[matchedProduct] = currentStock;
-              }
-              
-              // Store daily usage
-              if (dailyUsage > 0) {
-                if (!usageByProduct[matchedProduct]) {
-                  usageByProduct[matchedProduct] = 0;
-                }
-                usageByProduct[matchedProduct] += dailyUsage;
-                
-                // Track external usage
-                if (isExternal) {
-                  if (!externalUsage[matchedProduct]) {
-                    externalUsage[matchedProduct] = 0;
-                  }
-                  externalUsage[matchedProduct] += dailyUsage;
-                }
-                
-                totalImported++;
+              cumulativeByProduct[matchedProduct] = cumulativeUsage;
+              totalImported++;
+              if (isExternal) {
+                if (!externalUsage[matchedProduct]) externalUsage[matchedProduct] = 0;
+                externalUsage[matchedProduct] += cumulativeUsage;
               }
             }
           });
-          
-          // Update inventory - SET stock to current values from file, don't subtract
+          // Calculate deltas and update inventory
           const updatedInventory = { ...inventory };
+          const updatedLastCumulative = { ...lastCumulativeUsage };
           const warnings = [];
-          
-          // First, update stock from file (this is the CURRENT stock, not cumulative)
-          Object.keys(currentStockByProduct).forEach(productKey => {
-            const newStock = currentStockByProduct[productKey];
-            const prevStock = updatedInventory[productKey]?.stock || 0;
-            
+          Object.keys(cumulativeByProduct).forEach(productKey => {
+            const newCumulative = cumulativeByProduct[productKey];
+            const prevCumulative = lastCumulativeUsage[productKey] ?? 0;
+            let delta = newCumulative - prevCumulative;
+            // If cumulative resets (new < prev), treat as reset
+            if (newCumulative < prevCumulative) {
+              delta = newCumulative;
+              updatedLastCumulative[productKey] = 0;
+            }
             if (!updatedInventory[productKey]) {
-              updatedInventory[productKey] = { 
-                stock: newStock, 
-                received: 0, 
-                used: 0, 
-                external: 0, 
-                lastUpdated: new Date().toISOString() 
-              };
-            } else {
-              updatedInventory[productKey].stock = newStock;
+              updatedInventory[productKey] = { stock: 0, received: 0, used: 0, external: 0, lastUpdated: new Date().toISOString() };
             }
-            
-            // Track cumulative usage for statistics
-            if (usageByProduct[productKey]) {
-              updatedInventory[productKey].used = (updatedInventory[productKey].used || 0) + usageByProduct[productKey];
-            }
-            
-            // Track external usage
-            if (externalUsage[productKey]) {
-              updatedInventory[productKey].external = (updatedInventory[productKey].external || 0) + externalUsage[productKey];
-            }
-            
+            updatedInventory[productKey].stock = (updatedInventory[productKey].stock || 0) - (delta > 0 ? delta : 0);
+            updatedInventory[productKey].used = (updatedInventory[productKey].used || 0) + (delta > 0 ? delta : 0);
+            // Accumulate external usage for this product if present in this import
+            const externalDelta = externalUsage[productKey] || 0;
+            updatedInventory[productKey].external = (updatedInventory[productKey].external || 0) + externalDelta;
             updatedInventory[productKey].lastUpdated = new Date().toISOString();
-            
-            // Warn if stock is low or negative
-            if (newStock < LOW_STOCK_THRESHOLD) {
+            updatedLastCumulative[productKey] = newCumulative;
+            deltaByProduct[productKey] = delta > 0 ? delta : 0;
+            if (updatedInventory[productKey].stock < LOW_STOCK_THRESHOLD) {
               const product = BLOOD_PRODUCTS[productKey];
-              warnings.push(`${product.name_he}: Stock is ${newStock} units (${newStock < 0 ? 'NEGATIVE' : 'LOW'})`);
+              warnings.push(`${product.name_he}: Stock is ${updatedInventory[productKey].stock} units (${updatedInventory[productKey].stock < 0 ? 'NEGATIVE' : 'LOW'})`);
             }
           });
-          
           // Add to usage history
           const newUsage = {
             date: new Date().toISOString(),
             fileName: file.name,
-            products: usageByProduct,
+            cumulative: cumulativeByProduct,
+            delta: deltaByProduct,
             external: externalUsage,
           };
-          
           const updatedHistory = [...monthlySales, newUsage];
-          
           setInventory(updatedInventory);
           setMonthlySales(updatedHistory);
+          setLastCumulativeUsage(updatedLastCumulative);
           saveInventory(updatedInventory, updatedHistory);
-          
           setImporting(false);
           setShowImport(false);
-          
-          let message = `✅ Import Successful!\n\nImported ${totalImported} usage records\nInventory updated for ${Object.keys(usageByProduct).length} products\n\nTotal units deducted:\n${Object.keys(usageByProduct).map(k => `${BLOOD_PRODUCTS[k].name_he}: ${usageByProduct[k]}`).join('\n')}`;
-          
+          let message = `✅ Import Successful!\n\nImported ${totalImported} usage records\nInventory updated for ${Object.keys(deltaByProduct).length} products\n\nTotal units deducted:\n${Object.keys(deltaByProduct).map(k => `${BLOOD_PRODUCTS[k].name_he}: ${deltaByProduct[k]}`).join('\n')}`;
           if (Object.keys(externalUsage).length > 0) {
             message += `\n\n🏥 External Sales:\n${Object.keys(externalUsage).map(k => `${BLOOD_PRODUCTS[k].name_he}: ${externalUsage[k]}`).join('\n')}`;
           }
-          
           if (warnings.length > 0) {
             message += `\n\n⚠️ Warnings:\n${warnings.join('\n')}`;
           }
-          
           alert(message);
         },
         error: (error) => {
@@ -267,7 +212,7 @@ const InventoryManager = () => {
     if (confirm('Are you sure you want to delete this import record? This will recalculate inventory.')) {
       // Remove the import
       const updated = monthlySales.filter((_, i) => i !== index);
-      
+
       // Recalculate inventory from scratch using remaining imports
       const recalculated = {};
       Object.keys(BLOOD_PRODUCTS).forEach(productKey => {
@@ -279,22 +224,23 @@ const InventoryManager = () => {
           lastUpdated: new Date().toISOString(),
         };
       });
-      
-      // Reapply remaining imports
+
+      // Reapply remaining imports using sale.delta
       updated.forEach(sale => {
-        Object.keys(sale.products).forEach(productKey => {
-          if (recalculated[productKey]) {
-            recalculated[productKey].used += sale.products[productKey];
-            recalculated[productKey].stock = recalculated[productKey].received - recalculated[productKey].used;
-            
-            // Reapply external tracking
-            if (sale.external && sale.external[productKey]) {
-              recalculated[productKey].external += sale.external[productKey];
+        if (sale.delta) {
+          Object.keys(sale.delta).forEach(productKey => {
+            if (recalculated[productKey]) {
+              recalculated[productKey].used += sale.delta[productKey];
+              recalculated[productKey].stock = recalculated[productKey].received - recalculated[productKey].used;
+              // Reapply external tracking
+              if (sale.external && sale.external[productKey]) {
+                recalculated[productKey].external += sale.external[productKey];
+              }
             }
-          }
-        });
+          });
+        }
       });
-      
+
       setInventory(recalculated);
       setMonthlySales(updated);
       saveInventory(recalculated, updated);
@@ -417,10 +363,9 @@ const InventoryManager = () => {
                   const displayUsed = Math.max(0, stock.used);
                   const displayExternal = Math.max(0, stock.external || 0);
                   const handleSetStock = () => {
-                    const amount = prompt(`Set stock for ${product.name_en}:`, displayStock);
-                    if (amount !== null && !isNaN(amount)) {
-                      updateStock(productKey, parseInt(amount) - stock.stock, 'received');
-                    }
+                    setSetValue(String(displayStock));
+                    setSetProductKey(productKey);
+                    setShowSetModal(true);
                   };
                   // Show warning if stock is low or negative
                   const isLow = stock.stock < LOW_STOCK_THRESHOLD && stock.stock >= 0;
@@ -480,10 +425,9 @@ const InventoryManager = () => {
                   const displayUsed = Math.max(0, stock.used);
                   const displayExternal = Math.max(0, stock.external || 0);
                   const handleSetStock = () => {
-                    const amount = prompt(`Set stock for ${product.name_en}:`, displayStock);
-                    if (amount !== null && !isNaN(amount)) {
-                      updateStock(productKey, parseInt(amount) - stock.stock, 'received');
-                    }
+                    setSetValue(String(displayStock));
+                    setSetProductKey(productKey);
+                    setShowSetModal(true);
                   };
                   // Show warning if stock is low or negative
                   const isLow = stock.stock < LOW_STOCK_THRESHOLD && stock.stock >= 0;
@@ -498,6 +442,35 @@ const InventoryManager = () => {
                             className="ml-2 px-2 py-0.5 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400"
                             title={`Set stock for ${product.name_en}`}
                           >SET</button>
+      {/* SET Modal (global) */}
+      {showSetModal && setProductKey && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowSetModal(false)}>
+          <div className="bg-white dark:bg-gray-900 rounded-2xl shadow-xl p-6 min-w-[260px] max-w-xs w-full" onClick={e => e.stopPropagation()}>
+            <div className="mb-4 text-lg font-bold text-indigo-700 dark:text-indigo-300">Set stock for {BLOOD_PRODUCTS[setProductKey].name_en}</div>
+            <input
+              type="number"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              className="w-full border-2 border-indigo-400 rounded-lg p-3 text-lg mb-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100"
+              value={setValue}
+              onChange={e => setSetValue(e.target.value.replace(/[^0-9]/g, ''))}
+              autoFocus
+            />
+            <div className="flex gap-2 justify-end">
+              <button onClick={() => setShowSetModal(false)} className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-bold">Cancel</button>
+              <button
+                onClick={() => {
+                  if (setValue !== '' && !isNaN(setValue)) {
+                    updateStock(setProductKey, parseInt(setValue), 'received');
+                    setShowSetModal(false);
+                  }
+                }}
+                className="px-4 py-2 rounded-lg bg-blue-500 text-white font-bold hover:bg-blue-600"
+              >Set</button>
+            </div>
+          </div>
+        </div>
+      )}
                         </div>
                         {(isLow || isNegative) && (
                           <div className={`mb-2 text-xs font-bold ${isNegative ? 'text-red-600 dark:text-red-400' : 'text-yellow-700 dark:text-yellow-300'}`}
@@ -571,7 +544,7 @@ const InventoryManager = () => {
                   <div>
                     <div className="font-semibold text-sm">{sale.fileName}</div>
                     <div className="text-xs text-gray-500 dark:text-gray-400">
-                      {new Date(sale.date).toLocaleString('he-IL')} • {Object.keys(sale.products).length} products
+                      {new Date(sale.date).toLocaleString('he-IL')} • {sale.delta ? Object.keys(sale.delta).length : 0} products
                     </div>
                   </div>
                   <button

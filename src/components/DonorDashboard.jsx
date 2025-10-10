@@ -4,7 +4,7 @@ import DonorPivotTable from "./DonorPivotTable";
 import { donorStorage } from '../utils/storage.js';
 import { useTheme } from '../contexts/ThemeContext.jsx';
 
-const DonorDashboard = () => {
+const DonorDashboard = ({ onLocationClick }) => {
   const { colors } = useTheme();
   const donors = donorStorage.getDonors();
 
@@ -173,7 +173,7 @@ const DonorDashboard = () => {
 
           {/* Monthly Statistics Table */}
           <div className={`${colors.bg.gradient} rounded-xl sm:rounded-2xl p-2 sm:p-4 mb-8`}>
-            <DonorPivotTable donors={donors} />
+            <DonorPivotTable donors={donors} onLocationClick={onLocationClick} />
           </div>
 
           {/* Blood Type Breakdown Section */}

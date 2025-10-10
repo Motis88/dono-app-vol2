@@ -26,6 +26,20 @@ const formatDate = (dateKey) => {
   }
 };
 
+const formatMonth = (monthKey) => {
+  if (!monthKey || !monthKey.includes('-')) return monthKey;
+  try {
+    const [year, month] = monthKey.split('-');
+    const date = new Date(`${year}-${month}-01`);
+    return date.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long'
+    });
+  } catch {
+    return monthKey;
+  }
+};
+
 const buildHeuristicId = (d) => {
   // fallback אם אין id היסטורי
   const parts = [
@@ -63,7 +77,7 @@ const dedupeById = (arr) => {
 };
 // --------------------------------
 
-const TablesByLocation = ({ onEdit }) => {
+const TablesByLocation = ({ onEdit, locationFilter, monthFilter, onClearFilter }) => {
   const { colors } = useTheme();
   const [donors, setDonors] = useState([]);
   const [activeLocation, setActiveLocation] = useState(() => {
@@ -118,6 +132,14 @@ const TablesByLocation = ({ onEdit }) => {
     setDonors(cleaned);
     donorStorage.saveDonors(cleaned); // שומר "מיגרציה" כדי למנוע חזרה לבאג
   }, []);
+
+  // הכנת locationFilter ו-monthFilter מ-dashboard
+  useEffect(() => {
+    if (locationFilter) {
+      setActiveLocation(locationFilter);
+    }
+    // monthFilter will be handled in the filtering logic, not in dateFilter
+  }, [locationFilter, monthFilter]);
 
   // מפות סוגי בעלי חיים (בכל הדאטה; אפשר להגביל ל-filteredDonors אם תרצה)
   const animalTypes = useMemo(() => {
@@ -216,9 +238,25 @@ const TablesByLocation = ({ onEdit }) => {
           if (donorDateKey !== dateFilterValue) return false;
         }
 
+        // Month filter (from dashboard)
+        if (monthFilter) {
+          if (!d.date) return false;
+          
+          // Extract YYYY-MM from donor date
+          let donorMonthKey = "";
+          if (d.date.includes("-") && d.date.length === 10) {
+            donorMonthKey = d.date.slice(0, 7); // Get YYYY-MM part
+          } else if (d.date.includes("/")) {
+            const [day, month, year] = d.date.split("/");
+            donorMonthKey = `${year}-${month.padStart(2, "0")}`;
+          }
+
+          if (donorMonthKey !== monthFilter) return false;
+        }
+
         return true;
       });
-  }, [donors, activeLocation, search, animalTypeFilter, dateFilter]);
+  }, [donors, activeLocation, search, animalTypeFilter, dateFilter, monthFilter]);
 
   const handleDelete = (index) => {
     const toDelete = filteredDonors[index];
@@ -568,6 +606,18 @@ const TablesByLocation = ({ onEdit }) => {
 
       {/* Location Buttons */}
       <div className="flex flex-wrap gap-2 justify-center mb-6">
+        {locationFilter && (
+          <button
+            onClick={() => {
+              onClearFilter();
+              setActiveLocation(donorStorage.getActiveLocation());
+            }}
+            className="bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white px-3 py-2 rounded-lg font-medium shadow-md hover:shadow-lg transition-all duration-200 text-sm mb-2"
+            title="Clear dashboard filter and return to normal view"
+          >
+            ← Back to All Locations{monthFilter ? ` (from ${formatMonth(monthFilter)})` : ''}
+          </button>
+        )}
         {LOCATIONS.filter(loc => loc !== "תל אביב").sort((a, b) => {
           if (a === "בית עובד") return -1;
           if (b === "בית עובד") return 1;
