@@ -29,26 +29,49 @@ const AppContent = () => {
   // Define view order for swipe navigation
   const viewOrder = ['form', 'table', 'dashboard', 'manual', 'inventory', 'financial'];
 
-  // Swipe handlers
-  const handleSwipeLeft = () => {
+  // Swipe handlers with smart detection
+  const handleSwipeLeft = (eventData) => {
+    // Prevent swipe if started on interactive elements
+    const target = eventData.event?.target;
+    if (target) {
+      const tagName = target.tagName?.toLowerCase();
+      // Only block on buttons and inputs, allow swipe on other elements
+      if (tagName === 'button' || tagName === 'input' || tagName === 'select' || tagName === 'textarea') {
+        return;
+      }
+    }
+    
     const currentIndex = viewOrder.indexOf(view);
     const nextIndex = (currentIndex + 1) % viewOrder.length;
     setView(viewOrder[nextIndex]);
   };
 
-  const handleSwipeRight = () => {
+  const handleSwipeRight = (eventData) => {
+    // Prevent swipe if started on interactive elements
+    const target = eventData.event?.target;
+    if (target) {
+      const tagName = target.tagName?.toLowerCase();
+      // Only block on buttons and inputs, allow swipe on other elements
+      if (tagName === 'button' || tagName === 'input' || tagName === 'select' || tagName === 'textarea') {
+        return;
+      }
+    }
+    
     const currentIndex = viewOrder.indexOf(view);
     const prevIndex = (currentIndex - 1 + viewOrder.length) % viewOrder.length;
     setView(viewOrder[prevIndex]);
   };
 
-  // Configure swipeable handlers
+  // Configure swipeable handlers with better settings
   const swipeHandlers = useSwipeable({
     onSwipedLeft: handleSwipeLeft,
     onSwipedRight: handleSwipeRight,
     preventScrollOnSwipe: false,
     trackMouse: false, // Disable on desktop for better UX
-    delta: 50, // Minimum swipe distance
+    trackTouch: true,
+    delta: 100, // Increased - need longer swipe to trigger
+    swipeDuration: 400, // Faster swipe = more intentional
+    touchEventOptions: { passive: true }, // Better scroll performance
   });
 
   useEffect(() => {
@@ -402,7 +425,7 @@ const AppContent = () => {
           <button onClick={()=>setView('financial')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-xl ${view==='financial'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Financial">💰</button>
         </div>
       </nav>
-  <div {...swipeHandlers} className="flex-1 overflow-y-auto px-3 pb-2 pt-1">
+      <div {...swipeHandlers} className="flex-1 overflow-y-auto px-3 pb-2 pt-1" style={{ minHeight: 'calc(100vh - 120px)', touchAction: 'pan-y' }}>
         <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-10 w-10 border-b-3 border-blue-600"></div></div>}>
           {view === 'form' && (
             <div className="w-full mx-auto p-2 md:p-4 space-y-6 bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 min-h-screen">

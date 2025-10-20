@@ -507,8 +507,14 @@ const TablesByLocation = ({ onEdit, locationFilter, monthFilter, onClearFilter }
   };
 
   return (
-    <div className={`p-4 max-w-7xl mx-auto ${colors.text.primary}`}>
-      {/* Removed the testing message line */}
+    <div className={`p-4 max-w-7xl mx-auto ${colors.text.primary} select-none`}>
+      {/* Page Title */}
+      <div className="text-center mb-6">
+        <h1 className={`text-3xl sm:text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3`}>
+          Donors Table
+        </h1>
+        <div className="w-24 h-1 bg-gradient-to-r from-blue-400 to-purple-400 mx-auto rounded-full"></div>
+      </div>
 
       {/* Import/Export JSON - Simple and Clean */}
       <div className="flex justify-center mb-6">
