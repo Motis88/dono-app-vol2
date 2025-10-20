@@ -164,36 +164,19 @@ const FinancialTracker = () => {
   };
 
   const deleteImportHistory = (index) => {
-    if (!window.confirm('🗑️ Delete this month\'s data?')) return;
+    if (!window.confirm('🗑️ Remove this file from history? (Your financial data will remain unchanged)')) return;
     
     try {
-      const deletedSale = monthlySales[index];
-      const updatedSummary = { ...financialData };
-      
-      // Subtract the deleted sale from the summary
-      Object.keys(deletedSale.products).forEach(productKey => {
-        if (updatedSummary[productKey]) {
-          updatedSummary[productKey].quantity -= deletedSale.products[productKey].quantity;
-          updatedSummary[productKey].revenueExcl -= deletedSale.products[productKey].revenueExcl;
-          updatedSummary[productKey].revenueIncl -= deletedSale.products[productKey].revenueIncl;
-          
-          // Remove if zero
-          if (updatedSummary[productKey].quantity <= 0) {
-            delete updatedSummary[productKey];
-          }
-        }
-      });
-      
+      // Simply remove from history without affecting the financial summary
       const updatedHistory = monthlySales.filter((_, i) => i !== index);
       
-      setFinancialData(updatedSummary);
       setMonthlySales(updatedHistory);
-      saveFinancialData(updatedSummary, updatedHistory);
+      saveFinancialData(financialData, updatedHistory);
       
-      alert('✅ Deleted successfully');
+      alert('✅ File removed from history');
     } catch (error) {
       console.error('Delete error:', error);
-      alert('❌ Delete failed');
+      alert('❌ Remove failed');
     }
   };
 
@@ -828,13 +811,13 @@ const FinancialTracker = () => {
             
             return (
               <div key={saleIndex} className="relative bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl border-2 border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden">
-                {/* DELETE button in top-right */}
+                {/* REMOVE button in top-right */}
                 <button
                   onClick={() => deleteImportHistory(saleIndex)}
                   className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded-lg text-xs font-bold transition-all shadow-md z-10"
-                  title="Delete this month"
+                  title="Remove from history (data will remain)"
                 >
-                  DELETE
+                  REMOVE
                 </button>
                 {/* Month Header - Clickable to expand/collapse */}
                 <div 
