@@ -7,6 +7,7 @@ import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { Capacitor } from '@capacitor/core';
 import { useTheme } from '../contexts/ThemeContext.jsx';
 import { donorsToCSV, downloadCSV } from '../utils/csvExport.js';
+import { searchDonors, getSearchSuggestions } from '../utils/searchUtils.js';
 
 // ---------- Help            💾 Export ({donors.length})rs ----------
 const normalizeLocation = (loc) =>
@@ -187,44 +188,26 @@ const TablesByLocation = ({ onEdit, locationFilter, monthFilter, onClearFilter }
 
   const filteredDonors = useMemo(() => {
     const normLoc = normalizeLocation(activeLocation);
-    const s = search.trim().toLowerCase();
+    const s = search.trim();
     const type = animalTypeFilter.trim().toLowerCase();
     const dateFilterValue = dateFilter.trim();
 
-    // Helper: does any field contain the search string? (case-insensitive, ignore diacritics, search all fields)
-    const normalize = v => (v ?? '').toString().toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '');
-    const matchesFreeText = (donor, searchStr) => {
-      if (!searchStr) return true;
-      const normSearch = normalize(searchStr);
-      // Recursively search all values (including nested objects/arrays)
-      const searchIn = val => {
-        if (val == null) return false;
-        if (typeof val === 'string' || typeof val === 'number') {
-          return normalize(val).includes(normSearch);
-        }
-        if (Array.isArray(val)) return val.some(searchIn);
-        if (typeof val === 'object') return Object.values(val).some(searchIn);
-        return false;
-      };
-      return searchIn(donor);
-    };
+    // Start with location-filtered donors
+    let results = donors.filter(d => normalizeLocation(d.location) === normLoc);
 
-    return donors
-      .slice()
-      .sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0))
-      .filter((d) => {
-        // Location filter
-        if (normalizeLocation(d.location) !== normLoc) return false;
+    // Apply fuzzy search if query exists (using Fuse.js)
+    if (s && s.length >= 2) {
+      results = searchDonors(results, s);
+    }
 
-        // Animal type filter
-        if (type && (!d.animalType || d.animalType.trim().toLowerCase() !== type)) return false;
+    // Apply other filters
+    results = results.filter((d) => {
+      // Animal type filter
+      if (type && (!d.animalType || d.animalType.trim().toLowerCase() !== type)) return false;
 
-        // Free-text search: match any field
-        if (s && !matchesFreeText(d, s)) return false;
-
-        // Date filter
-        if (dateFilterValue) {
-          if (!d.date) return false;
+      // Date filter
+      if (dateFilterValue) {
+        if (!d.date) return false;
 
           // Normalize the donor date to YYYY-MM-DD format for comparison
           let donorDateKey = "";
@@ -256,6 +239,9 @@ const TablesByLocation = ({ onEdit, locationFilter, monthFilter, onClearFilter }
 
         return true;
       });
+
+    // Sort by date (newest first)
+    return results.sort((a, b) => new Date(b.date || 0) - new Date(a.date || 0));
   }, [donors, activeLocation, search, animalTypeFilter, dateFilter, monthFilter]);
 
   const handleDelete = (index) => {

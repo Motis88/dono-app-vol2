@@ -7,6 +7,8 @@ import { normalizeDonors, removeExactDuplicates } from './utils/donorUtils.js';
 import { Share } from '@capacitor/share';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext.jsx';
 import { useSwipeable } from 'react-swipeable';
+import toast, { Toaster } from 'react-hot-toast';
+import { scheduleAutoBackup, isBackupDue, getBackupStats } from './utils/autoBackupUtils.js';
 
 // Lazy load components to reduce bundle size
 const DonorForm = lazy(() => import('./components/DonorForm'));
@@ -118,14 +120,20 @@ const AppContent = () => {
     // Run backup check after a small delay to not block UI
     const timer = setTimeout(checkBackupReminder, 2000);
     
-    return () => clearTimeout(timer);
+    // Setup auto-backup scheduling
+    const cleanupAutoBackup = scheduleAutoBackup(backupDonorsToFile);
+    
+    return () => {
+      clearTimeout(timer);
+      cleanupAutoBackup();
+    };
   }, []);
 
   const backupDonorsToFile = async (showAlert = true) => {
     try {
       const donors = donorStorage.getDonors();
       if (donors.length === 0) {
-        if (showAlert) alert("⛔ No data to backup");
+        if (showAlert) toast.error("No data to backup", { icon: '⛔' });
         return;
       }
       const dataString = JSON.stringify(donors);
@@ -141,11 +149,11 @@ const AppContent = () => {
         // Save backup timestamp
         localStorage.setItem('last_backup_time', new Date().toISOString());
         
-        if (showAlert) alert(`📦 Backup saved successfully!\n\nTotal donors: ${donors.length}`);
+        if (showAlert) toast.success(`Backup saved successfully!\nTotal donors: ${donors.length}`, { icon: '📦', duration: 4000 });
       } catch (err) {
         // Fallback: שיתוף קובץ אם יש שגיאת הרשאה
         if (err?.message?.includes('EACCES') || err?.message?.includes('Permission denied')) {
-          if (showAlert) alert('No permission to write to Data folder. Attempting to share file...');
+          if (showAlert) toast('No permission to write to Data folder. Attempting to share file...', { icon: '⚠️', duration: 3000 });
           try {
             await Share.share({
               title: 'Donor Backup',
@@ -154,20 +162,21 @@ const AppContent = () => {
               dialogTitle: 'Share Donor Backup File',
             });
           } catch (shareErr) {
-            alert('File share failed: ' + (shareErr?.message || shareErr));
+            toast.error('File share failed: ' + (shareErr?.message || shareErr));
           }
         } else {
           console.error("Backup error:", err);
-          if (showAlert) alert("😵 Backup failed.");
+          if (showAlert) toast.error("Backup failed", { icon: '😵' });
         }
       }
     } catch (err) {
       console.error("Backup error:", err);
-      if (showAlert) alert("😵 Backup failed.");
+      if (showAlert) toast.error("Backup failed", { icon: '😵' });
     }
   };
 
   const restoreDonorsFromFile = async () => {
+    const loadingToast = toast.loading('Restoring backup...');
     try {
       let result;
       let triedData = false;
@@ -186,31 +195,35 @@ const AppContent = () => {
             encoding: 'utf8',
           });
         } catch (errData) {
+          toast.dismiss(loadingToast);
           if (errData?.message?.includes('permission') || errDoc?.message?.includes('permission')) {
-            alert('❌ Restore failed: Missing storage permissions');
+            toast.error('Restore failed: Missing storage permissions');
             return;
           }
           if (errData?.message?.includes('not found') || errDoc?.message?.includes('not found')) {
-            alert('❌ Restore failed: Backup file not found');
+            toast.error('Restore failed: Backup file not found');
             return;
           }
-          alert('❌ Restore failed: ' + (errData?.message || errDoc?.message));
+          toast.error('Restore failed: ' + (errData?.message || errDoc?.message));
           return;
         }
       }
       const parsed = safeJsonParse(result.data, []);
       if (!Array.isArray(parsed)) {
-        alert('❌ Restore failed: Invalid backup file format');
+        toast.dismiss(loadingToast);
+        toast.error('Restore failed: Invalid backup file format');
         return;
       }
       const normalized = normalizeDonors(parsed);
       const cleaned = removeExactDuplicates(normalized);
       donorStorage.saveDonors(cleaned);
-      alert(`✅ Restore successful!\n\nTotal donors: ${cleaned.length}`);
-      window.location.reload();
+      toast.dismiss(loadingToast);
+      toast.success(`Restore successful!\nTotal donors: ${cleaned.length}`, { duration: 3000 });
+      setTimeout(() => window.location.reload(), 1500);
     } catch (err) {
       console.error("Restore error:", err);
-      alert("😵 Restore failed: " + (err?.message || err));
+      toast.dismiss(loadingToast);
+      toast.error("Restore failed: " + (err?.message || err));
     }
   };
 
@@ -242,10 +255,12 @@ const AppContent = () => {
           
           const totalQuantity = Object.values(bloodProducts).reduce((sum, qty) => sum + qty, 0);
           
-          // Show success message with inventory update
-          setTimeout(() => {
-            alert(`✅ תורם נוסף בהצלחה!\n\n🩸 מוצרי דם נוספו למלאי:\n${productNames}\n\n📦 סה"כ יחידות שנוספו: ${totalQuantity}\n\n💡 ניתן לצפות בעדכון בלשונית "ספירת מלאי"`);
-          }, 500);
+          // Show success toast with inventory update
+          toast.success(`Donor added successfully!\n\n🩸 Blood products added: ${productNames}\n📦 Total units: ${totalQuantity}`, {
+            duration: 5000,
+            position: 'top-center',
+            icon: '✅',
+          });
         }
       }
       
@@ -254,7 +269,7 @@ const AppContent = () => {
       backupDonorsToFile(false);
     } catch (error) {
       console.error("Error adding donor:", error);
-      alert("❌ Error adding donor. Please try again.");
+      toast.error("Error adding donor. Please try again.");
     }
   };
 
@@ -272,6 +287,48 @@ const AppContent = () => {
 
   return (
     <div className={`min-h-screen ${colors.bg.primary} flex flex-col`}>
+      {/* Toast Notifications Container */}
+      <Toaster 
+        position="top-center"
+        reverseOrder={false}
+        gutter={8}
+        toastOptions={{
+          // Default options
+          duration: 4000,
+          style: {
+            background: isDarkMode ? '#1f2937' : '#fff',
+            color: isDarkMode ? '#f3f4f6' : '#1f2937',
+            fontSize: '14px',
+            fontWeight: '500',
+            padding: '12px 20px',
+            borderRadius: '12px',
+            boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
+          },
+          // Success toast style
+          success: {
+            duration: 5000,
+            iconTheme: {
+              primary: '#10b981',
+              secondary: '#fff',
+            },
+          },
+          // Error toast style
+          error: {
+            duration: 6000,
+            iconTheme: {
+              primary: '#ef4444',
+              secondary: '#fff',
+            },
+          },
+          // Loading toast style
+          loading: {
+            iconTheme: {
+              primary: '#3b82f6',
+              secondary: '#fff',
+            },
+          },
+        }}
+      />
       {/* Modern Top Navigation Bar */}
       <div style={{marginTop: '40px'}}></div>
       <nav className={`w-full z-30 shadow-md ${colors.bg.card} border-b ${colors.border.primary}`} style={{position:'sticky',top:0}}>
