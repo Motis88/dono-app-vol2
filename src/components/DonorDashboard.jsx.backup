@@ -1,15 +1,22 @@
 import React, { useState } from "react";
-import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer } from 'recharts';
+import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer, LineChart, Line, XAxis, YAxis, CartesianGrid, BarChart, Bar } from 'recharts';
 import DonorPivotTable from "./DonorPivotTable";
-import EnhancedDashboard from "./EnhancedDashboard";
 import { donorStorage } from '../utils/storage.js';
 import { useTheme } from '../contexts/ThemeContext.jsx';
+import { 
+  getDonationTrends, 
+  getLocationStats, 
+  getDonorRetention, 
+  getUpcomingDonors,
+  predictInventoryNeeds,
+  generateAnalyticsReport 
+} from '../utils/analyticsUtils.js';
 import toast from 'react-hot-toast';
 
 const DonorDashboard = ({ onLocationClick }) => {
   const { colors } = useTheme();
   const donors = donorStorage.getDonors();
-  const [view, setView] = useState('overview'); // 'overview' or 'analytics'
+  const [activeTab, setActiveTab] = useState('overview'); // 'overview', 'trends', 'predictions', 'retention'
 
   // Calculate key statistics
   const totalDonations = donors.filter(d => d.donated === 'Yes').length;
@@ -24,6 +31,32 @@ const DonorDashboard = ({ onLocationClick }) => {
     const daysSince = Math.floor((today - lastDate) / (1000 * 60 * 60 * 24));
     return daysSince >= 90;
   }).length;
+
+  // Enhanced analytics data
+  const trends = getDonationTrends(donors, 6);
+  const locationStats = getLocationStats(donors);
+  const retention = getDonorRetention(donors);
+  const upcomingDonors = getUpcomingDonors(donors, 30);
+  const inventory = donorStorage.getInventory();
+  const predictions = predictInventoryNeeds(donors, inventory);
+
+  // Pie chart colors
+  const dogColors = ['#3b82f6', '#f59e42'];
+  const catColors = ['#ec4899', '#fbbf24', '#6366f1'];
+
+  // Blood type breakdown
+  const dogDonors = donors.filter(d => d.animalType?.toLowerCase() === 'dog' && d.bloodType);
+  const catDonors = donors.filter(d => d.animalType?.toLowerCase() === 'cat' && d.bloodType);
+  const dogTypes = ['DEA 1.1 Positive', 'DEA 1.1 Negative'];
+  const catTypes = ['A', 'AB', 'B'];
+  const dogData = dogTypes.map((type) => ({
+    name: type,
+    value: dogDonors.filter(d => d.bloodType === type).length
+  }));
+  const catData = catTypes.map((type) => ({
+    name: type,
+    value: catDonors.filter(d => d.bloodType === type).length
+  }));
 
   // Pie chart colors
   const dogColors = ['#3b82f6', '#f59e42'];
@@ -126,6 +159,57 @@ const DonorDashboard = ({ onLocationClick }) => {
     }
   };
 
+  // Export comprehensive analytics report
+  const handleExportAnalytics = async () => {
+    const loadingToast = toast.loading('Generating analytics report...');
+    try {
+      const report = generateAnalyticsReport(donors, inventory);
+      const now = new Date();
+      const dateStr = now.toISOString().slice(0, 10);
+      
+      const jsonContent = JSON.stringify(report, null, 2);
+      
+      const { Capacitor } = await import('@capacitor/core');
+      
+      if (Capacitor.isNativePlatform()) {
+        const { Filesystem, Directory } = await import('@capacitor/filesystem');
+        const { Share } = await import('@capacitor/share');
+        const filename = `analytics_report_${dateStr}.json`;
+        
+        const result = await Filesystem.writeFile({
+          path: filename,
+          data: btoa(unescape(encodeURIComponent(jsonContent))),
+          directory: Directory.Cache
+        });
+        
+        await Share.share({
+          title: 'Analytics Report',
+          text: 'Comprehensive analytics report',
+          url: result.uri,
+          dialogTitle: 'Save or Share Report'
+        });
+      } else {
+        const blob = new Blob([jsonContent], { type: 'application/json;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `analytics_report_${dateStr}.json`;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      }
+      
+      toast.dismiss(loadingToast);
+      toast.success('✅ Analytics report exported!');
+    } catch (error) {
+      console.error('Export failed:', error);
+      toast.dismiss(loadingToast);
+      toast.error('❌ Export failed: ' + error.message);
+    }
+  };
+
   return (
     <div className={`min-h-screen ${colors.bg.primary} p-2 sm:p-4`}>
       <div className="max-w-7xl mx-auto">
@@ -136,40 +220,71 @@ const DonorDashboard = ({ onLocationClick }) => {
             </h1>
             <div className="w-16 sm:w-24 h-1 bg-gradient-to-r from-blue-400 to-purple-400 mx-auto rounded-full"></div>
             
-            {/* View Toggle & Export */}
+            {/* Action Buttons */}
             <div className="flex gap-2 justify-center mt-3 flex-wrap">
               <button
-                onClick={() => setView('overview')}
-                className={`px-4 py-2 rounded-lg font-semibold transition-all duration-200 ${
-                  view === 'overview' 
-                    ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md' 
-                    : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-                }`}
-              >
-                📊 Overview
-              </button>
-              <button
-                onClick={() => setView('analytics')}
-                className={`px-4 py-2 rounded-lg font-semibold transition-all duration-200 ${
-                  view === 'analytics' 
-                    ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-md' 
-                    : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
-                }`}
-              >
-                📈 Advanced Analytics
-              </button>
-              <button
                 onClick={handleExportStats}
-                className="bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white px-4 py-2 rounded-lg font-medium shadow-md hover:shadow-lg transition-all duration-200"
+                className="bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-md hover:shadow-lg transition-all duration-200"
                 title="Export statistics summary to CSV"
               >
-                � Export
+                📊 Export CSV
+              </button>
+              <button
+                onClick={handleExportAnalytics}
+                className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium shadow-md hover:shadow-lg transition-all duration-200"
+                title="Export comprehensive analytics report"
+              >
+                📈 Full Report
               </button>
             </div>
           </div>
 
-          {/* Overview View */}
-          {view === 'overview' && (
+          {/* Analytics Tabs */}
+          <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
+            <button
+              onClick={() => setActiveTab('overview')}
+              className={`px-4 py-2 rounded-lg font-semibold transition-all duration-200 whitespace-nowrap ${
+                activeTab === 'overview' 
+                  ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md' 
+                  : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+              }`}
+            >
+              📊 Overview
+            </button>
+            <button
+              onClick={() => setActiveTab('trends')}
+              className={`px-4 py-2 rounded-lg font-semibold transition-all duration-200 whitespace-nowrap ${
+                activeTab === 'trends' 
+                  ? 'bg-gradient-to-r from-green-500 to-green-600 text-white shadow-md' 
+                  : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+              }`}
+            >
+              📈 Trends
+            </button>
+            <button
+              onClick={() => setActiveTab('predictions')}
+              className={`px-4 py-2 rounded-lg font-semibold transition-all duration-200 whitespace-nowrap ${
+                activeTab === 'predictions' 
+                  ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-md' 
+                  : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+              }`}
+            >
+              🔮 Predictions
+            </button>
+            <button
+              onClick={() => setActiveTab('retention')}
+              className={`px-4 py-2 rounded-lg font-semibold transition-all duration-200 whitespace-nowrap ${
+                activeTab === 'retention' 
+                  ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-md' 
+                  : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+              }`}
+            >
+              🔄 Retention
+            </button>
+          </div>
+          
+          {/* Overview Tab */}
+          {activeTab === 'overview' && (
             <div>
               {/* Key Statistics Summary */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6">
@@ -199,10 +314,10 @@ const DonorDashboard = ({ onLocationClick }) => {
                 </div>
               </div>
 
-              {/* Monthly Statistics Table */}
-              <div className={`${colors.bg.gradient} rounded-xl sm:rounded-2xl p-2 sm:p-4 mb-8`}>
-                <DonorPivotTable donors={donors} onLocationClick={onLocationClick} />
-              </div>
+          {/* Monthly Statistics Table */}
+          <div className={`${colors.bg.gradient} rounded-xl sm:rounded-2xl p-2 sm:p-4 mb-8`}>
+            <DonorPivotTable donors={donors} onLocationClick={onLocationClick} />
+          </div>
 
           {/* Blood Type Breakdown Section */}
           <div className={`${colors.bg.card} rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 mt-8 ${colors.border.primary} border`}>
@@ -294,13 +409,6 @@ const DonorDashboard = ({ onLocationClick }) => {
               </div>
             </div>
           </div>
-            </div>
-          )}
-
-          {/* Advanced Analytics View */}
-          {view === 'analytics' && (
-            <EnhancedDashboard />
-          )}
         </div>
       </div>
     </div>
