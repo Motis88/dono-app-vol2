@@ -3,6 +3,10 @@ import { useTheme } from '../contexts/ThemeContext';
 import Papa from 'papaparse';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { donorStorage } from '../utils/storage';
+import * as pdfjsLib from 'pdfjs-dist';
+
+// PDF.js configuration with matching versions
+pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js`;
 
 // Blood product definitions - matching the CSV reports
 const BLOOD_PRODUCTS = {
@@ -24,6 +28,8 @@ const InventoryManager = () => {
   const [monthlySales, setMonthlySales] = useState([]);
   // Track last known cumulative usage per product
   const [lastCumulativeUsage, setLastCumulativeUsage] = useState({});
+  // Track processed invoice rows to avoid duplicates
+  const [processedInvoices, setProcessedInvoices] = useState(new Set());
   const [showImport, setShowImport] = useState(false);
   const [importing, setImporting] = useState(false);
   // SET modal state (global)
@@ -42,6 +48,7 @@ const InventoryManager = () => {
         const parsed = JSON.parse(saved);
         setInventory(parsed.current || {});
         setMonthlySales(parsed.sales || []);
+        setProcessedInvoices(new Set(parsed.processedInvoices || []));
       } catch (e) {
         console.error('Error loading inventory:', e);
         initializeInventory();
@@ -65,10 +72,12 @@ const InventoryManager = () => {
     saveInventory(initial, []);
   };
 
-  const saveInventory = (currentInventory, sales) => {
+  const saveInventory = (currentInventory, sales, processedInvoicesArray = null) => {
+    const invoicesToSave = processedInvoicesArray !== null ? processedInvoicesArray : Array.from(processedInvoices);
     localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify({
       current: currentInventory,
       sales: sales,
+      processedInvoices: invoicesToSave,
       lastUpdated: new Date().toISOString(),
     }));
   };
@@ -107,18 +116,38 @@ const InventoryManager = () => {
           const cumulativeByProduct = {};
           const deltaByProduct = {};
           const externalUsage = {};
-          // Parse CSV rows
+          // Parse CSV rows - now with duplicate detection
           data.forEach((row, index) => {
-            if (index < 2 || !row[3]) return;
+            // Skip header rows and empty rows
+            if (index < 3 || !row[3]) return;
+            
+            const invoiceRowId = row[0]?.trim(); // Invoice row # column
             const medicineName = row[3]?.trim();
-            const cumulativeStr = row[7]?.replace(',', '.') || '0';
+            if (!medicineName || !invoiceRowId) return;
+            
+            // Skip if this invoice row was already processed
+            if (processedInvoices.has(invoiceRowId)) {
+              console.log(`Skipping already processed invoice: ${invoiceRowId}`);
+              return;
+            }
+            
+            // Try both column 6 and 7 for quantity (packages and units)
+            let cumulativeStr = row[6]?.replace(',', '.') || row[7]?.replace(',', '.') || '0';
             const cumulativeUsage = parseFloat(cumulativeStr);
+            
+            if (isNaN(cumulativeUsage) || cumulativeUsage <= 0) return;
+            
+            console.log(`Processing NEW: ${invoiceRowId} - ${medicineName} - Quantity: ${cumulativeUsage}`);
+            
             // זיהוי חיצוני גמיש (עברית/אנגלית, רווחים, סוגריים, גרשיים, דש, גרשיים בודדים/כפולים)
             const isExternal = /[-–—\s'"\(\)\[\]]*['"]?חיצוני['"]?|['"]?external['"]?/i.test(medicineName);
             let matchedProduct = null;
+            
+            // Direct match first
             if (BLOOD_PRODUCTS[medicineName]) {
               matchedProduct = medicineName;
             } else {
+              // Try partial matching
               Object.keys(BLOOD_PRODUCTS).forEach(productKey => {
                 const productBase = productKey.split(' - ')[0];
                 if (medicineName.includes(productBase) || medicineName.includes(BLOOD_PRODUCTS[productKey].code)) {
@@ -126,15 +155,36 @@ const InventoryManager = () => {
                 }
               });
             }
+            
             if (matchedProduct) {
-              cumulativeByProduct[matchedProduct] = cumulativeUsage;
+              if (!cumulativeByProduct[matchedProduct]) {
+                cumulativeByProduct[matchedProduct] = 0;
+              }
+              cumulativeByProduct[matchedProduct] += cumulativeUsage;
               totalImported++;
+              
               if (isExternal) {
                 if (!externalUsage[matchedProduct]) externalUsage[matchedProduct] = 0;
                 externalUsage[matchedProduct] += cumulativeUsage;
               }
+              
+              // Add to processed invoices set
+              processedInvoices.add(invoiceRowId);
+              
+              console.log(`Matched: ${matchedProduct} - ${cumulativeUsage} units (Invoice: ${invoiceRowId})`);
+            } else {
+              console.log(`No match found for: ${medicineName} (Invoice: ${invoiceRowId})`);
             }
           });
+          
+          // Check if nothing new was imported
+          if (totalImported === 0) {
+            alert('ℹ️ No new records found!\n\nAll invoice rows in this file have already been processed.');
+            setImporting(false);
+            document.querySelector('input[type="file"]').value = '';
+            return;
+          }
+          
           // Calculate deltas and update inventory
           const updatedInventory = { ...inventory };
           const updatedLastCumulative = { ...lastCumulativeUsage };
@@ -176,27 +226,177 @@ const InventoryManager = () => {
           setInventory(updatedInventory);
           setMonthlySales(updatedHistory);
           setLastCumulativeUsage(updatedLastCumulative);
-          saveInventory(updatedInventory, updatedHistory);
+          setProcessedInvoices(processedInvoices); // Update the state
+          saveInventory(updatedInventory, updatedHistory, Array.from(processedInvoices));
           setImporting(false);
           setShowImport(false);
-          let message = `✅ Import Successful!\n\nImported ${totalImported} usage records\nInventory updated for ${Object.keys(deltaByProduct).length} products\n\nTotal units deducted:\n${Object.keys(deltaByProduct).map(k => `${BLOOD_PRODUCTS[k].name_he}: ${deltaByProduct[k]}`).join('\n')}`;
+          // Reset file input
+          document.querySelector('input[type="file"]').value = '';
+          let message = `✅ Import Successful!\n\nProcessed ${totalImported} NEW usage records\nInventory updated for ${Object.keys(deltaByProduct).length} products\n\nTotal units deducted:\n${Object.keys(deltaByProduct).map(k => `${BLOOD_PRODUCTS[k].name_he}: ${deltaByProduct[k]}`).join('\n')}`;
           if (Object.keys(externalUsage).length > 0) {
             message += `\n\n🏥 External Sales:\n${Object.keys(externalUsage).map(k => `${BLOOD_PRODUCTS[k].name_he}: ${externalUsage[k]}`).join('\n')}`;
           }
           if (warnings.length > 0) {
             message += `\n\n⚠️ Warnings:\n${warnings.join('\n')}`;
           }
+          
+          const skippedCount = data.length - 3 - totalImported; // Total rows minus headers minus imported
+          if (skippedCount > 0) {
+            message += `\n\n📝 Note: ${skippedCount} records were skipped (already processed or invalid)`;
+          }
+          
           alert(message);
         },
         error: (error) => {
           console.error('CSV parse error:', error);
           alert('❌ Error parsing CSV file');
           setImporting(false);
+          // Reset file input
+          document.querySelector('input[type="file"]').value = '';
         }
       });
     } catch (error) {
       console.error('Error importing CSV:', error);
       alert('❌ Error reading file');
+      setImporting(false);
+      // Reset file input
+      document.querySelector('input[type="file"]').value = '';
+    }
+  };
+
+  // Function to extract text from PDF
+  const extractTextFromPDF = async (file) => {
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      let fullText = '';
+      
+      // Extract text from all pages
+      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+        const page = await pdf.getPage(pageNum);
+        const textContent = await page.getTextContent();
+        const pageText = textContent.items.map(item => item.str).join(' ');
+        fullText += pageText + '\n';
+      }
+      
+      return fullText;
+    } catch (error) {
+      console.error('Error extracting PDF text:', error);
+      throw new Error('Failed to extract text from PDF: ' + error.message);
+    }
+  };
+
+  // Function to parse PDF text into usage data
+  const parsePDFTextToUsage = (text) => {
+    const lines = text.split('\n').filter(line => line.trim());
+    const cumulativeByProduct = {};
+    
+    // Look for patterns that match blood product usage
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      
+      // Skip headers and irrelevant lines
+      if (!line || line.toLowerCase().includes('product') || line.toLowerCase().includes('total')) {
+        continue;
+      }
+      
+      // Try to find blood product names and their usage numbers
+      Object.keys(BLOOD_PRODUCTS).forEach(productKey => {
+        const product = BLOOD_PRODUCTS[productKey];
+        
+        // Check if line contains product name (Hebrew or English)
+        if (line.includes(product.name_he) || line.includes(product.name_en) || line.includes(product.code)) {
+          // Look for numbers in the line (usage amounts)
+          const numberMatches = line.match(/(\d+\.?\d*)/g);
+          if (numberMatches && numberMatches.length > 0) {
+            // Take the last number as cumulative usage
+            const usage = parseFloat(numberMatches[numberMatches.length - 1]);
+            if (!isNaN(usage)) {
+              cumulativeByProduct[productKey] = usage;
+            }
+          }
+        }
+      });
+    }
+    
+    return cumulativeByProduct;
+  };
+
+  const importUsagePDF = async (file) => {
+    setImporting(true);
+    try {
+      // Extract text from PDF
+      const text = await extractTextFromPDF(file);
+      
+      // Parse the text into usage data
+      const cumulativeByProduct = parsePDFTextToUsage(text);
+      
+      if (Object.keys(cumulativeByProduct).length === 0) {
+        alert("❌ No blood product usage data found in PDF. Please check the file format.");
+        setImporting(false);
+        return;
+      }
+      
+      // Process the data similar to CSV import
+      let totalImported = 0;
+      const deltaByProduct = {};
+      const externalUsage = {};
+      const warnings = [];
+      
+      Object.entries(cumulativeByProduct).forEach(([productKey, cumulativeUsage]) => {
+        const lastUsage = lastCumulativeUsage[productKey] || 0;
+        const delta = Math.max(0, cumulativeUsage - lastUsage);
+        
+        if (delta > 0) {
+          deltaByProduct[productKey] = delta;
+          totalImported += delta;
+        }
+      });
+      
+      if (totalImported === 0) {
+        alert('ℹ️ No new usage detected in this PDF report.');
+        setImporting(false);
+        return;
+      }
+      
+      // Update inventory
+      const newInventory = { ...inventory };
+      Object.entries(deltaByProduct).forEach(([productKey, delta]) => {
+        if (newInventory[productKey]) {
+          newInventory[productKey] = Math.max(0, newInventory[productKey] - delta);
+        } else {
+          warnings.push(`Product "${productKey}" not found in inventory`);
+        }
+      });
+      
+      // Save the import record
+      const importRecord = {
+        date: new Date().toISOString(),
+        filename: file.name,
+        type: 'PDF Import',
+        productsUsed: deltaByProduct,
+        externalUsage: externalUsage,
+        totalUsed: totalImported
+      };
+      
+      const newSales = [...monthlySales, importRecord];
+      
+      setInventory(newInventory);
+      setMonthlySales(newSales);
+      setLastCumulativeUsage(cumulativeByProduct);
+      
+      saveInventory(newInventory, newSales);
+      setImporting(false);
+      
+      let message = `✅ PDF imported successfully!\n\nProducts updated: ${Object.keys(deltaByProduct).length}\nTotal units used: ${totalImported}`;
+      if (warnings.length > 0) {
+        message += `\n\n⚠️ Warnings:\n${warnings.join('\n')}`;
+      }
+      alert(message);
+      
+    } catch (error) {
+      console.error('Error importing PDF:', error);
+      alert('❌ Error reading PDF file: ' + error.message);
       setImporting(false);
     }
   };
@@ -204,46 +404,33 @@ const InventoryManager = () => {
   const handleFileSelect = (event) => {
     const file = event.target.files[0];
     if (file) {
-      importUsageCSV(file);
+      console.log('File selected:', file.name, 'Type:', file.type, 'Size:', file.size);
+      const fileType = file.name.split('.').pop().toLowerCase();
+      
+      // Reset importing state first
+      setImporting(false);
+      
+      if (fileType === 'pdf') {
+        importUsagePDF(file);
+      } else if (fileType === 'csv') {
+        importUsageCSV(file);
+      } else {
+        alert('❌ Unsupported file type. Please select a CSV or PDF file.');
+      }
+    } else {
+      console.log('No file selected');
     }
   };
 
   const deleteImportHistory = (index) => {
-    if (confirm('Are you sure you want to delete this import record? This will recalculate inventory.')) {
-      // Remove the import
+    if (confirm('Are you sure you want to delete this import record from history? This will not affect current inventory levels.')) {
+      // Simply remove the import from history - don't recalculate inventory
       const updated = monthlySales.filter((_, i) => i !== index);
-
-      // Recalculate inventory from scratch using remaining imports
-      const recalculated = {};
-      Object.keys(BLOOD_PRODUCTS).forEach(productKey => {
-        recalculated[productKey] = {
-          stock: inventory[productKey]?.received || 0, // Keep received amount
-          received: inventory[productKey]?.received || 0,
-          used: 0,
-          external: 0,
-          lastUpdated: new Date().toISOString(),
-        };
-      });
-
-      // Reapply remaining imports using sale.delta
-      updated.forEach(sale => {
-        if (sale.delta) {
-          Object.keys(sale.delta).forEach(productKey => {
-            if (recalculated[productKey]) {
-              recalculated[productKey].used += sale.delta[productKey];
-              recalculated[productKey].stock = recalculated[productKey].received - recalculated[productKey].used;
-              // Reapply external tracking
-              if (sale.external && sale.external[productKey]) {
-                recalculated[productKey].external += sale.external[productKey];
-              }
-            }
-          });
-        }
-      });
-
-      setInventory(recalculated);
+      
       setMonthlySales(updated);
-      saveInventory(recalculated, updated);
+      saveInventory(inventory, updated); // Keep current inventory as-is
+      
+      alert('✅ Import record deleted from history. Current inventory levels unchanged.');
     }
   };
 
@@ -551,7 +738,7 @@ const InventoryManager = () => {
                     onClick={() => deleteImportHistory(index)}
                     className="bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-lg text-xs font-bold transition-all"
                   >
-                    🗑️ Delete
+                    🗑️ Remove
                   </button>
                 </div>
               ))}
@@ -571,12 +758,12 @@ const InventoryManager = () => {
                 <h3 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Import Usage Report</h3>
               </div>
               <p className={`text-sm ${colors.text.secondary} mb-6 leading-relaxed`}>
-                Select the daily <strong>Medicine Usage CSV report</strong> from your clinic system to import and automatically update inventory.
+                Select the <strong>Medicine Usage report</strong> (CSV or PDF) from your clinic system to import and automatically update inventory.
               </p>
               
               <input
                 type="file"
-                accept=".csv"
+                accept=".csv,.pdf,text/csv,application/pdf"
                 onChange={handleFileSelect}
                 disabled={importing}
                 className={`w-full mb-6 p-4 border-2 border-dashed rounded-xl ${colors.border.primary} hover:border-indigo-500 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200`}
@@ -586,6 +773,15 @@ const InventoryManager = () => {
                 <div className="text-center py-6 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl">
                   <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-200 border-t-indigo-600 mx-auto mb-3"></div>
                   <p className="text-sm font-semibold text-indigo-700 dark:text-indigo-300">Importing data...</p>
+                  <button
+                    onClick={() => {
+                      setImporting(false);
+                      document.querySelector('input[type="file"]').value = '';
+                    }}
+                    className="mt-3 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm"
+                  >
+                    Cancel Import
+                  </button>
                 </div>
               )}
 
