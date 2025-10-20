@@ -6,6 +6,7 @@ import { donorStorage, safeJsonParse } from './utils/storage.js';
 import { normalizeDonors, removeExactDuplicates } from './utils/donorUtils.js';
 import { Share } from '@capacitor/share';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext.jsx';
+import { useSwipeable } from 'react-swipeable';
 
 // Lazy load components to reduce bundle size
 const DonorForm = lazy(() => import('./components/DonorForm'));
@@ -22,6 +23,31 @@ const AppContent = () => {
   const [editingDonor, setEditingDonor] = useState(null);
   const [locationFilter, setLocationFilter] = useState(null); // For dashboard -> table navigation
   const [monthFilter, setMonthFilter] = useState(null); // For filtering by specific month
+
+  // Define view order for swipe navigation
+  const viewOrder = ['form', 'table', 'dashboard', 'manual', 'inventory', 'financial'];
+
+  // Swipe handlers
+  const handleSwipeLeft = () => {
+    const currentIndex = viewOrder.indexOf(view);
+    const nextIndex = (currentIndex + 1) % viewOrder.length;
+    setView(viewOrder[nextIndex]);
+  };
+
+  const handleSwipeRight = () => {
+    const currentIndex = viewOrder.indexOf(view);
+    const prevIndex = (currentIndex - 1 + viewOrder.length) % viewOrder.length;
+    setView(viewOrder[prevIndex]);
+  };
+
+  // Configure swipeable handlers
+  const swipeHandlers = useSwipeable({
+    onSwipedLeft: handleSwipeLeft,
+    onSwipedRight: handleSwipeRight,
+    preventScrollOnSwipe: false,
+    trackMouse: false, // Disable on desktop for better UX
+    delta: 50, // Minimum swipe distance
+  });
 
   useEffect(() => {
     // Initialize donors from localStorage with error handling
@@ -319,7 +345,7 @@ const AppContent = () => {
           <button onClick={()=>setView('financial')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-xl ${view==='financial'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Financial">💰</button>
         </div>
       </nav>
-  <div className="flex-1 overflow-y-auto px-3 pb-2 pt-1">
+  <div {...swipeHandlers} className="flex-1 overflow-y-auto px-3 pb-2 pt-1">
         <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-10 w-10 border-b-3 border-blue-600"></div></div>}>
           {view === 'form' && (
             <div className="w-full mx-auto p-2 md:p-4 space-y-6 bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 min-h-screen">
