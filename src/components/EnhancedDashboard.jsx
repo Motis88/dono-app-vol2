@@ -14,12 +14,26 @@ const EnhancedDashboard = () => {
   const { colors, isDarkMode } = useTheme();
   const donors = donorStorage.getDonors();
 
+  // Get inventory from localStorage
+  const getInventory = () => {
+    try {
+      const saved = localStorage.getItem('blood_inventory');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        return parsed.current || {};
+      }
+    } catch (e) {
+      console.error('Error loading inventory:', e);
+    }
+    return {};
+  };
+
   // Enhanced analytics data
   const trends = getDonationTrends(donors, 6);
   const locationStats = getLocationStats(donors);
   const retention = getDonorRetention(donors);
   const upcomingDonors = getUpcomingDonors(donors, 30);
-  const inventory = donorStorage.getInventory();
+  const inventory = getInventory();
   const predictions = predictInventoryNeeds(donors, inventory);
 
   // Prepare location data for chart
