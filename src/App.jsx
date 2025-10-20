@@ -29,49 +29,26 @@ const AppContent = () => {
   // Define view order for swipe navigation
   const viewOrder = ['form', 'table', 'dashboard', 'manual', 'inventory', 'financial'];
 
-  // Swipe handlers with smart detection
-  const handleSwipeLeft = (eventData) => {
-    // Prevent swipe if started on interactive elements
-    const target = eventData.event?.target;
-    if (target) {
-      const tagName = target.tagName?.toLowerCase();
-      // Only block on buttons and inputs, allow swipe on other elements
-      if (tagName === 'button' || tagName === 'input' || tagName === 'select' || tagName === 'textarea') {
-        return;
-      }
-    }
-    
+  // Swipe handlers - simple and clean
+  const handleSwipeLeft = () => {
     const currentIndex = viewOrder.indexOf(view);
     const nextIndex = (currentIndex + 1) % viewOrder.length;
     setView(viewOrder[nextIndex]);
   };
 
-  const handleSwipeRight = (eventData) => {
-    // Prevent swipe if started on interactive elements
-    const target = eventData.event?.target;
-    if (target) {
-      const tagName = target.tagName?.toLowerCase();
-      // Only block on buttons and inputs, allow swipe on other elements
-      if (tagName === 'button' || tagName === 'input' || tagName === 'select' || tagName === 'textarea') {
-        return;
-      }
-    }
-    
+  const handleSwipeRight = () => {
     const currentIndex = viewOrder.indexOf(view);
     const prevIndex = (currentIndex - 1 + viewOrder.length) % viewOrder.length;
     setView(viewOrder[prevIndex]);
   };
 
-  // Configure swipeable handlers with better settings
+  // Configure swipeable handlers - original simple version
   const swipeHandlers = useSwipeable({
     onSwipedLeft: handleSwipeLeft,
     onSwipedRight: handleSwipeRight,
     preventScrollOnSwipe: false,
-    trackMouse: false, // Disable on desktop for better UX
-    trackTouch: true,
-    delta: 100, // Increased - need longer swipe to trigger
-    swipeDuration: 400, // Faster swipe = more intentional
-    touchEventOptions: { passive: true }, // Better scroll performance
+    trackMouse: false,
+    delta: 50, // Original value - works best
   });
 
   useEffect(() => {
@@ -359,12 +336,12 @@ const AppContent = () => {
           <div className="flex items-center gap-2">
             <span className="text-xl font-extrabold tracking-tight bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent select-none">Dono App</span>
             <div className="hidden md:flex gap-1 ml-4">
-              <button onClick={()=>setView('form')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-lg ${view==='form'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Add Donor Form">📝</button>
-              <button onClick={()=>setView('table')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-lg ${view==='table'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Donors Table">📋</button>
-              <button onClick={()=>setView('dashboard')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-lg ${view==='dashboard'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Dashboard & Statistics">📊</button>
-              <button onClick={()=>setView('manual')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-lg ${view==='manual'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Private Owners">👥</button>
-              <button onClick={()=>setView('inventory')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-lg ${view==='inventory'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Inventory Management">📦</button>
-              <button onClick={()=>setView('financial')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-lg ${view==='financial'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Financial Tracker">💰</button>
+              <button onClick={(e)=>{setView('form'); e.currentTarget.blur();}} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-lg ${view==='form'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Add Donor Form">📝</button>
+              <button onClick={(e)=>{setView('table'); e.currentTarget.blur();}} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-lg ${view==='table'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Donors Table">📋</button>
+              <button onClick={(e)=>{setView('dashboard'); e.currentTarget.blur();}} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-lg ${view==='dashboard'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Dashboard & Statistics">📊</button>
+              <button onClick={(e)=>{setView('manual'); e.currentTarget.blur();}} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-lg ${view==='manual'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Private Owners">👥</button>
+              <button onClick={(e)=>{setView('inventory'); e.currentTarget.blur();}} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-lg ${view==='inventory'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Inventory Management">📦</button>
+              <button onClick={(e)=>{setView('financial'); e.currentTarget.blur();}} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-lg ${view==='financial'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Financial Tracker">💰</button>
             </div>
           </div>
           <div className="flex items-center gap-1">
@@ -417,12 +394,12 @@ const AppContent = () => {
         </div>
         {/* Mobile nav */}
         <div className="flex md:hidden justify-center gap-2 pb-1 overflow-x-auto">
-          <button onClick={()=>setView('form')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-xl ${view==='form'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Form">📝</button>
-          <button onClick={()=>setView('table')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-xl ${view==='table'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Table">📋</button>
-          <button onClick={()=>setView('dashboard')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-xl ${view==='dashboard'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Stats">📊</button>
-          <button onClick={()=>setView('manual')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-xl ${view==='manual'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Owners">👥</button>
-          <button onClick={()=>setView('inventory')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-xl ${view==='inventory'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Inventory">📦</button>
-          <button onClick={()=>setView('financial')} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-xl ${view==='financial'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Financial">💰</button>
+          <button onClick={(e)=>{setView('form'); e.currentTarget.blur();}} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-xl ${view==='form'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Form">📝</button>
+          <button onClick={(e)=>{setView('table'); e.currentTarget.blur();}} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-xl ${view==='table'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Table">📋</button>
+          <button onClick={(e)=>{setView('dashboard'); e.currentTarget.blur();}} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-xl ${view==='dashboard'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Stats">📊</button>
+          <button onClick={(e)=>{setView('manual'); e.currentTarget.blur();}} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-xl ${view==='manual'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Owners">👥</button>
+          <button onClick={(e)=>{setView('inventory'); e.currentTarget.blur();}} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-xl ${view==='inventory'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Inventory">📦</button>
+          <button onClick={(e)=>{setView('financial'); e.currentTarget.blur();}} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-xl ${view==='financial'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Financial">💰</button>
         </div>
       </nav>
       <div {...swipeHandlers} className="flex-1 overflow-y-auto px-3 pb-2 pt-1" style={{ minHeight: 'calc(100vh - 120px)', touchAction: 'pan-y' }}>
