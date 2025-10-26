@@ -545,6 +545,106 @@ const InventoryManager = () => {
     return Object.values(inventory).reduce((sum, item) => sum + item.stock, 0);
   };
 
+  const showCurrentMonthStats = () => {
+    const now = new Date();
+    
+    if (monthlySales.length === 0) {
+      alert('📊 No data available\n\nPlease import a usage report first.');
+      return;
+    }
+    
+    // Get inventory totals (this shows what actually happened this month)
+    const monthUsage = {};
+    const monthExternal = {};
+    
+    Object.keys(BLOOD_PRODUCTS).forEach(productKey => {
+      const product = inventory[productKey];
+      if (product && product.used > 0) {
+        // Internal usage = what was used from stock
+        monthUsage[productKey] = product.used || 0;
+      }
+      if (product && product.external > 0) {
+        // External sales
+        monthExternal[productKey] = product.external || 0;
+      }
+    });
+    
+    // For last 24h - check recent imports
+    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+    const recentImports = monthlySales.filter(sale => new Date(sale.date) >= yesterday);
+    
+    const last24hUsage = {};
+    const last24hExternal = {};
+    
+    recentImports.forEach(sale => {
+      Object.entries(sale.delta || {}).forEach(([key, amount]) => {
+        last24hUsage[key] = (last24hUsage[key] || 0) + amount;
+      });
+      Object.entries(sale.external || {}).forEach(([key, amount]) => {
+        last24hExternal[key] = (last24hExternal[key] || 0) + amount;
+      });
+    });
+    
+    // Build message - English only
+    const monthName = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    let message = `📊 Current Month Statistics\n`;
+    message += `${monthName}\n`;
+    message += `\n━━━━━━━━━━━━━━━━━━━━━━\n`;
+    
+    // Last 24 Hours
+    message += `\n⏰ LAST 24 HOURS:\n`;
+    message += `Files imported: ${recentImports.length}\n`;
+    if (Object.keys(last24hUsage).length > 0) {
+      message += `\nInternal Usage:\n`;
+      Object.entries(last24hUsage).forEach(([key, amount]) => {
+        message += `  • ${BLOOD_PRODUCTS[key]?.name_en || key}: ${amount} units\n`;
+      });
+    }
+    if (Object.keys(last24hExternal).length > 0) {
+      message += `\nExternal Sales:\n`;
+      Object.entries(last24hExternal).forEach(([key, amount]) => {
+        message += `  • ${BLOOD_PRODUCTS[key]?.name_en || key}: ${amount} units\n`;
+      });
+    }
+    if (Object.keys(last24hUsage).length === 0 && Object.keys(last24hExternal).length === 0) {
+      message += `No usage in last 24 hours\n`;
+    }
+    
+    message += `\n━━━━━━━━━━━━━━━━━━━━━━\n`;
+    
+    // Month to Date - from inventory totals
+    message += `\n� MONTH TO DATE:\n`;
+    message += `Files imported this month: ${monthlySales.length}\n`;
+    if (Object.keys(monthUsage).length > 0) {
+      message += `\nTotal Internal Usage:\n`;
+      Object.entries(monthUsage).forEach(([key, amount]) => {
+        message += `  • ${BLOOD_PRODUCTS[key]?.name_en || key}: ${amount} units\n`;
+      });
+    }
+    if (Object.keys(monthExternal).length > 0) {
+      message += `\nTotal External Sales:\n`;
+      Object.entries(monthExternal).forEach(([key, amount]) => {
+        message += `  • ${BLOOD_PRODUCTS[key]?.name_en || key}: ${amount} units\n`;
+      });
+    }
+    if (Object.keys(monthUsage).length === 0 && Object.keys(monthExternal).length === 0) {
+      message += `No usage this month yet\n`;
+    }
+    
+    // Calculate totals
+    const total24h = Object.values(last24hUsage).reduce((sum, v) => sum + v, 0) + 
+                     Object.values(last24hExternal).reduce((sum, v) => sum + v, 0);
+    const totalMonth = Object.values(monthUsage).reduce((sum, v) => sum + v, 0) + 
+                       Object.values(monthExternal).reduce((sum, v) => sum + v, 0);
+    
+    message += `\n━━━━━━━━━━━━━━━━━━━━━━\n`;
+    message += `\n📊 TOTALS:\n`;
+    message += `  Last 24h: ${total24h} units\n`;
+    message += `  Month to Date: ${totalMonth} units\n`;
+    
+    alert(message);
+  };
+
   const getMonthlyExternalSummary = () => {
     const summary = {};
     
@@ -568,54 +668,70 @@ const InventoryManager = () => {
   return (
     <div className={`w-full max-w-7xl mx-auto ${colors.text.primary} p-4`}>
       <div className={`${colors.bg.card} rounded-3xl shadow-2xl p-8 mb-6 border ${colors.border.primary}`}>
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
-          <div>
-            <h2 className="text-4xl font-extrabold mb-2 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
-              📦 Blood Inventory Manager
-            </h2>
-            <p className={`text-sm ${colors.text.secondary}`}>Import daily usage reports • Update stock manually</p>
+        <div className="flex flex-col gap-4 mb-8">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-4xl font-extrabold mb-2 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+                📦 Blood Inventory Manager
+              </h2>
+              <p className={`text-sm ${colors.text.secondary}`}>Import daily usage reports • Update stock manually</p>
+            </div>
+            
+            {/* Main Action Buttons - Responsive Grid */}
+            <div className="grid grid-cols-3 gap-2 w-full md:w-auto md:flex md:gap-2">
+              <button
+                onClick={() => setShowImport(true)}
+                className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-3 py-2.5 rounded-xl font-bold hover:from-indigo-600 hover:to-purple-700 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2"
+              >
+                <span className="text-lg md:text-xl">�</span>
+                <span className="text-xs md:text-sm">Import</span>
+              </button>
+              
+              <button
+                onClick={() => {
+                  const archivesJson = localStorage.getItem('inventory_monthly_archives');
+                  const archives = archivesJson ? JSON.parse(archivesJson) : [];
+                  
+                  if (archives.length === 0) {
+                    alert('📂 No archived months yet.\n\nArchives will be created automatically when a new month starts.');
+                    return;
+                  }
+                  
+                  let message = '📚 Monthly Archives:\n\n';
+                  archives.forEach((archive, index) => {
+                    const monthDate = new Date(archive.month + '-01');
+                    const monthName = monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                    message += `${index + 1}. ${monthName}\n`;
+                    message += `   Records: ${archive.totalRecords}\n`;
+                    message += `   Products used: ${Object.keys(archive.totalUsage).length}\n`;
+                    message += `   Archived: ${new Date(archive.archivedAt).toLocaleDateString()}\n\n`;
+                  });
+                  
+                  alert(message);
+                }}
+                className="bg-gradient-to-r from-amber-500 to-orange-600 text-white px-3 py-2.5 rounded-xl font-bold hover:from-amber-600 hover:to-orange-700 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2"
+              >
+                <span className="text-lg md:text-xl">📚</span>
+                <span className="text-xs md:text-sm">Archives</span>
+              </button>
+              
+              <button
+                onClick={showCurrentMonthStats}
+                className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white px-3 py-2.5 rounded-xl font-bold hover:from-teal-600 hover:to-cyan-700 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2"
+              >
+                <span className="text-lg md:text-xl">📊</span>
+                <span className="text-xs md:text-sm">Stats</span>
+              </button>
+            </div>
           </div>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setShowImport(true)}
-              className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-4 py-3 rounded-xl font-bold hover:from-indigo-600 hover:to-purple-700 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center gap-2"
-            >
-              <span className="text-xl">📥</span>
-              <span className="text-sm">Import</span>
-            </button>
+          
+          {/* Reset Button - Separate and Less Accessible */}
+          <div className="flex justify-center md:justify-end">
             <button
               onClick={resetAllData}
-              className="bg-gradient-to-r from-red-500 to-rose-600 text-white px-4 py-3 rounded-xl font-bold hover:from-red-600 hover:to-rose-700 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center gap-2"
+              className="bg-gradient-to-r from-gray-400 to-gray-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:from-red-500 hover:to-rose-600 shadow transition-all duration-200 opacity-60 hover:opacity-100"
             >
-              <span className="text-xl">🗑️</span>
-              <span className="text-sm">Reset</span>
-            </button>
-            <button
-              onClick={() => {
-                const archivesJson = localStorage.getItem('inventory_monthly_archives');
-                const archives = archivesJson ? JSON.parse(archivesJson) : [];
-                
-                if (archives.length === 0) {
-                  alert('📂 No archived months yet.\n\nArchives will be created automatically when a new month starts.');
-                  return;
-                }
-                
-                let message = '📚 Monthly Archives:\n\n';
-                archives.forEach((archive, index) => {
-                  const monthDate = new Date(archive.month + '-01');
-                  const monthName = monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-                  message += `${index + 1}. ${monthName}\n`;
-                  message += `   Records: ${archive.totalRecords}\n`;
-                  message += `   Products used: ${Object.keys(archive.totalUsage).length}\n`;
-                  message += `   Archived: ${new Date(archive.archivedAt).toLocaleDateString()}\n\n`;
-                });
-                
-                alert(message);
-              }}
-              className="bg-gradient-to-r from-amber-500 to-orange-600 text-white px-4 py-3 rounded-xl font-bold hover:from-amber-600 hover:to-orange-700 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center gap-2"
-            >
-              <span className="text-xl">📚</span>
-              <span className="text-sm">Archives</span>
+              🗑️ Reset All Data
             </button>
           </div>
         </div>

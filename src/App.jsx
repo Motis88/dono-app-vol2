@@ -29,50 +29,65 @@ const AppContent = () => {
   // Define view order for swipe navigation
   const viewOrder = ['form', 'table', 'dashboard', 'manual', 'inventory', 'financial'];
 
-  // Swipe handlers - improved to not conflict with table scrolling
+  // Swipe handlers - only block in tables and inputs
   const handleSwipeLeft = (eventData) => {
-    // Check if swipe started on or inside a table or scrollable element
+    console.log('🔄 Swipe LEFT detected');
     const target = eventData.event?.target;
     if (target) {
-      // Block swipe if inside table or any scrollable container
-      if (target.closest('table') || 
-          target.closest('.overflow-x-auto') || 
-          target.closest('.overflow-y-auto') ||
-          target.closest('[style*="overflow"]')) {
+      // Only block if DIRECTLY inside:
+      // - A table element
+      // - An input field
+      // - An element explicitly marked as no-swipe
+      const inTable = target.closest('table');
+      const inInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT';
+      const inNoSwipe = target.closest('[data-no-swipe]');
+      
+      if (inTable || inInput || inNoSwipe) {
+        console.log('❌ Swipe blocked:', { inTable: !!inTable, inInput, inNoSwipe: !!inNoSwipe });
         return;
       }
     }
     
+    console.log('✅ Swipe LEFT executed');
     const currentIndex = viewOrder.indexOf(view);
     const nextIndex = (currentIndex + 1) % viewOrder.length;
     setView(viewOrder[nextIndex]);
   };
 
   const handleSwipeRight = (eventData) => {
-    // Check if swipe started on or inside a table or scrollable element
+    console.log('🔄 Swipe RIGHT detected');
     const target = eventData.event?.target;
     if (target) {
-      // Block swipe if inside table or any scrollable container
-      if (target.closest('table') || 
-          target.closest('.overflow-x-auto') || 
-          target.closest('.overflow-y-auto') ||
-          target.closest('[style*="overflow"]')) {
+      // Only block if DIRECTLY inside:
+      // - A table element
+      // - An input field
+      // - An element explicitly marked as no-swipe
+      const inTable = target.closest('table');
+      const inInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT';
+      const inNoSwipe = target.closest('[data-no-swipe]');
+      
+      if (inTable || inInput || inNoSwipe) {
+        console.log('❌ Swipe blocked:', { inTable: !!inTable, inInput, inNoSwipe: !!inNoSwipe });
         return;
       }
     }
     
+    console.log('✅ Swipe RIGHT executed');
     const currentIndex = viewOrder.indexOf(view);
     const prevIndex = (currentIndex - 1 + viewOrder.length) % viewOrder.length;
     setView(viewOrder[prevIndex]);
   };
 
-  // Configure swipeable handlers - block swipe inside tables
+  // Configure swipeable handlers with proper settings
   const swipeHandlers = useSwipeable({
     onSwipedLeft: handleSwipeLeft,
     onSwipedRight: handleSwipeRight,
     preventScrollOnSwipe: false,
+    trackTouch: true,
     trackMouse: false,
-    delta: 50,
+    delta: 80, // Increased threshold to be more intentional
+    swipeDuration: 500,
+    touchEventOptions: { passive: true },
   });
 
   useEffect(() => {
@@ -426,7 +441,7 @@ const AppContent = () => {
           <button onClick={(e)=>{setView('financial'); e.currentTarget.blur();}} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-xl ${view==='financial'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Financial">💰</button>
         </div>
       </nav>
-      <div {...swipeHandlers} className="flex-1 overflow-y-auto px-3 pb-2 pt-1" style={{ minHeight: 'calc(100vh - 120px)', touchAction: 'pan-y' }}>
+      <div {...swipeHandlers} className="flex-1 overflow-y-auto px-3 pb-2 pt-1" style={{ minHeight: 'calc(100vh - 120px)' }}>
         <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-10 w-10 border-b-3 border-blue-600"></div></div>}>
           {view === 'form' && (
             <div className="w-full mx-auto p-2 md:p-4 space-y-6 bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 min-h-screen">
