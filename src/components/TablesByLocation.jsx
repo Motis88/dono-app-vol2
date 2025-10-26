@@ -9,7 +9,43 @@ import { useTheme } from '../contexts/ThemeContext.jsx';
 import { donorsToCSV, downloadCSV } from '../utils/csvExport.js';
 import { searchDonors, getSearchSuggestions } from '../utils/searchUtils.js';
 
-// ---------- Help            💾 Export ({donors.length})rs ----------
+// Helper components for modal
+const InfoItem = ({ label, value, colors, highlight = false }) => (
+  <div>
+    <p className={`text-xs ${colors.text.secondary} mb-1`}>{label}</p>
+    <p className={`text-sm font-medium ${highlight ? 'text-purple-600 dark:text-purple-400' : colors.text.primary}`}>
+      {value || '-'}
+    </p>
+  </div>
+);
+
+const StatusBadge = ({ label, value, colors, isMain = false }) => {
+  const getStatusColor = () => {
+    if (!value) return 'gray';
+    const val = value.toString().toLowerCase();
+    if (val === 'yes' || val === 'negative' || val === 'neg') return 'green';
+    if (val === 'no' || val === 'positive' || val === 'pos') return 'red';
+    return 'gray';
+  };
+  
+  const statusColor = getStatusColor();
+  const colorClasses = {
+    green: 'bg-green-100 text-green-800 dark:bg-green-900/60 dark:text-green-200',
+    red: 'bg-red-100 text-red-800 dark:bg-red-900/60 dark:text-red-200',
+    gray: 'bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200'
+  };
+  
+  return (
+    <div>
+      <p className={`text-xs ${colors.text.secondary} mb-1`}>{label}</p>
+      <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${colorClasses[statusColor]}`}>
+        {value || '-'}
+      </span>
+    </div>
+  );
+};
+
+// ---------- Helper Functions ----------            💾 Export ({donors.length})rs ----------
 const normalizeLocation = (loc) =>
   (loc ?? '').toString().trim();
 
@@ -933,58 +969,107 @@ const TablesByLocation = ({ onEdit, locationFilter, monthFilter, onClearFilter }
         </div>
       </div>
 
-      {/* MODAL */}
+      {/* MODAL - Redesigned with modern card layout */}
       {selectedDonor && (
         <div
-          className="fixed inset-0 bg-black bg-opacity-60 z-50 flex justify-center items-center"
+          className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex justify-center items-center p-4"
           onClick={closeModal}
         >
           <div
-            className={`${colors.bg.card} p-6 rounded-lg max-w-xl w-full shadow-lg relative`}
+            className={`${colors.bg.card} rounded-2xl max-w-2xl w-full shadow-2xl relative max-h-[90vh] overflow-hidden`}
             onClick={e => e.stopPropagation()}
           >
-            <button
-              onClick={closeModal}
-              className={`absolute top-2 left-2 ${colors.text.muted} text-xl font-bold hover:${colors.text.primary}`}
-            >
-              &times;
-            </button>
-            <h3 className={`text-lg font-bold mb-4 text-center ${colors.text.primary}`}>Animal Details</h3>
-            <div className="max-h-80 overflow-y-auto">
-              <table className="w-full text-sm">
-                <tbody>
-                  {selectedDonor.id && (
-                    <tr>
-                      <td className={`font-bold border-b px-2 py-1 w-40 ${colors.bg.tertiary} ${colors.text.primary}`}>ID</td>
-                      <td className={`border-b px-2 py-1 ${colors.text.primary}`}>{selectedDonor.id}</td>
-                    </tr>
-                  )}
-                  <tr><td className={`font-bold border-b px-2 py-1 ${colors.bg.tertiary} ${colors.text.primary}`}>Date</td><td className={`border-b px-2 py-1 ${colors.text.primary}`}>{selectedDonor.date}</td></tr>
-                  <tr><td className={`font-bold border-b px-2 py-1 ${colors.bg.tertiary} ${colors.text.primary}`}>Location</td><td className={`border-b px-2 py-1 ${colors.text.primary}`}>{selectedDonor.location}</td></tr>
-                  <tr><td className={`font-bold border-b px-2 py-1 ${colors.bg.tertiary} ${colors.text.primary}`}>Animal Name</td><td className={`border-b px-2 py-1 ${colors.text.primary}`}>{selectedDonor.animalName}</td></tr>
-                  <tr><td className={`font-bold border-b px-2 py-1 ${colors.bg.tertiary} ${colors.text.primary}`}>Age</td><td className={`border-b px-2 py-1 ${colors.text.primary}`}>{selectedDonor.age}</td></tr>
-                  <tr><td className={`font-bold border-b px-2 py-1 ${colors.bg.tertiary} ${colors.text.primary}`}>Weight</td><td className={`border-b px-2 py-1 ${colors.text.primary}`}>{selectedDonor.weight}</td></tr>
-                  <tr><td className={`font-bold border-b px-2 py-1 ${colors.bg.tertiary} ${colors.text.primary}`}>Gender</td><td className={`border-b px-2 py-1 ${colors.text.primary}`}>{selectedDonor.gender}</td></tr>
-                  <tr><td className={`font-bold border-b px-2 py-1 ${colors.bg.tertiary} ${colors.text.primary}`}>Animal Type</td><td className={`border-b px-2 py-1 ${colors.text.primary}`}>{selectedDonor.animalType}</td></tr>
-                  <tr><td className={`font-bold border-b px-2 py-1 ${colors.bg.tertiary} ${colors.text.primary}`}>Blood Type</td><td className={`border-b px-2 py-1 ${colors.text.primary}`}>{selectedDonor.bloodType}</td></tr>
-                  <tr><td className={`font-bold border-b px-2 py-1 ${colors.bg.tertiary} ${colors.text.primary}`}>FIV Status</td><td className={`border-b px-2 py-1 ${colors.text.primary}`}>{selectedDonor.fiv}</td></tr>
-                  <tr><td className={`font-bold border-b px-2 py-1 ${colors.bg.tertiary} ${colors.text.primary}`}>FeLV Status</td><td className={`border-b px-2 py-1 ${colors.text.primary}`}>{selectedDonor.felv}</td></tr>
-                  <tr><td className={`font-bold border-b px-2 py-1 ${colors.bg.tertiary} ${colors.text.primary}`}>PCV</td><td className={`border-b px-2 py-1 ${colors.text.primary}`}>{selectedDonor.pcv}</td></tr>
-                  <tr><td className={`font-bold border-b px-2 py-1 ${colors.bg.tertiary} ${colors.text.primary}`}>HCT</td><td className={`border-b px-2 py-1 ${colors.text.primary}`}>{selectedDonor.hct}</td></tr>
-                  <tr><td className={`font-bold border-b px-2 py-1 ${colors.bg.tertiary} ${colors.text.primary}`}>WBC</td><td className={`border-b px-2 py-1 ${colors.text.primary}`}>{selectedDonor.wbc}</td></tr>
-                  <tr><td className={`font-bold border-b px-2 py-1 ${colors.bg.tertiary} ${colors.text.primary}`}>PLT</td><td className={`border-b px-2 py-1 ${colors.text.primary}`}>{selectedDonor.plt}</td></tr>
-                  <tr><td className={`font-bold border-b px-2 py-1 ${colors.bg.tertiary} ${colors.text.primary}`}>Packed Cell</td><td className={`border-b px-2 py-1 ${colors.text.primary}`}>{selectedDonor.packedCell}</td></tr>
-                  <tr><td className={`font-bold border-b px-2 py-1 ${colors.bg.tertiary} ${colors.text.primary}`}>Slide Findings</td><td className={`border-b px-2 py-1 ${colors.text.primary}`}>{selectedDonor.slideFindings}</td></tr>
-                  <tr><td className={`font-bold border-b px-2 py-1 ${colors.bg.tertiary} ${colors.text.primary}`}>Donated?</td><td className={`border-b px-2 py-1 ${colors.text.primary}`}>{selectedDonor.donated}</td></tr>
-                  <tr><td className={`font-bold border-b px-2 py-1 ${colors.bg.tertiary} ${colors.text.primary}`}>Volume</td><td className={`border-b px-2 py-1 ${colors.text.primary}`}>{selectedDonor.volume}</td></tr>
-                  <tr><td className={`font-bold border-b px-2 py-1 ${colors.bg.tertiary} ${colors.text.primary}`}>Notes</td><td className={`border-b px-2 py-1 ${colors.text.primary}`}>{selectedDonor.notes}</td></tr>
-                  <tr><td className={`font-bold border-b px-2 py-1 ${colors.bg.tertiary} ${colors.text.primary}`}>Private Owner?</td><td className={`border-b px-2 py-1 ${colors.text.primary}`}>{selectedDonor.isPrivateOwner ? "Yes" : "No"}</td></tr>
-                </tbody>
-              </table>
+            {/* Header */}
+            <div className="bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 p-6 relative">
+              <button
+                onClick={closeModal}
+                className="absolute top-4 right-4 text-white/90 hover:text-white text-2xl w-8 h-8 flex items-center justify-center rounded-full hover:bg-white/20 transition-all"
+              >
+                ✕
+              </button>
+              <div className="flex items-center gap-4">
+                <div className="w-16 h-16 bg-white/20 backdrop-blur rounded-full flex items-center justify-center text-3xl">
+                  {selectedDonor.animalType === 'Dog' ? '🐕' : '🐈'}
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold text-white">{selectedDonor.animalName}</h3>
+                  <p className="text-white/80 text-sm">{selectedDonor.animalType} • {selectedDonor.bloodType || 'Unknown Blood Type'}</p>
+                </div>
+              </div>
+            </div>
 
+            {/* Content */}
+            <div className="overflow-y-auto max-h-[calc(90vh-140px)] p-6 space-y-4">
+              {/* Basic Info Card */}
+              <div className={`${colors.bg.secondary} rounded-xl p-4 border ${colors.border.primary}`}>
+                <h4 className={`text-sm font-bold ${colors.text.primary} mb-3 flex items-center gap-2`}>
+                  <span>📋</span> Basic Information
+                </h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <InfoItem label="Date" value={selectedDonor.date} colors={colors} />
+                  <InfoItem label="Location" value={selectedDonor.location} colors={colors} />
+                  <InfoItem label="Age" value={selectedDonor.age} colors={colors} />
+                  <InfoItem label="Weight" value={selectedDonor.weight} colors={colors} />
+                  <InfoItem label="Gender" value={selectedDonor.gender} colors={colors} />
+                  <InfoItem label="Private Owner" value={selectedDonor.isPrivateOwner ? "Yes" : "No"} colors={colors} />
+                </div>
+              </div>
+
+              {/* Blood Work Card */}
+              <div className={`${colors.bg.secondary} rounded-xl p-4 border ${colors.border.primary}`}>
+                <h4 className={`text-sm font-bold ${colors.text.primary} mb-3 flex items-center gap-2`}>
+                  <span>🩸</span> Blood Work Results
+                </h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <InfoItem label="Blood Type" value={selectedDonor.bloodType} colors={colors} highlight />
+                  <InfoItem label="PCV" value={selectedDonor.pcv} colors={colors} />
+                  <InfoItem label="HCT" value={selectedDonor.hct} colors={colors} />
+                  <InfoItem label="WBC" value={selectedDonor.wbc} colors={colors} />
+                  <InfoItem label="PLT" value={selectedDonor.plt} colors={colors} />
+                  <InfoItem label="Packed Cell" value={selectedDonor.packedCell} colors={colors} />
+                </div>
+                {selectedDonor.slideFindings && (
+                  <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                    <p className={`text-xs ${colors.text.secondary} mb-1`}>Slide Findings</p>
+                    <p className={`text-sm ${colors.text.primary}`}>{selectedDonor.slideFindings}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Disease Status Card (for cats) */}
+              {selectedDonor.animalType === 'Cat' && (
+                <div className={`${colors.bg.secondary} rounded-xl p-4 border ${colors.border.primary}`}>
+                  <h4 className={`text-sm font-bold ${colors.text.primary} mb-3 flex items-center gap-2`}>
+                    <span>🔬</span> Disease Testing
+                  </h4>
+                  <div className="grid grid-cols-2 gap-3">
+                    <StatusBadge label="FIV" value={selectedDonor.fiv} colors={colors} />
+                    <StatusBadge label="FeLV" value={selectedDonor.felv} colors={colors} />
+                  </div>
+                </div>
+              )}
+
+              {/* Donation Info Card */}
+              <div className={`${colors.bg.secondary} rounded-xl p-4 border ${colors.border.primary}`}>
+                <h4 className={`text-sm font-bold ${colors.text.primary} mb-3 flex items-center gap-2`}>
+                  <span>💉</span> Donation Details
+                </h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <StatusBadge label="Donated" value={selectedDonor.donated} colors={colors} isMain />
+                  <InfoItem label="Volume" value={selectedDonor.volume} colors={colors} />
+                </div>
+                {selectedDonor.notes && (
+                  <div className="mt-3 pt-3 border-t border-gray-200 dark:border-gray-700">
+                    <p className={`text-xs ${colors.text.secondary} mb-1`}>Notes</p>
+                    <p className={`text-sm ${colors.text.primary}`}>{selectedDonor.notes}</p>
+                  </div>
+                )}
+              </div>
+
+              {/* Highlight Removal Button */}
               {isAnimalHighlighted(selectedDonor, removedHighlights) && (
                 <button
-                  className="bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 my-4 block mx-auto"
+                  className="w-full bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105"
                   onClick={() => {
                     addRemovedHighlight(selectedDonor.id);
                     closeModal();
