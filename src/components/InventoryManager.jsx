@@ -39,7 +39,93 @@ const InventoryManager = () => {
 
   useEffect(() => {
     loadInventory();
+    checkMonthlyArchive();
   }, []);
+
+  // Check if it's time to archive monthly data
+  const checkMonthlyArchive = () => {
+    const lastArchiveDate = localStorage.getItem('inventory_last_archive');
+    const now = new Date();
+    const currentMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    
+    if (!lastArchiveDate) {
+      // First time - just set the current month
+      localStorage.setItem('inventory_last_archive', currentMonth);
+      return;
+    }
+    
+    // Check if we're in a new month
+    if (lastArchiveDate !== currentMonth) {
+      // It's a new month! Ask user if they want to archive
+      const saved = localStorage.getItem(INVENTORY_STORAGE_KEY);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          const sales = parsed.sales || [];
+          
+          if (sales.length > 0) {
+            const lastMonthName = new Date(lastArchiveDate + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            
+            if (window.confirm(`📊 New Month Detected!\n\nWould you like to archive the data from ${lastMonthName}?\n\nThis will save a monthly summary and start fresh tracking for the new month.\n\n(Current usage history has ${sales.length} records)`)) {
+              archiveMonthlyData(lastArchiveDate, sales);
+            }
+            // Update last archive date either way
+            localStorage.setItem('inventory_last_archive', currentMonth);
+          }
+        } catch (e) {
+          console.error('Error checking monthly archive:', e);
+        }
+      }
+    }
+  };
+
+  const archiveMonthlyData = (monthKey, salesData) => {
+    try {
+      // Get existing archives
+      const archivesJson = localStorage.getItem('inventory_monthly_archives');
+      const archives = archivesJson ? JSON.parse(archivesJson) : [];
+      
+      // Calculate monthly summary
+      const summary = {
+        month: monthKey,
+        archivedAt: new Date().toISOString(),
+        totalRecords: salesData.length,
+        totalUsage: {},
+        totalExternal: {},
+      };
+      
+      // Aggregate data
+      salesData.forEach(sale => {
+        Object.entries(sale.delta || {}).forEach(([productKey, amount]) => {
+          summary.totalUsage[productKey] = (summary.totalUsage[productKey] || 0) + amount;
+        });
+        Object.entries(sale.external || {}).forEach(([productKey, amount]) => {
+          summary.totalExternal[productKey] = (summary.totalExternal[productKey] || 0) + amount;
+        });
+      });
+      
+      // Add detailed records
+      summary.records = salesData;
+      
+      // Save archive
+      archives.push(summary);
+      localStorage.setItem('inventory_monthly_archives', JSON.stringify(archives));
+      
+      // Clear current sales data
+      const saved = localStorage.getItem(INVENTORY_STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        parsed.sales = []; // Clear sales history
+        localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(parsed));
+        setMonthlySales([]);
+      }
+      
+      alert(`✅ Monthly archive created!\n\nMonth: ${monthKey}\nRecords archived: ${salesData.length}\nTotal products used: ${Object.keys(summary.totalUsage).length}\n\nYou can now start fresh for the new month.`);
+    } catch (error) {
+      console.error('Error archiving monthly data:', error);
+      alert('❌ Failed to archive monthly data: ' + error.message);
+    }
+  };
 
   const loadInventory = () => {
     const saved = localStorage.getItem(INVENTORY_STORAGE_KEY);
@@ -501,8 +587,35 @@ const InventoryManager = () => {
               onClick={resetAllData}
               className="bg-gradient-to-r from-red-500 to-rose-600 text-white px-4 py-3 rounded-xl font-bold hover:from-red-600 hover:to-rose-700 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center gap-2"
             >
-              <span className="text-xl">�️</span>
+              <span className="text-xl">🗑️</span>
               <span className="text-sm">Reset</span>
+            </button>
+            <button
+              onClick={() => {
+                const archivesJson = localStorage.getItem('inventory_monthly_archives');
+                const archives = archivesJson ? JSON.parse(archivesJson) : [];
+                
+                if (archives.length === 0) {
+                  alert('📂 No archived months yet.\n\nArchives will be created automatically when a new month starts.');
+                  return;
+                }
+                
+                let message = '📚 Monthly Archives:\n\n';
+                archives.forEach((archive, index) => {
+                  const monthDate = new Date(archive.month + '-01');
+                  const monthName = monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                  message += `${index + 1}. ${monthName}\n`;
+                  message += `   Records: ${archive.totalRecords}\n`;
+                  message += `   Products used: ${Object.keys(archive.totalUsage).length}\n`;
+                  message += `   Archived: ${new Date(archive.archivedAt).toLocaleDateString()}\n\n`;
+                });
+                
+                alert(message);
+              }}
+              className="bg-gradient-to-r from-amber-500 to-orange-600 text-white px-4 py-3 rounded-xl font-bold hover:from-amber-600 hover:to-orange-700 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center gap-2"
+            >
+              <span className="text-xl">📚</span>
+              <span className="text-sm">Archives</span>
             </button>
           </div>
         </div>
