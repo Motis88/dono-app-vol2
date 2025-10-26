@@ -29,26 +29,50 @@ const AppContent = () => {
   // Define view order for swipe navigation
   const viewOrder = ['form', 'table', 'dashboard', 'manual', 'inventory', 'financial'];
 
-  // Swipe handlers - simple and clean
-  const handleSwipeLeft = () => {
+  // Swipe handlers - improved to not conflict with table scrolling
+  const handleSwipeLeft = (eventData) => {
+    // Check if swipe started on or inside a table or scrollable element
+    const target = eventData.event?.target;
+    if (target) {
+      // Block swipe if inside table or any scrollable container
+      if (target.closest('table') || 
+          target.closest('.overflow-x-auto') || 
+          target.closest('.overflow-y-auto') ||
+          target.closest('[style*="overflow"]')) {
+        return;
+      }
+    }
+    
     const currentIndex = viewOrder.indexOf(view);
     const nextIndex = (currentIndex + 1) % viewOrder.length;
     setView(viewOrder[nextIndex]);
   };
 
-  const handleSwipeRight = () => {
+  const handleSwipeRight = (eventData) => {
+    // Check if swipe started on or inside a table or scrollable element
+    const target = eventData.event?.target;
+    if (target) {
+      // Block swipe if inside table or any scrollable container
+      if (target.closest('table') || 
+          target.closest('.overflow-x-auto') || 
+          target.closest('.overflow-y-auto') ||
+          target.closest('[style*="overflow"]')) {
+        return;
+      }
+    }
+    
     const currentIndex = viewOrder.indexOf(view);
     const prevIndex = (currentIndex - 1 + viewOrder.length) % viewOrder.length;
     setView(viewOrder[prevIndex]);
   };
 
-  // Configure swipeable handlers - original simple version
+  // Configure swipeable handlers - block swipe inside tables
   const swipeHandlers = useSwipeable({
     onSwipedLeft: handleSwipeLeft,
     onSwipedRight: handleSwipeRight,
     preventScrollOnSwipe: false,
     trackMouse: false,
-    delta: 50, // Original value - works best
+    delta: 50,
   });
 
   useEffect(() => {
