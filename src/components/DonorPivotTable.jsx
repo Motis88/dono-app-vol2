@@ -70,6 +70,14 @@ const DonorPivotTable = ({ donors, onLocationClick }) => {
       0
     );
     row["total"] = row["totalDog"] + row["totalCat"];
+    
+    // Calculate unique shifts (unique date + location combinations) for this month
+    row["shifts"] = new Set(
+      donors
+        .filter(d => getMonthKey(d.date) === month && d.date && d.location)
+        .map(d => `${d.date}_${d.location}`)
+    ).size;
+    
     return row;
   });
 
@@ -135,6 +143,10 @@ const DonorPivotTable = ({ donors, onLocationClick }) => {
                       <div className="flex items-center gap-2">
                         <div className="w-3 h-3 bg-gray-600 rounded-full"></div>
                         <span className={`text-sm sm:text-base ${colors.text.primary} font-semibold`}>{row.total} Total</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 bg-teal-500 rounded-full"></div>
+                        <span className="text-sm sm:text-base text-teal-700 font-medium">{row.shifts} Shifts</span>
                       </div>
                     </div>
                   </div>

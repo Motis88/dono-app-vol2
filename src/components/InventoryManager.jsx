@@ -63,13 +63,40 @@ const InventoryManager = () => {
           const parsed = JSON.parse(saved);
           const sales = parsed.sales || [];
           
-          if (sales.length > 0) {
+          // Check if there's any usage data in inventory
+          let hasUsageData = sales.length > 0;
+          if (parsed.current && !hasUsageData) {
+            hasUsageData = Object.values(parsed.current).some(
+              product => (product.used || 0) > 0 || (product.external || 0) > 0
+            );
+          }
+          
+          if (hasUsageData) {
             const lastMonthName = new Date(lastArchiveDate + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
             
             if (window.confirm(`📊 New Month Detected!\n\nWould you like to archive the data from ${lastMonthName}?\n\nThis will save a monthly summary and start fresh tracking for the new month.\n\n(Current usage history has ${sales.length} records)`)) {
               archiveMonthlyData(lastArchiveDate, sales);
+            } else {
+              // User declined, but we should still reset counters for new month
+              if (parsed.current) {
+                Object.keys(parsed.current).forEach(key => {
+                  parsed.current[key].used = 0;
+                  parsed.current[key].external = 0;
+                });
+                localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(parsed));
+                setInventory(prev => {
+                  const updated = { ...prev };
+                  Object.keys(updated).forEach(key => {
+                    updated[key] = { ...updated[key], used: 0, external: 0 };
+                  });
+                  return updated;
+                });
+              }
             }
             // Update last archive date either way
+            localStorage.setItem('inventory_last_archive', currentMonth);
+          } else {
+            // No data to archive, just update the month marker
             localStorage.setItem('inventory_last_archive', currentMonth);
           }
         } catch (e) {
@@ -85,23 +112,28 @@ const InventoryManager = () => {
       const archivesJson = localStorage.getItem('inventory_monthly_archives');
       const archives = archivesJson ? JSON.parse(archivesJson) : [];
       
-      // Calculate monthly summary
+      // Calculate monthly summary from current inventory state
       const summary = {
         month: monthKey,
         archivedAt: new Date().toISOString(),
         totalRecords: salesData.length,
         totalUsage: {},
         totalExternal: {},
+        inventorySnapshot: {} // Save the inventory state at archive time
       };
       
-      // Aggregate data
-      salesData.forEach(sale => {
-        Object.entries(sale.delta || {}).forEach(([productKey, amount]) => {
-          summary.totalUsage[productKey] = (summary.totalUsage[productKey] || 0) + amount;
-        });
-        Object.entries(sale.external || {}).forEach(([productKey, amount]) => {
-          summary.totalExternal[productKey] = (summary.totalExternal[productKey] || 0) + amount;
-        });
+      // Save current inventory totals before reset
+      Object.keys(BLOOD_PRODUCTS).forEach(productKey => {
+        const product = inventory[productKey];
+        if (product) {
+          if (product.used > 0) {
+            summary.totalUsage[productKey] = product.used;
+          }
+          if (product.external > 0) {
+            summary.totalExternal[productKey] = product.external;
+          }
+          summary.inventorySnapshot[productKey] = { ...product };
+        }
       });
       
       // Add detailed records
@@ -111,13 +143,36 @@ const InventoryManager = () => {
       archives.push(summary);
       localStorage.setItem('inventory_monthly_archives', JSON.stringify(archives));
       
-      // Clear current sales data
+      // Clear current sales data AND reset inventory usage counters
       const saved = localStorage.getItem(INVENTORY_STORAGE_KEY);
       if (saved) {
         const parsed = JSON.parse(saved);
         parsed.sales = []; // Clear sales history
+        
+        // Reset used and external counters in inventory (keep stock/initial)
+        if (parsed.current) {
+          Object.keys(parsed.current).forEach(key => {
+            parsed.current[key].used = 0;
+            parsed.current[key].external = 0;
+            // Keep: stock, initial, received, lastUpdated
+          });
+        }
+        
         localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(parsed));
         setMonthlySales([]);
+        
+        // Update inventory state to reflect the reset
+        setInventory(prev => {
+          const updated = { ...prev };
+          Object.keys(updated).forEach(key => {
+            updated[key] = {
+              ...updated[key],
+              used: 0,
+              external: 0
+            };
+          });
+          return updated;
+        });
       }
       
       alert(`✅ Monthly archive created!\n\nMonth: ${monthKey}\nRecords archived: ${salesData.length}\nTotal products used: ${Object.keys(summary.totalUsage).length}\n\nYou can now start fresh for the new month.`);
@@ -447,9 +502,17 @@ const InventoryManager = () => {
       
       // Update inventory
       const newInventory = { ...inventory };
+      
       Object.entries(deltaByProduct).forEach(([productKey, delta]) => {
         if (newInventory[productKey]) {
-          newInventory[productKey] = Math.max(0, newInventory[productKey] - delta);
+          // Update stock and usage counter
+          const currentProduct = newInventory[productKey];
+          newInventory[productKey] = {
+            ...currentProduct,
+            stock: Math.max(0, currentProduct.stock - delta),
+            used: (currentProduct.used || 0) + delta,
+            lastUpdated: new Date().toISOString()
+          };
         } else {
           warnings.push(`Product "${productKey}" not found in inventory`);
         }
@@ -545,10 +608,130 @@ const InventoryManager = () => {
     return Object.values(inventory).reduce((sum, item) => sum + item.stock, 0);
   };
 
+  const forceResetCounters = () => {
+    if (!confirm('🔄 Force Reset Usage Counters\n\nThis will reset used/external counters to 0 for the current month.\n\nContinue?')) {
+      return;
+    }
+
+    const saved = localStorage.getItem(INVENTORY_STORAGE_KEY);
+    if (saved) {
+      const parsed = JSON.parse(saved);
+      
+      // Reset counters in localStorage
+      if (parsed.current) {
+        Object.keys(parsed.current).forEach(key => {
+          parsed.current[key].used = 0;
+          parsed.current[key].external = 0;
+        });
+        localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(parsed));
+      }
+      
+      // Reset counters in state
+      setInventory(prev => {
+        const updated = { ...prev };
+        Object.keys(updated).forEach(key => {
+          updated[key] = { ...updated[key], used: 0, external: 0 };
+        });
+        return updated;
+      });
+      
+      // Also reset sales history
+      setMonthlySales([]);
+      
+      // Clear processed invoices list so files can be re-imported
+      setProcessedInvoices(new Set());
+      if (parsed.processedInvoices) {
+        parsed.processedInvoices = [];
+        localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(parsed));
+      }
+      
+      // Update the month marker to current month
+      const currentMonth = new Date().toISOString().slice(0, 7);
+      localStorage.setItem('inventory_last_archive', currentMonth);
+      
+      alert('✅ Counters reset successfully!\n\nUsed and External counters are now 0.\nProcessed invoices cleared.\nMonth marker updated to: ' + currentMonth);
+    }
+  };
+
+  const showExternalSalesByMonth = () => {
+    // Get archives
+    const archivesJson = localStorage.getItem('inventory_monthly_archives');
+    const archives = archivesJson ? JSON.parse(archivesJson) : [];
+    
+    // Also include current month
+    const currentMonthExternal = {};
+    Object.keys(BLOOD_PRODUCTS).forEach(productKey => {
+      const product = inventory[productKey];
+      if (product && (product.external || 0) > 0) {
+        currentMonthExternal[productKey] = product.external;
+      }
+    });
+    
+    if (archives.length === 0 && Object.keys(currentMonthExternal).length === 0) {
+      alert('📊 No external sales data available yet.\n\nExternal sales will be tracked when you import usage reports with external sales marked.');
+      return;
+    }
+    
+    let message = '🏥 External Sales by Month\n\n';
+    
+    // Show archived months
+    archives.forEach(archive => {
+      const monthDate = new Date(archive.month + '-01');
+      const monthName = monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      
+      const externalData = archive.totalExternal || {};
+      const totalUnits = Object.values(externalData).reduce((sum, val) => sum + val, 0);
+      
+      if (totalUnits > 0) {
+        message += `📅 ${monthName}\n`;
+        message += `━━━━━━━━━━━━━━━━━━━━━━\n`;
+        message += `Total External Units: ${totalUnits.toFixed(1)}\n\n`;
+        
+        Object.entries(externalData).forEach(([productKey, units]) => {
+          const product = BLOOD_PRODUCTS[productKey];
+          if (product && units > 0) {
+            message += `  • ${product.name_en}: ${units.toFixed(1)} units\n`;
+          }
+        });
+        
+        message += `\n`;
+      }
+    });
+    
+    // Show current month
+    if (Object.keys(currentMonthExternal).length > 0) {
+      const now = new Date();
+      const currentMonthName = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+      const totalCurrentUnits = Object.values(currentMonthExternal).reduce((sum, val) => sum + val, 0);
+      
+      message += `📅 ${currentMonthName} (Current)\n`;
+      message += `━━━━━━━━━━━━━━━━━━━━━━\n`;
+      message += `Total External Units: ${totalCurrentUnits.toFixed(1)}\n\n`;
+      
+      Object.entries(currentMonthExternal).forEach(([productKey, units]) => {
+        const product = BLOOD_PRODUCTS[productKey];
+        if (product) {
+          message += `  • ${product.name_en}: ${units.toFixed(1)} units\n`;
+        }
+      });
+    }
+    
+    if (message === '🏥 External Sales by Month\n\n') {
+      message += 'No external sales recorded yet.';
+    }
+    
+    alert(message);
+  };
+
   const showCurrentMonthStats = () => {
     const now = new Date();
     
-    if (monthlySales.length === 0) {
+    // Check if there's any usage data at all
+    const hasUsageData = Object.values(inventory).some(
+      product => (product.used || 0) > 0 || (product.external || 0) > 0
+    );
+    
+    if (!hasUsageData && monthlySales.length === 0) {
       alert('📊 No data available\n\nPlease import a usage report first.');
       return;
     }
@@ -559,13 +742,15 @@ const InventoryManager = () => {
     
     Object.keys(BLOOD_PRODUCTS).forEach(productKey => {
       const product = inventory[productKey];
-      if (product && product.used > 0) {
-        // Internal usage = what was used from stock
-        monthUsage[productKey] = product.used || 0;
-      }
-      if (product && product.external > 0) {
-        // External sales
-        monthExternal[productKey] = product.external || 0;
+      if (product) {
+        if ((product.used || 0) > 0) {
+          // Internal usage = what was used from stock
+          monthUsage[productKey] = product.used || 0;
+        }
+        if ((product.external || 0) > 0) {
+          // External sales
+          monthExternal[productKey] = product.external || 0;
+        }
       }
     });
     
@@ -678,7 +863,7 @@ const InventoryManager = () => {
             </div>
             
             {/* Main Action Buttons - Responsive Grid */}
-            <div className="grid grid-cols-3 gap-2 w-full md:w-auto md:flex md:gap-2">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 w-full md:w-auto">
               <button
                 onClick={() => setShowImport(true)}
                 className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-3 py-2.5 rounded-xl font-bold hover:from-indigo-600 hover:to-purple-700 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2"
@@ -688,39 +873,27 @@ const InventoryManager = () => {
               </button>
               
               <button
-                onClick={() => {
-                  const archivesJson = localStorage.getItem('inventory_monthly_archives');
-                  const archives = archivesJson ? JSON.parse(archivesJson) : [];
-                  
-                  if (archives.length === 0) {
-                    alert('📂 No archived months yet.\n\nArchives will be created automatically when a new month starts.');
-                    return;
-                  }
-                  
-                  let message = '📚 Monthly Archives:\n\n';
-                  archives.forEach((archive, index) => {
-                    const monthDate = new Date(archive.month + '-01');
-                    const monthName = monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-                    message += `${index + 1}. ${monthName}\n`;
-                    message += `   Records: ${archive.totalRecords}\n`;
-                    message += `   Products used: ${Object.keys(archive.totalUsage).length}\n`;
-                    message += `   Archived: ${new Date(archive.archivedAt).toLocaleDateString()}\n\n`;
-                  });
-                  
-                  alert(message);
-                }}
-                className="bg-gradient-to-r from-amber-500 to-orange-600 text-white px-3 py-2.5 rounded-xl font-bold hover:from-amber-600 hover:to-orange-700 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2"
-              >
-                <span className="text-lg md:text-xl">📚</span>
-                <span className="text-xs md:text-sm">Archives</span>
-              </button>
-              
-              <button
                 onClick={showCurrentMonthStats}
                 className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white px-3 py-2.5 rounded-xl font-bold hover:from-teal-600 hover:to-cyan-700 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2"
               >
                 <span className="text-lg md:text-xl">📊</span>
-                <span className="text-xs md:text-sm">Stats</span>
+                <span className="text-xs md:text-sm">Current Stats</span>
+              </button>
+              
+              <button
+                onClick={showExternalSalesByMonth}
+                className="bg-gradient-to-r from-blue-500 to-sky-600 text-white px-3 py-2.5 rounded-xl font-bold hover:from-blue-600 hover:to-sky-700 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2"
+              >
+                <span className="text-lg md:text-xl">🏥</span>
+                <span className="text-xs md:text-sm">External History</span>
+              </button>
+              
+              <button
+                onClick={forceResetCounters}
+                className="bg-gradient-to-r from-purple-500 to-pink-600 text-white px-3 py-2.5 rounded-xl font-bold hover:from-purple-600 hover:to-pink-700 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2"
+              >
+                <span className="text-lg md:text-xl">🔄</span>
+                <span className="text-xs md:text-sm">Reset Month</span>
               </button>
             </div>
           </div>

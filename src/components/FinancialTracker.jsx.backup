@@ -1,11 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import Papa from 'papaparse';
-import * as XLSX from 'xlsx';
 import { Share } from '@capacitor/share';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { parseCsvFile, exportToCsv, getDataSummary } from '../utils/csvImporter';
-import EnhancedFinancialDashboard from './EnhancedFinancialDashboard';
 
 // Blood product definitions - matching the CSV reports
 const BLOOD_PRODUCTS = {
@@ -27,7 +25,6 @@ const FinancialTracker = () => {
   const [showImport, setShowImport] = useState(false);
   const [importing, setImporting] = useState(false);
   const [expandedMonths, setExpandedMonths] = useState({});
-  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' or 'import'
 
   useEffect(() => {
     loadFinancialData();
@@ -57,26 +54,8 @@ const FinancialTracker = () => {
   const importSalesCSV = async (file) => {
     setImporting(true);
     try {
-      let parsedData;
-      
-      // Check if file is Excel or CSV
-      const fileName = file.name.toLowerCase();
-      if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
-        // Parse Excel file
-        const arrayBuffer = await file.arrayBuffer();
-        const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-        const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
-        const jsonData = XLSX.utils.sheet_to_json(firstSheet, { raw: false });
-        
-        // Convert to CSV-like format for the parser
-        const csvText = Papa.unparse(jsonData);
-        const csvBlob = new Blob([csvText], { type: 'text/csv' });
-        const csvFile = new File([csvBlob], 'converted.csv', { type: 'text/csv' });
-        parsedData = await parseCsvFile(csvFile);
-      } else {
-        // Parse CSV file normally
-        parsedData = await parseCsvFile(file);
-      }
+      // Use the new CSV parser
+      const parsedData = await parseCsvFile(file);
       
       if (parsedData.length === 0) {
         alert('❌ לא נמצאו נתונים תקינים בקובץ');
@@ -88,21 +67,12 @@ const FinancialTracker = () => {
       const summary = getDataSummary(parsedData);
       console.log('Import summary:', summary);
 
-      // Process sales data - group by month
-      const salesByMonth = {}; // { 'YYYY-MM': { date, products: {} } }
+      // Process sales data
+      const salesByProduct = {};
       let totalImported = 0;
 
       parsedData.forEach(item => {
         if (item.type === 'sale' && item.productName && item.quantity > 0) {
-          // Get month from item date
-          const itemDate = item.date || new Date().toISOString().split('T')[0];
-          const monthKey = itemDate.substring(0, 7); // YYYY-MM
-          
-          // Debug: log first few items to see dates
-          if (totalImported < 5) {
-            console.log('Item date:', item.date, '→ monthKey:', monthKey, 'Product:', item.productName);
-          }
-          
           // Try to match with known blood products
           let matchedProduct = null;
           
@@ -127,77 +97,55 @@ const FinancialTracker = () => {
             matchedProduct = item.productName;
           }
 
-          // Initialize month if needed
-          if (!salesByMonth[monthKey]) {
-            salesByMonth[monthKey] = {
-              date: itemDate,
-              products: {}
-            };
+          if (!salesByProduct[matchedProduct]) {
+            salesByProduct[matchedProduct] = { quantity: 0, revenueExcl: 0, revenueIncl: 0 };
           }
 
-          // Initialize product in this month if needed
-          if (!salesByMonth[monthKey].products[matchedProduct]) {
-            salesByMonth[monthKey].products[matchedProduct] = { quantity: 0, revenueExcl: 0, revenueIncl: 0 };
-          }
-
-          salesByMonth[monthKey].products[matchedProduct].quantity += item.quantity;
-          salesByMonth[monthKey].products[matchedProduct].revenueExcl += item.totalExclVat || 0;
-          salesByMonth[monthKey].products[matchedProduct].revenueIncl += item.totalInclVat || 0;
+          salesByProduct[matchedProduct].quantity += item.quantity;
+          salesByProduct[matchedProduct].revenueExcl += item.totalExclVat || 0;
+          salesByProduct[matchedProduct].revenueIncl += item.totalInclVat || 0;
           totalImported++;
         }
 
         // Process medicine usage data
         if (item.type === 'medicine_usage' && item.medicine && item.quantityUnits > 0) {
-          const itemDate = item.date || new Date().toISOString().split('T')[0];
-          const monthKey = itemDate.substring(0, 7);
           const medicineKey = `${item.medicine} (שימוש)`;
           
-          if (!salesByMonth[monthKey]) {
-            salesByMonth[monthKey] = {
-              date: itemDate,
-              products: {}
-            };
+          if (!salesByProduct[medicineKey]) {
+            salesByProduct[medicineKey] = { quantity: 0, revenueExcl: 0, revenueIncl: 0 };
           }
 
-          if (!salesByMonth[monthKey].products[medicineKey]) {
-            salesByMonth[monthKey].products[medicineKey] = { quantity: 0, revenueExcl: 0, revenueIncl: 0 };
-          }
-
-          salesByMonth[monthKey].products[medicineKey].quantity += item.quantityUnits;
+          salesByProduct[medicineKey].quantity += item.quantityUnits;
+          // Medicine usage typically doesn't have revenue data
           totalImported++;
         }
       });
 
-      if (Object.keys(salesByMonth).length === 0) {
+      if (Object.keys(salesByProduct).length === 0) {
         alert('❌ לא נמצאו מוצרים תקינים לייבוא');
         setImporting(false);
         return;
       }
 
-      // Create monthly sales entries - use first day of month as date
-      const newSales = Object.keys(salesByMonth).map(monthKey => ({
-        monthKey, // explicit month identifier YYYY-MM
-        date: `${monthKey}-15T12:00:00.000Z`, // canonical mid-month date
-        // Preserve original file reference but DON'T depend on it for month parsing
-        fileName: `${file.name} (${monthKey})`,
-        products: salesByMonth[monthKey].products,
-        importSummary: summary
-      }));
-
-      // Update total financial data (all-time totals)
+      // Update financial data
       const updatedData = { ...financialData };
-      Object.keys(salesByMonth).forEach(monthKey => {
-        Object.keys(salesByMonth[monthKey].products).forEach(productKey => {
-          if (!updatedData[productKey]) {
-            updatedData[productKey] = { quantity: 0, revenueExcl: 0, revenueIncl: 0 };
-          }
-          updatedData[productKey].quantity += salesByMonth[monthKey].products[productKey].quantity;
-          updatedData[productKey].revenueExcl += salesByMonth[monthKey].products[productKey].revenueExcl;
-          updatedData[productKey].revenueIncl += salesByMonth[monthKey].products[productKey].revenueIncl;
-        });
+      Object.keys(salesByProduct).forEach(productKey => {
+        if (!updatedData[productKey]) {
+          updatedData[productKey] = { quantity: 0, revenueExcl: 0, revenueIncl: 0 };
+        }
+        updatedData[productKey].quantity += salesByProduct[productKey].quantity;
+        updatedData[productKey].revenueExcl += salesByProduct[productKey].revenueExcl;
+        updatedData[productKey].revenueIncl += salesByProduct[productKey].revenueIncl;
       });
       
-      const updatedHistory = [...monthlySales, ...newSales];
+      const newSale = {
+        date: new Date().toISOString(),
+        fileName: file.name,
+        products: salesByProduct,
+        importSummary: summary
+      };
+      
+      const updatedHistory = [...monthlySales, newSale];
       
       setFinancialData(updatedData);
       setMonthlySales(updatedHistory);
@@ -206,9 +154,7 @@ const FinancialTracker = () => {
       setImporting(false);
       setShowImport(false);
       
-      const monthCount = Object.keys(salesByMonth).length;
-      const productCount = new Set(Object.values(salesByMonth).flatMap(m => Object.keys(m.products))).size;
-      alert(`✅ ייבוא הושלם בהצלחה!\n\nיובאו ${totalImported} רשומות\nחולקו ל-${monthCount} חודשים\n${productCount} מוצרים שונים\nסוג קובץ: ${summary.types.sale ? 'מכירות' : ''} ${summary.types.medicine_usage ? 'שימוש בתרופות' : ''}`);
+      alert(`✅ ייבוא הושלם בהצלחה!\n\nיובאו ${totalImported} רשומות\nעודכנו ${Object.keys(salesByProduct).length} מוצרים\nסוג קובץ: ${summary.types.sale ? 'מכירות' : ''} ${summary.types.medicine_usage ? 'שימוש בתרופות' : ''}`);
       
     } catch (error) {
       console.error('Import error:', error);
@@ -446,46 +392,15 @@ const FinancialTracker = () => {
   };
 
   return (
-    <div className={`min-h-screen ${colors.bg.primary} p-2 md:p-4`}>
-      {/* Tab Navigation */}
-      <div className={`${colors.bg.card} rounded-t-2xl shadow-lg p-4 ${colors.border.primary} border-b`}>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setActiveTab('dashboard')}
-            className={`px-4 py-2 rounded-lg font-semibold transition-all duration-200 ${
-              activeTab === 'dashboard'
-                ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md'
-                : `${colors.bg.secondary} ${colors.text.secondary} hover:${colors.bg.tertiary}`
-            }`}
-          >
-            📊 Dashboard
-          </button>
-          <button
-            onClick={() => setActiveTab('import')}
-            className={`px-4 py-2 rounded-lg font-semibold transition-all duration-200 ${
-              activeTab === 'import'
-                ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-md'
-                : `${colors.bg.secondary} ${colors.text.secondary} hover:${colors.bg.tertiary}`
-            }`}
-          >
-            📥 Import/Export
-          </button>
-        </div>
-      </div>
-
-      {/* Tab Content */}
-      {activeTab === 'dashboard' ? (
-        <EnhancedFinancialDashboard salesHistory={monthlySales} />
-      ) : (
-        <div className="w-full mx-auto p-2 md:p-4 space-y-6">
+    <div className="w-full mx-auto p-2 md:p-4 space-y-6 bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 min-h-screen">
       {/* Import Modal */}
       {showImport && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowImport(false)}>
           <div className={`${colors.bg.card} rounded-2xl p-6 max-w-md w-full`} onClick={e => e.stopPropagation()}>
-            <h3 className={`text-2xl font-bold mb-4 ${colors.text.primary}`}>Import Sales CSV / Excel</h3>
+            <h3 className={`text-2xl font-bold mb-4 ${colors.text.primary}`}>Import Sales CSV</h3>
             <input 
               type="file" 
-              accept=".csv,.txt,.xlsx,.xls,text/csv,text/plain,application/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
+              accept=".csv"
               onChange={(e) => {
                 if (e.target.files[0]) {
                   importSalesCSV(e.target.files[0]);
@@ -601,36 +516,29 @@ const FinancialTracker = () => {
                 Avg: {(totalUnits / monthlySales.length).toFixed(0)}/mo
               </div>
             </div>
-            {/* Best Month (by month key) */}
-            {(() => {
-              // Build month aggregates from monthlySales: each entry already represents a month (date set to mid-month)
-              const monthEntries = monthlySales.map(sale => {
-                const monthKey = sale.date ? sale.date.substring(0,7) : 'unknown';
-                const revenue = Object.values(sale.products).reduce((sum,p)=> sum + (p?.revenueIncl||0),0);
-                return { monthKey, revenue };
-              });
-              const byMonth = {};
-              monthEntries.forEach(e => {
-                if (!byMonth[e.monthKey]) byMonth[e.monthKey] = 0;
-                byMonth[e.monthKey] += e.revenue;
-              });
-              const best = Object.entries(byMonth).reduce((max, curr) => curr[1] > max[1] ? curr : max, ['', 0]);
-              const bestMonthKey = best[0];
-              const bestRevenue = best[1];
-              const label = (() => {
-                if (!bestMonthKey) return '-';
-                const m = bestMonthKey.split('-')[1];
-                const map = { '01':'Jan','02':'Feb','03':'Mar','04':'Apr','05':'May','06':'Jun','07':'Jul','08':'Aug','09':'Sep','10':'Oct','11':'Nov','12':'Dec'};
-                return map[m] || bestMonthKey;
-              })();
-              return (
-                <div className="bg-gradient-to-br from-green-900/70 to-green-900/90 rounded-xl p-4 border-2 border-green-400 shadow-md text-center overflow-hidden">
-                  <div className="text-xs text-green-300 font-bold mb-1 text-center truncate">Best Month</div>
-                  <div className="text-2xl md:text-3xl font-extrabold text-green-200 text-center truncate overflow-hidden text-ellipsis">₪{(bestRevenue/1000).toFixed(1)}k</div>
-                  <div className="text-xs text-green-400 mt-1 text-center truncate overflow-hidden text-ellipsis">{label}</div>
-                </div>
-              );
-            })()}
+            {/* Best Month */}
+            <div className="bg-gradient-to-br from-green-900/70 to-green-900/90 rounded-xl p-4 border-2 border-green-400 shadow-md text-center overflow-hidden">
+              <div className="text-xs text-green-300 font-bold mb-1 text-center truncate">Best Month</div>
+              <div className="text-2xl md:text-3xl font-extrabold text-green-200 text-center truncate overflow-hidden text-ellipsis">
+                ₪{Math.max(...monthlySales.map(s => Object.values(s.products).reduce((sum, p) => sum + (p?.revenueIncl || 0), 0) / 1000)).toFixed(1)}k
+              </div>
+              <div className="text-xs text-green-400 mt-1 text-center truncate overflow-hidden text-ellipsis">
+                {(() => {
+                  const revenues = monthlySales.map((s, idx) => ({ 
+                    idx, 
+                    rev: Object.values(s.products).reduce((sum, p) => sum + (p?.revenueIncl || 0), 0) 
+                  }));
+                  const best = revenues.reduce((max, curr) => curr.rev > max.rev ? curr : max);
+                  const fileMonthMatch = monthlySales[best.idx].fileName && monthlySales[best.idx].fileName.match(/(\d{1,2})[-.](\d{1,2})[-.](\d{4})|(\d{4})[-.](\d{1,2})[-.](\d{1,2})/);
+                  if (fileMonthMatch) {
+                    const month = fileMonthMatch[1] ? fileMonthMatch[2] : fileMonthMatch[5];
+                    const monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                    return monthNames[parseInt(month, 10)];
+                  }
+                  return `File ${best.idx + 1}`;
+                })()}
+              </div>
+            </div>
             {/* Avg Price/Unit */}
             <div className="bg-gradient-to-br from-amber-900/70 to-amber-900/90 rounded-xl p-4 border-2 border-amber-400 shadow-md text-center overflow-hidden">
               <div className="text-xs text-amber-300 font-bold mb-1 text-center truncate">Avg Price/Unit</div>
@@ -643,12 +551,10 @@ const FinancialTracker = () => {
             </div>
           </div>
 
-          {/* Latest Month Detailed Breakdown (actual latest by month key) */}
+          {/* Latest Month Detailed Breakdown */}
           {(() => {
             if (monthlySales.length === 0) return null;
-            // Sort by monthKey derived from sale.date substring(0,7)
-            const sortedByMonth = [...monthlySales].sort((a,b)=> b.date.substring(0,7).localeCompare(a.date.substring(0,7)));
-            const latestSale = sortedByMonth[0];
+            const latestSale = monthlySales[monthlySales.length - 1];
             const latestRevenue = Object.values(latestSale.products).reduce((sum, p) => sum + (p?.revenueIncl || 0), 0);
             const latestUnits = Object.values(latestSale.products).reduce((sum, p) => sum + (p?.quantity || 0), 0);
             const bloodProductsOnly = Object.entries(latestSale.products).filter(([productKey]) => 
@@ -660,7 +566,7 @@ const FinancialTracker = () => {
                 <div className="flex items-center gap-3 mb-4">
                   <h4 className="text-lg font-bold text-orange-200">Latest Month - Detailed Breakdown</h4>
                   <div className="text-sm text-orange-300">
-                    ({latestSale.date.substring(0,7)})
+                    ({new Date(latestSale.date).toLocaleDateString('en-US')})
                   </div>
                 </div>
                 
@@ -755,7 +661,7 @@ const FinancialTracker = () => {
                 </tr>
               </thead>
               <tbody>
-                {[...monthlySales].sort((a,b)=> b.date.substring(0,7).localeCompare(a.date.substring(0,7))).map((sale, idx, arr) => {
+                {monthlySales.map((sale, idx) => {
                   const revenue = Object.values(sale.products).reduce((sum, p) => sum + (p?.revenueIncl || 0), 0);
                   const units = Object.values(sale.products).reduce((sum, p) => sum + (p?.quantity || 0), 0);
                   const avgPrice = units > 0 ? revenue / units : 0;
@@ -764,8 +670,8 @@ const FinancialTracker = () => {
                   let revenueTrend = null;
                   let unitsTrend = null;
                   if (idx > 0) {
-                    const prevRevenue = Object.values(arr[idx - 1].products).reduce((sum, p) => sum + (p?.revenueIncl || 0), 0);
-                    const prevUnits = Object.values(arr[idx - 1].products).reduce((sum, p) => sum + (p?.quantity || 0), 0);
+                    const prevRevenue = Object.values(monthlySales[idx - 1].products).reduce((sum, p) => sum + (p?.revenueIncl || 0), 0);
+                    const prevUnits = Object.values(monthlySales[idx - 1].products).reduce((sum, p) => sum + (p?.quantity || 0), 0);
                     revenueTrend = ((revenue - prevRevenue) / prevRevenue * 100).toFixed(0);
                     unitsTrend = ((units - prevUnits) / prevUnits * 100).toFixed(0);
                   }
@@ -775,17 +681,18 @@ const FinancialTracker = () => {
                   const vsAvg = ((revenue - avgRevenue) / avgRevenue * 100).toFixed(0);
                   
                   // Get month label
-                  const monthLabel = (() => {
-                    if (!sale.date) return `File ${idx+1}`;
-                    const mk = sale.date.substring(0,7);
-                    const m = mk.split('-')[1];
-                    const map = { '01':'Jan','02':'Feb','03':'Mar','04':'Apr','05':'May','06':'Jun','07':'Jul','08':'Aug','09':'Sep','10':'Oct','11':'Nov','12':'Dec'};
-                    return `${map[m]} '${mk.substring(2,4)}`;
-                  })();
+                  const fileMonthMatch = sale.fileName && sale.fileName.match(/(\d{1,2})[-.](\d{1,2})[-.](\d{4})|(\d{4})[-.](\d{1,2})[-.](\d{1,2})/);
+                  let monthLabel = `File ${idx + 1}`;
+                  if (fileMonthMatch) {
+                    const month = fileMonthMatch[1] ? fileMonthMatch[2] : fileMonthMatch[5];
+                    const year = fileMonthMatch[1] ? fileMonthMatch[3] : fileMonthMatch[4];
+                    const monthNames = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+                    monthLabel = `${monthNames[parseInt(month, 10)]} '${year.slice(2)}`;
+                  }
                   
                   return (
                     <tr key={idx} className="border-b border-blue-500/30 hover:bg-blue-900/20 transition-colors">
-                      <td className="py-3 px-2 font-bold text-blue-100">{monthLabel}<div className="text-[10px] opacity-60">{sale.date.substring(0,7)}</div></td>
+                      <td className="py-3 px-2 font-bold text-blue-100">{monthLabel}</td>
                       <td className="text-right py-3 px-2 font-semibold text-blue-200">
                         ₪{(revenue / 1000).toFixed(1)}k
                       </td>
@@ -857,20 +764,34 @@ const FinancialTracker = () => {
           {monthlySales.map((sale, saleIndex) => {
             const saleTotal = Object.values(sale.products).reduce((sum, p) => sum + (p?.revenueIncl || 0), 0);
             const saleQuantity = Object.values(sale.products).reduce((sum, p) => sum + (p?.quantity || 0), 0);
-
-            // Reliable month labeling using explicit monthKey (YYYY-MM)
-            const MONTH_ABBR = {
-              '01': 'Jan', '02': 'Feb', '03': 'Mar', '04': 'Apr', '05': 'May', '06': 'Jun',
-              '07': 'Jul', '08': 'Aug', '09': 'Sep', '10': 'Oct', '11': 'Nov', '12': 'Dec'
-            };
-            const rawMonthKey = sale.monthKey || (sale.date ? sale.date.substring(0,7) : null);
+            
+            // Extract month from fileName - handles formats like "01.09.2024-30.09.2024" or "2024-09-01_2024-09-30"
             let monthLabel = 'Unknown';
-            if (rawMonthKey) {
-              const [y,m] = rawMonthKey.split('-');
-              const short = MONTH_ABBR[m] || m;
-              monthLabel = `${short} '${y.slice(-2)}`; // e.g. Jul '25
+            if (sale.fileName) {
+              // Try to match date patterns: DD.MM.YYYY, YYYY-MM-DD, etc.
+              const dateMatch = sale.fileName.match(/(\d{1,2})[-.](\d{1,2})[-.](\d{4})|(\d{4})[-.](\d{1,2})[-.](\d{1,2})/);
+              if (dateMatch) {
+                let month, year;
+                if (dateMatch[1]) {
+                  // Format: DD.MM.YYYY or DD-MM-YYYY
+                  month = dateMatch[2];
+                  year = dateMatch[3];
+                } else {
+                  // Format: YYYY-MM-DD or YYYY.MM.DD
+                  year = dateMatch[4];
+                  month = dateMatch[5];
+                }
+                const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+                const monthIndex = parseInt(month, 10) - 1;
+                monthLabel = monthIndex >= 0 && monthIndex < 12 ? `${monthNames[monthIndex]} ${year}` : `${month}/${year}`;
+              }
             }
-
+            if (monthLabel === 'Unknown' && sale.date) {
+              const d = new Date(sale.date);
+              const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+              monthLabel = `${monthNames[d.getMonth()]} ${d.getFullYear()}`;
+            }
+            
             // Calculate external sales for this month
             let externalQuantity = 0;
             let externalRevenue = 0;
@@ -907,7 +828,7 @@ const FinancialTracker = () => {
                     <div className="text-2xl md:text-3xl">{isExpanded ? '📂' : '📁'}</div>
                     <div className="flex-1 min-w-0">
                       <h3 className="text-base md:text-lg font-bold text-white truncate">{monthLabel}</h3>
-                      <p className="text-[10px] md:text-xs text-blue-100 truncate">RAW: {rawMonthKey} • DATE: {new Date(sale.date).toLocaleDateString('en-US')}</p>
+                      <p className="text-[10px] md:text-xs text-blue-100 truncate">DATE: {new Date(sale.date).toLocaleDateString('en-US')}</p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
@@ -986,8 +907,6 @@ const FinancialTracker = () => {
               </div>
             );
           })}
-        </div>
-      )}
         </div>
       )}
     </div>

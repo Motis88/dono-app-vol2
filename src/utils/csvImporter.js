@@ -71,22 +71,22 @@ const normalizeSalesData = (data) => {
   return data
     .filter(row => {
       // Filter out summary rows and empty data
-      const date = row['Date'] || row['Column1'];
+      const date = row['Date'] || row['Invoice date'] || row['Column1'];
       return date && 
              !date.includes('total') && 
              !date.includes('Total') &&
-             date.includes('-') && // Date format check
+             (date.includes('-') || date.includes('/')) && // Date format check
              row['Name'] || row['Column2']; // Has product name
     })
     .map(row => ({
       id: generateId(),
       type: 'sale',
-      date: parseDate(row['Date'] || row['Column1']),
+      date: parseDate(row['Date'] || row['Invoice date'] || row['Column1']),
       productName: row['Name'] || row['Column2'] || '',
       productCode: row['Code'] || row['Column3'] || '',
       quantity: parseFloat(row['Quantity'] || row['Column4']) || 0,
-      priceExclVat: parseFloat(row['Price excl. VAT'] || row['Column5']) || 0,
-      totalExclVat: parseFloat(row['Total excl. VAT'] || row['Column6']) || 0,
+      priceExclVat: parseFloat(row['Price excl. VAT'] || row['Price excl.'] || row['Column5']) || 0,
+      totalExclVat: parseFloat(row['Total excl. VAT'] || row['Total excl.'] || row['Column6']) || 0,
       totalInclVat: parseFloat(row['Total incl. VAT'] || row['Column7']) || 0,
       patientId: row['Patient ID'] || row['Column8'] || '',
       patientName: row['Patient Name'] || row['Column9'] || '',
@@ -157,18 +157,41 @@ const parseDate = (dateString) => {
   if (!dateString) return '';
   
   try {
+    // Remove time portion if exists (e.g., "10/19/2025 09:20" -> "10/19/2025")
+    const dateOnly = dateString.split(' ')[0];
+    
     // Handle ISO format with timezone
     if (dateString.includes('+') || dateString.includes('T')) {
       return new Date(dateString).toISOString().split('T')[0];
     }
     
-    // Handle DD/MM/YYYY format
-    if (dateString.includes('/')) {
-      const parts = dateString.split('/');
+    // Handle MM/DD/YYYY or DD/MM/YYYY format
+    if (dateOnly.includes('/')) {
+      const parts = dateOnly.split('/');
       if (parts.length === 3) {
-        const day = parts[0].padStart(2, '0');
-        const month = parts[1].padStart(2, '0');
-        const year = parts[2];
+        let month, day, year;
+        
+        // Try to determine if it's MM/DD/YYYY or DD/MM/YYYY
+        const first = parseInt(parts[0]);
+        const second = parseInt(parts[1]);
+        year = parts[2];
+        
+        // If first number > 12, it must be DD/MM/YYYY
+        if (first > 12) {
+          day = parts[0].padStart(2, '0');
+          month = parts[1].padStart(2, '0');
+        }
+        // If second number > 12, it must be MM/DD/YYYY
+        else if (second > 12) {
+          month = parts[0].padStart(2, '0');
+          day = parts[1].padStart(2, '0');
+        }
+        // Ambiguous - assume MM/DD/YYYY (American format)
+        else {
+          month = parts[0].padStart(2, '0');
+          day = parts[1].padStart(2, '0');
+        }
+        
         return `${year}-${month}-${day}`;
       }
     }
