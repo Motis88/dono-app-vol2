@@ -3,6 +3,7 @@ import { useTheme } from '../contexts/ThemeContext';
 import toast from 'react-hot-toast';
 
 const SETTINGS_STORAGE_KEY = 'financial_settings_v2';
+const MANUAL_DATA_KEY = 'financial_manual_data';
 
 const EnhancedFinancialDashboard = ({ salesHistory }) => {
   const { colors } = useTheme();
@@ -26,17 +27,25 @@ const EnhancedFinancialDashboard = ({ salesHistory }) => {
   // Monthly data from donor database
   const [monthsData, setMonthsData] = useState([]);
   
+  // Manual monthly data (shifts & external units per month)
+  const [manualData, setManualData] = useState({});
+  // { '2025-07': { shifts: 10, externalUnits: 5 }, ... }
+  
   // Bonus calculator
   const [externalUnits, setExternalUnits] = useState(0);
+  
+  // UI state for manual entry
+  const [showManualEntry, setShowManualEntry] = useState(false);
 
   useEffect(() => {
     loadSettings();
+    loadManualData();
   }, []);
 
   useEffect(() => {
     // Recompute months whenever salesHistory changes
     loadMonthlyData();
-  }, [salesHistory]);
+  }, [salesHistory, manualData]); // Re-run when manual data changes
 
   const loadSettings = () => {
     const saved = localStorage.getItem(SETTINGS_STORAGE_KEY);
@@ -50,6 +59,30 @@ const EnhancedFinancialDashboard = ({ salesHistory }) => {
       }
     }
   };
+  
+  const loadManualData = () => {
+    const saved = localStorage.getItem(MANUAL_DATA_KEY);
+    if (saved) {
+      try {
+        setManualData(JSON.parse(saved));
+      } catch (e) {
+        console.error('Error loading manual data:', e);
+      }
+    }
+  };
+  
+  const saveManualData = (monthKey, field, value) => {
+    const updated = {
+      ...manualData,
+      [monthKey]: {
+        ...manualData[monthKey],
+        [field]: parseInt(value) || 0
+      }
+    };
+    setManualData(updated);
+    localStorage.setItem(MANUAL_DATA_KEY, JSON.stringify(updated));
+    toast.success(`✅ ${field} updated for ${monthKey}`);
+  };
 
   const saveSettings = () => {
     localStorage.setItem(SETTINGS_STORAGE_KEY, JSON.stringify({
@@ -62,11 +95,15 @@ const EnhancedFinancialDashboard = ({ salesHistory }) => {
 
   const loadMonthlyData = () => {
     try {
-      // Get donor data for shifts count
-      const donorData = localStorage.getItem('donors');
+      // Get donor data for shifts count - CORRECT KEY
+      const donorData = localStorage.getItem('animal_donors');
       const donors = donorData ? JSON.parse(donorData) : [];
       
-      // Get inventory data for external sales
+      // Get external cells data - CORRECT KEY
+      const externalCellsData = localStorage.getItem('external_cells_data');
+      const externalCells = externalCellsData ? JSON.parse(externalCellsData) : {};
+      
+      // Get inventory data for archives (if any)
       const inventoryJson = localStorage.getItem('blood_inventory');
       const inventoryData = inventoryJson ? JSON.parse(inventoryJson) : null;
       const archives = inventoryData?.archives || [];
@@ -74,29 +111,39 @@ const EnhancedFinancialDashboard = ({ salesHistory }) => {
       // Use salesHistory prop if provided, else fallback to storage
       let salesHistoryEffective = salesHistory && salesHistory.length ? salesHistory : [];
       if (!salesHistoryEffective.length) {
-        const financialJson = localStorage.getItem('financial_data');
-        const financialData = financialJson ? JSON.parse(financialJson) : null;
-        salesHistoryEffective = financialData?.sales || [];
+        // Fallback to monthly_sales in localStorage (used by FinancialTracker)
+        const monthlySalesJson = localStorage.getItem('monthly_sales');
+        salesHistoryEffective = monthlySalesJson ? JSON.parse(monthlySalesJson) : [];
       }
-      
-      console.log('=== Financial Data Debug ===');
-      console.log('Total sales records:', salesHistory.length);
-      salesHistory.slice(0, 5).forEach((sale, idx) => {
-        console.log(`Sale ${idx + 1}:`, {
-          date: sale.date,
-          fileName: sale.fileName,
-          productsCount: Object.keys(sale.products || {}).length
-        });
-      });
       
       // Build monthly summary combining donor + inventory + financial data
       const monthlyMap = {};
       
+      // First pass: count animals checked per day+location to identify real shifts
+      const dayLocationCounts = {}; // { 'YYYY-MM-DD_Location': count }
+      donors.forEach(donor => {
+        if (!donor.date || !donor.location) return;
+        const dayLocationKey = `${donor.date}_${donor.location}`;
+        dayLocationCounts[dayLocationKey] = (dayLocationCounts[dayLocationKey] || 0) + 1;
+      });
+      
+      // Determine which day+location combinations are real shifts (2+ animals checked)
+      const realShifts = new Set();
+      Object.entries(dayLocationCounts).forEach(([key, count]) => {
+        if (count >= 2) { // At least 2 animals checked = real shift
+          realShifts.add(key);
+        }
+      });
+      
       // Process donor data to get shifts and donations
+      let donorMonthsFound = new Set();
       donors.forEach(donor => {
         if (!donor.date || !donor.location) return;
         
         const monthKey = donor.date.slice(0, 7); // YYYY-MM
+        const dayLocationKey = `${donor.date}_${donor.location}`;
+        donorMonthsFound.add(monthKey);
+        
         if (!monthlyMap[monthKey]) {
           monthlyMap[monthKey] = {
             month: monthKey,
@@ -112,8 +159,10 @@ const EnhancedFinancialDashboard = ({ salesHistory }) => {
           };
         }
         
-        // Track unique shifts
-        monthlyMap[monthKey].shifts.add(`${donor.date}_${donor.location}`);
+        // Track only REAL shifts (2+ animals checked on same day+location)
+        if (realShifts.has(dayLocationKey)) {
+          monthlyMap[monthKey].shifts.add(dayLocationKey);
+        }
         
         // Count donations
         if (donor.donated?.toLowerCase() === 'yes' || donor.donated?.toLowerCase() === 'כן') {
@@ -136,7 +185,39 @@ const EnhancedFinancialDashboard = ({ salesHistory }) => {
         }
       });
       
-      // Add external sales from inventory archives
+      // Add external cells data (manual entry from ExternalCells component)
+      Object.keys(externalCells).forEach(monthKey => {
+        const cellData = externalCells[monthKey];
+        
+        if (!monthlyMap[monthKey]) {
+          monthlyMap[monthKey] = {
+            month: monthKey,
+            shifts: new Set(),
+            donations: 0,
+            cbcDogs: 0,
+            cbcCats: 0,
+            bloodTypes: 0,
+            dogBags: 0,
+            fivFelv: 0,
+            externalUnits: 0,
+            externalGross: 0
+          };
+        }
+        
+        // Sum external units from all product types
+        let totalExternal = 0;
+        if (cellData.wholeBloodCat) totalExternal += parseInt(cellData.wholeBloodCat) || 0;
+        if (cellData.wholeBloodDog) totalExternal += parseInt(cellData.wholeBloodDog) || 0;
+        if (cellData.plasmaCat) totalExternal += parseInt(cellData.plasmaCat) || 0;
+        if (cellData.plasmaDog) totalExternal += parseInt(cellData.plasmaDog) || 0;
+        if (cellData.pcCat) totalExternal += parseInt(cellData.pcCat) || 0;
+        if (cellData.pcDog) totalExternal += parseInt(cellData.pcDog) || 0;
+        
+        monthlyMap[monthKey].externalUnits = totalExternal;
+        monthlyMap[monthKey].externalGross = totalExternal * 1500; // ₪1,500 per unit estimate
+      });
+      
+      // Add external sales from inventory archives (if any exist)
       archives.forEach(archive => {
         const monthKey = archive.month; // Already in YYYY-MM format
         
@@ -167,29 +248,24 @@ const EnhancedFinancialDashboard = ({ salesHistory }) => {
       });
       
       // Add financial sales data for actual revenue
-  salesHistoryEffective.forEach(sale => {
+      salesHistoryEffective.forEach(sale => {
         if (!sale.date) return;
         
-        // Parse month directly from date string to avoid timezone issues
-        const dateStr = sale.date.toString();
-        let monthKey;
+        // Use explicit monthKey if available, otherwise parse from date
+        let monthKey = sale.monthKey; // Prefer explicit monthKey from import
         
-        // If date is in ISO format (YYYY-MM-DD or YYYY-MM-DDTHH:MM:SS)
-        if (dateStr.includes('-')) {
-          monthKey = dateStr.substring(0, 7); // Extract YYYY-MM directly
-        } else {
-          // Fallback to Date parsing
-          const saleDate = new Date(sale.date);
-          monthKey = `${saleDate.getFullYear()}-${String(saleDate.getMonth() + 1).padStart(2, '0')}`;
+        if (!monthKey) {
+          // Fallback: Parse month from date string
+          const dateStr = sale.date.toString();
+          if (dateStr.includes('-')) {
+            monthKey = dateStr.substring(0, 7); // Extract YYYY-MM directly
+          } else {
+            const saleDate = new Date(sale.date);
+            monthKey = `${saleDate.getFullYear()}-${String(saleDate.getMonth() + 1).padStart(2, '0')}`;
+          }
         }
         
-        console.log('Processing sale:', {
-          originalDate: sale.date,
-          dateStr: dateStr,
-          extractedMonthKey: monthKey,
-          fileName: sale.fileName
-        });
-        
+        // Initialize month entry if doesn't exist
         if (!monthlyMap[monthKey]) {
           monthlyMap[monthKey] = {
             month: monthKey,
@@ -201,7 +277,9 @@ const EnhancedFinancialDashboard = ({ salesHistory }) => {
             dogBags: 0,
             fivFelv: 0,
             externalUnits: 0,
-            externalGross: 0
+            externalGross: 0,
+            grossRevenue: 0,
+            unitsSold: 0
           };
         }
         
@@ -220,24 +298,64 @@ const EnhancedFinancialDashboard = ({ salesHistory }) => {
         }
       });
       
-      // Convert to array and sort by month (newest first)
-  console.log('=== Monthly Map Keys (raw) ===', Object.keys(monthlyMap));
-      const monthsArray = Object.values(monthlyMap).map(m => ({
-        ...m,
-        shifts: m.shifts.size, // Convert Set to count
-        // Salary based on shifts (configurable)
-        minSalary: m.shifts * 2000,
-        maxSalary: m.shifts * 2640,
-        avgSalary: m.shifts * 2320,
-        // Use actual revenue if available, otherwise estimate
-        grossRevenue: m.grossRevenue || (m.donations * 1200),
-        unitsSold: m.unitsSold || m.donations
-      })).sort((a, b) => b.month.localeCompare(a.month));
-      
-      console.log('=== Final Months Array (pre-format) ===');
-      monthsArray.forEach(m => {
-        console.log('Month entry raw:', m.month, 'formatted:', formatMonth(m.month));
+      // Apply manual data overrides (shifts & external units entered by user)
+      Object.keys(manualData).forEach(monthKey => {
+        const manual = manualData[monthKey];
+        
+        if (!monthlyMap[monthKey]) {
+          monthlyMap[monthKey] = {
+            month: monthKey,
+            shifts: new Set(),
+            donations: 0,
+            cbcDogs: 0,
+            cbcCats: 0,
+            bloodTypes: 0,
+            dogBags: 0,
+            fivFelv: 0,
+            externalUnits: 0,
+            externalGross: 0,
+            grossRevenue: 0,
+            unitsSold: 0
+          };
+        }
+        
+        // Override shifts if manually set
+        if (manual.shifts !== undefined && manual.shifts > 0) {
+          // Clear auto-detected shifts and set manual count
+          monthlyMap[monthKey].manualShifts = manual.shifts;
+        }
+        
+        // Override/add external units if manually set
+        if (manual.externalUnits !== undefined && manual.externalUnits > 0) {
+          monthlyMap[monthKey].externalUnits = manual.externalUnits;
+          monthlyMap[monthKey].externalGross = manual.externalUnits * 1500;
+        }
       });
+      
+      // Convert to array and sort by month (newest first)
+      const monthsArray = Object.values(monthlyMap)
+        .map(m => {
+          // Check if this is the current incomplete month
+          const today = new Date();
+          const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+          const isCurrentMonth = m.month === currentMonth;
+          
+          return {
+            ...m,
+            // Use manual shifts if set, otherwise use auto-detected
+            shifts: m.manualShifts !== undefined ? m.manualShifts : m.shifts.size,
+            // Salary based on shifts (configurable)
+            minSalary: (m.manualShifts !== undefined ? m.manualShifts : m.shifts.size) * 2000,
+            maxSalary: (m.manualShifts !== undefined ? m.manualShifts : m.shifts.size) * 2640,
+            avgSalary: (m.manualShifts !== undefined ? m.manualShifts : m.shifts.size) * 2320,
+            // For current incomplete month: only use actual data, don't estimate
+            // For past months: use actual revenue if available, otherwise estimate
+            grossRevenue: isCurrentMonth ? (m.grossRevenue || 0) : (m.grossRevenue || (m.donations * 1200)),
+            unitsSold: isCurrentMonth ? (m.unitsSold || 0) : (m.unitsSold || m.donations)
+          };
+        })
+        .filter(m => m.month >= '2025-07') // Only show from July 2025 onwards
+        .sort((a, b) => b.month.localeCompare(a.month));
       
       setMonthsData(monthsArray);
       
@@ -277,21 +395,24 @@ const EnhancedFinancialDashboard = ({ salesHistory }) => {
     ...calculateMonthMetrics(month)
   }));
 
-  // Debug render logging
-  try {
-    console.log('Render calculatedMonths order:', calculatedMonths.map(m => m.month));
-  } catch (e) {}
-
-  const averages = calculatedMonths.length > 0 ? {
-    grossRevenue: calculatedMonths.reduce((sum, m) => sum + m.grossRevenue, 0) / calculatedMonths.length,
-    netRevenue: calculatedMonths.reduce((sum, m) => sum + m.netRevenue, 0) / calculatedMonths.length,
-    profitMargin: calculatedMonths.reduce((sum, m) => sum + m.profitMargin, 0) / calculatedMonths.length,
-    unitsSold: calculatedMonths.reduce((sum, m) => sum + m.unitsSold, 0) / calculatedMonths.length,
-    externalUnits: calculatedMonths.reduce((sum, m) => sum + m.externalUnits, 0) / calculatedMonths.length,
-    externalGross: calculatedMonths.reduce((sum, m) => sum + m.externalGross, 0) / calculatedMonths.length,
-    externalNet: calculatedMonths.reduce((sum, m) => sum + m.calculatedExternalNet, 0) / calculatedMonths.length,
-    revenuePerUnit: calculatedMonths.reduce((sum, m) => sum + m.grossRevenue, 0) / calculatedMonths.reduce((sum, m) => sum + m.unitsSold, 0) || 0,
-    netPerUnit: calculatedMonths.reduce((sum, m) => sum + m.netRevenue, 0) / calculatedMonths.reduce((sum, m) => sum + m.unitsSold, 0) || 0
+  // Filter out incomplete/zero-revenue months for averages calculation
+  const completedMonths = calculatedMonths.filter(m => m.grossRevenue > 0);
+  
+  const averages = completedMonths.length > 0 ? {
+    grossRevenue: completedMonths.reduce((sum, m) => sum + m.grossRevenue, 0) / completedMonths.length,
+    netRevenue: completedMonths.reduce((sum, m) => sum + m.netRevenue, 0) / completedMonths.length,
+    // Calculate profit margin from totals, not average of percentages
+    profitMargin: (() => {
+      const totalGross = completedMonths.reduce((sum, m) => sum + m.grossRevenue, 0);
+      const totalNet = completedMonths.reduce((sum, m) => sum + m.netRevenue, 0);
+      return totalGross > 0 ? (totalNet / totalGross) * 100 : 0;
+    })(),
+    unitsSold: completedMonths.reduce((sum, m) => sum + m.unitsSold, 0) / completedMonths.length,
+    externalUnits: completedMonths.reduce((sum, m) => sum + m.externalUnits, 0) / completedMonths.length,
+    externalGross: completedMonths.reduce((sum, m) => sum + m.externalGross, 0) / completedMonths.length,
+    externalNet: completedMonths.reduce((sum, m) => sum + m.calculatedExternalNet, 0) / completedMonths.length,
+    revenuePerUnit: completedMonths.reduce((sum, m) => sum + m.grossRevenue, 0) / completedMonths.reduce((sum, m) => sum + m.unitsSold, 0) || 0,
+    netPerUnit: completedMonths.reduce((sum, m) => sum + m.netRevenue, 0) / completedMonths.reduce((sum, m) => sum + m.unitsSold, 0) || 0
   } : {
     grossRevenue: 0, netRevenue: 0, profitMargin: 0, unitsSold: 0,
     externalUnits: 0, externalGross: 0, externalNet: 0, revenuePerUnit: 0, netPerUnit: 0
@@ -380,14 +501,22 @@ const EnhancedFinancialDashboard = ({ salesHistory }) => {
 
         {/* Cost Parameters */}
         <div className={`${colors.bg.card} rounded-2xl shadow-lg p-6 md:p-8 ${colors.border.primary} border`}>
-          <div className="flex items-center justify-between mb-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
             <h2 className={`text-2xl font-bold ${colors.text.primary}`}>💰 Cost Parameters</h2>
-            <button
-              onClick={saveSettings}
-              className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:from-blue-600 hover:to-blue-700 shadow-md transition-all duration-200"
-            >
-              💾 Save
-            </button>
+            <div className="flex gap-2 flex-wrap">
+              <button
+                onClick={() => setShowManualEntry(!showManualEntry)}
+                className="flex-1 md:flex-none bg-gradient-to-r from-purple-500 to-purple-600 text-white px-4 py-2 rounded-lg font-semibold hover:from-purple-600 hover:to-purple-700 shadow-md transition-all duration-200 text-center"
+              >
+                ✏️ Manual Data
+              </button>
+              <button
+                onClick={saveSettings}
+                className="flex-1 md:flex-none bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:from-blue-600 hover:to-blue-700 shadow-md transition-all duration-200 text-center"
+              >
+                💾 Save
+              </button>
+            </div>
           </div>
           <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
             <div>
@@ -625,6 +754,85 @@ const EnhancedFinancialDashboard = ({ salesHistory }) => {
           </button>
         </div>
       </div>
+      
+      {/* Manual Data Entry Modal */}
+      {showManualEntry && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4" onClick={() => setShowManualEntry(false)}>
+          <div className={`${colors.bg.card} rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto`} onClick={(e) => e.stopPropagation()}>
+            <div className="p-6 md:p-8">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className={`text-2xl font-bold ${colors.text.primary}`}>✏️ Manual Data Entry</h2>
+                <button
+                  onClick={() => setShowManualEntry(false)}
+                  className={`text-2xl ${colors.text.secondary} hover:text-red-500 transition-colors`}
+                >
+                  ✕
+                </button>
+              </div>
+              
+              <p className={`${colors.text.secondary} mb-6`}>
+                Enter shifts and external units manually for each month. This data will override auto-detected values.
+              </p>
+              
+              <div className="space-y-4">
+                {calculatedMonths.map((month) => (
+                  <div key={month.month} className={`${colors.bg.secondary} p-4 rounded-lg border ${colors.border.primary}`}>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
+                      {/* Month Label */}
+                      <div className="md:col-span-1">
+                        <div className={`font-bold text-lg ${colors.text.primary}`}>{formatMonth(month.month)}</div>
+                        <div className={`text-sm ${colors.text.secondary}`}>{month.month}</div>
+                      </div>
+                      
+                      {/* Input Fields */}
+                      <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className={`block text-sm font-semibold ${colors.text.primary} mb-2`}>
+                            Shifts
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={manualData[month.month]?.shifts || ''}
+                            onChange={(e) => saveManualData(month.month, 'shifts', e.target.value)}
+                            placeholder={`Current: ${month.shifts}`}
+                            className={`w-full px-3 py-2 border-2 ${colors.border.primary} rounded-lg focus:border-blue-500 focus:outline-none transition-colors ${colors.bg.primary} ${colors.text.primary}`}
+                          />
+                          <div className={`text-xs ${colors.text.secondary} mt-1`}>Auto-detected: {month.shifts}</div>
+                        </div>
+                        
+                        <div>
+                          <label className={`block text-sm font-semibold ${colors.text.primary} mb-2`}>
+                            External Units
+                          </label>
+                          <input
+                            type="number"
+                            min="0"
+                            value={manualData[month.month]?.externalUnits || ''}
+                            onChange={(e) => saveManualData(month.month, 'externalUnits', e.target.value)}
+                            placeholder={`Current: ${month.externalUnits}`}
+                            className={`w-full px-3 py-2 border-2 ${colors.border.primary} rounded-lg focus:border-blue-500 focus:outline-none transition-colors ${colors.bg.primary} ${colors.text.primary}`}
+                          />
+                          <div className={`text-xs ${colors.text.secondary} mt-1`}>Auto-detected: {month.externalUnits}</div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+              
+              <div className="mt-6 flex justify-end">
+                <button
+                  onClick={() => setShowManualEntry(false)}
+                  className="bg-gradient-to-r from-green-500 to-green-600 text-white px-6 py-3 rounded-lg font-semibold hover:from-green-600 hover:to-green-700 shadow-md transition-all duration-200"
+                >
+                  ✅ Done
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -537,310 +537,67 @@ const FinancialTracker = () => {
         </div>
       </div>
 
-      {/* Monthly Comparison Table with Trends */}
-      {monthlySales.length > 1 && (
-        <div className="bg-[#181f2a] rounded-2xl border-2 border-blue-500 shadow-lg p-4 md:p-6">
-          <h3 className="text-xl md:text-2xl font-bold mb-6 text-blue-200 flex items-center gap-2">
-            {(() => {
-              // Find earliest month from monthlySales
-              if (!monthlySales.length) return 'Monthly Comparison & Trends';
-              let minYear = 9999, minMonth = 12;
-              monthlySales.forEach(sale => {
-                let year, month;
-                if (sale.fileName) {
-                  const match = sale.fileName.match(/(\d{1,2})[-.](\d{1,2})[-.](\d{4})|(\d{4})[-.](\d{1,2})[-.](\d{1,2})/);
-                  if (match) {
-                    if (match[1]) {
-                      // Format: DD.MM.YYYY or DD-MM-YYYY
-                      month = parseInt(match[2], 10);
-                      year = parseInt(match[3], 10);
-                    } else {
-                      // Format: YYYY-MM-DD or YYYY.MM.DD
-                      year = parseInt(match[4], 10);
-                      month = parseInt(match[5], 10);
-                    }
-                  }
-                }
-                if ((!year || !month) && sale.date) {
-                  const d = new Date(sale.date);
-                  year = d.getFullYear();
-                  month = d.getMonth() + 1;
-                }
-                if (year && month) {
-                  if (year < minYear || (year === minYear && month < minMonth)) {
-                    minYear = year;
-                    minMonth = month;
-                  }
-                }
-              });
-              if (minYear === 9999) return 'Monthly Comparison & Trends';
-              const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-              return `Monthly Comparison & Trends (Since ${monthNames[minMonth-1]} ${minYear})`;
-            })()}
-          </h3>
-          
-          {/* Quick Stats Cards */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
-            {/* Total Revenue */}
-            <div className="bg-gradient-to-br from-blue-900/70 to-blue-900/90 rounded-xl p-4 border-2 border-blue-400 shadow-md text-center overflow-hidden">
-              <div className="text-xs text-blue-300 font-bold mb-1 text-center truncate">Total Revenue</div>
-              <div className="text-2xl md:text-3xl font-extrabold text-blue-200 text-center truncate overflow-hidden text-ellipsis">
-                ₪{(totalRevenue / 1000).toFixed(1)}k
-              </div>
-              <div className="text-xs text-blue-400 mt-1 text-center truncate overflow-hidden text-ellipsis">
-                Avg: ₪{(totalRevenue / monthlySales.length / 1000).toFixed(1)}k/mo
-              </div>
+      {/* Quick Stats Cards */}
+      {monthlySales.length > 0 && (
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
+          {/* Total Revenue */}
+          <div className="bg-gradient-to-br from-blue-900/70 to-blue-900/90 rounded-xl p-4 border-2 border-blue-400 shadow-md text-center overflow-hidden">
+            <div className="text-xs text-blue-300 font-bold mb-1 text-center truncate">Total Revenue</div>
+            <div className="text-2xl md:text-3xl font-extrabold text-blue-200 text-center truncate overflow-hidden text-ellipsis">
+              ₪{(totalRevenue / 1000).toFixed(1)}k
             </div>
-            {/* Total Units */}
-            <div className="bg-gradient-to-br from-purple-900/70 to-purple-900/90 rounded-xl p-4 border-2 border-purple-400 shadow-md text-center overflow-hidden">
-              <div className="text-xs text-purple-300 font-bold mb-1 text-center truncate">Total Units</div>
-              <div className="text-2xl md:text-3xl font-extrabold text-purple-200 text-center truncate overflow-hidden text-ellipsis">
-                {totalUnits.toFixed(0)}
-              </div>
-              <div className="text-xs text-purple-400 mt-1 text-center truncate overflow-hidden text-ellipsis">
-                Avg: {(totalUnits / monthlySales.length).toFixed(0)}/mo
-              </div>
-            </div>
-            {/* Best Month (by month key) */}
-            {(() => {
-              // Build month aggregates from monthlySales: each entry already represents a month (date set to mid-month)
-              const monthEntries = monthlySales.map(sale => {
-                const monthKey = sale.date ? sale.date.substring(0,7) : 'unknown';
-                const revenue = Object.values(sale.products).reduce((sum,p)=> sum + (p?.revenueIncl||0),0);
-                return { monthKey, revenue };
-              });
-              const byMonth = {};
-              monthEntries.forEach(e => {
-                if (!byMonth[e.monthKey]) byMonth[e.monthKey] = 0;
-                byMonth[e.monthKey] += e.revenue;
-              });
-              const best = Object.entries(byMonth).reduce((max, curr) => curr[1] > max[1] ? curr : max, ['', 0]);
-              const bestMonthKey = best[0];
-              const bestRevenue = best[1];
-              const label = (() => {
-                if (!bestMonthKey) return '-';
-                const m = bestMonthKey.split('-')[1];
-                const map = { '01':'Jan','02':'Feb','03':'Mar','04':'Apr','05':'May','06':'Jun','07':'Jul','08':'Aug','09':'Sep','10':'Oct','11':'Nov','12':'Dec'};
-                return map[m] || bestMonthKey;
-              })();
-              return (
-                <div className="bg-gradient-to-br from-green-900/70 to-green-900/90 rounded-xl p-4 border-2 border-green-400 shadow-md text-center overflow-hidden">
-                  <div className="text-xs text-green-300 font-bold mb-1 text-center truncate">Best Month</div>
-                  <div className="text-2xl md:text-3xl font-extrabold text-green-200 text-center truncate overflow-hidden text-ellipsis">₪{(bestRevenue/1000).toFixed(1)}k</div>
-                  <div className="text-xs text-green-400 mt-1 text-center truncate overflow-hidden text-ellipsis">{label}</div>
-                </div>
-              );
-            })()}
-            {/* Avg Price/Unit */}
-            <div className="bg-gradient-to-br from-amber-900/70 to-amber-900/90 rounded-xl p-4 border-2 border-amber-400 shadow-md text-center overflow-hidden">
-              <div className="text-xs text-amber-300 font-bold mb-1 text-center truncate">Avg Price/Unit</div>
-              <div className="text-2xl md:text-3xl font-extrabold text-amber-200 text-center truncate overflow-hidden text-ellipsis">
-                ₪{totalUnits > 0 ? (totalRevenue / totalUnits).toFixed(0) : '0'}
-              </div>
-              <div className="text-xs text-amber-400 mt-1 text-center truncate overflow-hidden text-ellipsis">
-                Per blood unit
-              </div>
+            <div className="text-xs text-blue-400 mt-1 text-center truncate overflow-hidden text-ellipsis">
+              Avg: ₪{(totalRevenue / monthlySales.length / 1000).toFixed(1)}k/mo
             </div>
           </div>
-
-          {/* Latest Month Detailed Breakdown (actual latest by month key) */}
+          {/* Total Units */}
+          <div className="bg-gradient-to-br from-purple-900/70 to-purple-900/90 rounded-xl p-4 border-2 border-purple-400 shadow-md text-center overflow-hidden">
+            <div className="text-xs text-purple-300 font-bold mb-1 text-center truncate">Total Units</div>
+            <div className="text-2xl md:text-3xl font-extrabold text-purple-200 text-center truncate overflow-hidden text-ellipsis">
+              {totalUnits.toFixed(0)}
+            </div>
+            <div className="text-xs text-purple-400 mt-1 text-center truncate overflow-hidden text-ellipsis">
+              Avg: {(totalUnits / monthlySales.length).toFixed(0)}/mo
+            </div>
+          </div>
+          {/* Best Month */}
           {(() => {
-            if (monthlySales.length === 0) return null;
-            // Sort by monthKey derived from sale.date substring(0,7)
-            const sortedByMonth = [...monthlySales].sort((a,b)=> b.date.substring(0,7).localeCompare(a.date.substring(0,7)));
-            const latestSale = sortedByMonth[0];
-            const latestRevenue = Object.values(latestSale.products).reduce((sum, p) => sum + (p?.revenueIncl || 0), 0);
-            const latestUnits = Object.values(latestSale.products).reduce((sum, p) => sum + (p?.quantity || 0), 0);
-            const bloodProductsOnly = Object.entries(latestSale.products).filter(([productKey]) => 
-              BLOOD_PRODUCTS[productKey] || productKey.includes('דם') || productKey.includes('blood')
-            );
-            
+            const monthEntries = monthlySales.map(sale => {
+              const monthKey = sale.date ? sale.date.substring(0,7) : 'unknown';
+              const revenue = Object.values(sale.products).reduce((sum,p)=> sum + (p?.revenueIncl||0),0);
+              return { monthKey, revenue };
+            });
+            const byMonth = {};
+            monthEntries.forEach(e => {
+              if (!byMonth[e.monthKey]) byMonth[e.monthKey] = 0;
+              byMonth[e.monthKey] += e.revenue;
+            });
+            const best = Object.entries(byMonth).reduce((max, curr) => curr[1] > max[1] ? curr : max, ['', 0]);
+            const bestMonthKey = best[0];
+            const bestRevenue = best[1];
+            const label = (() => {
+              if (!bestMonthKey) return '-';
+              const m = bestMonthKey.split('-')[1];
+              const map = { '01':'Jan','02':'Feb','03':'Mar','04':'Apr','05':'May','06':'Jun','07':'Jul','08':'Aug','09':'Sep','10':'Oct','11':'Nov','12':'Dec'};
+              return map[m] || bestMonthKey;
+            })();
             return (
-              <div className="bg-gradient-to-r from-orange-900/40 to-red-900/40 rounded-xl p-4 border-2 border-orange-400 shadow-lg mb-6">
-                <div className="flex items-center gap-3 mb-4">
-                  <h4 className="text-lg font-bold text-orange-200">Latest Month - Detailed Breakdown</h4>
-                  <div className="text-sm text-orange-300">
-                    ({latestSale.date.substring(0,7)})
-                  </div>
-                </div>
-                
-                {/* Latest Month Summary Cards */}
-                <div className="grid grid-cols-2 gap-3 mb-4">
-                  <div className="bg-orange-900/30 rounded-lg p-3 border border-orange-500 text-center">
-                    <div className="text-xs text-orange-300 font-semibold truncate">Month Revenue</div>
-                    <div className="text-lg font-bold text-orange-200">₪{(latestRevenue/1000).toFixed(1)}k</div>
-                  </div>
-                  <div className="bg-orange-900/30 rounded-lg p-3 border border-orange-500 text-center">
-                    <div className="text-xs text-orange-300 font-semibold">Month Units</div>
-                    <div className="text-lg font-bold text-orange-200">{latestUnits.toFixed(0)}</div>
-                  </div>
-                </div>
-
-                {/* Blood Products Detail */}
-                {bloodProductsOnly.length > 0 && (
-                  <div>
-                    <h5 className="text-sm font-semibold text-orange-300 mb-2">Blood Products This Month:</h5>
-                    <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                      {(() => {
-                        const dogCards = bloodProductsOnly.filter(([k]) => {
-                          const s = BLOOD_PRODUCTS[k]?.species || (k.includes('dog') ? 'dog' : '');
-                          return s === 'dog';
-                        });
-                        const catCards = bloodProductsOnly.filter(([k]) => {
-                          const s = BLOOD_PRODUCTS[k]?.species || (k.includes('cat') ? 'cat' : '');
-                          return s === 'cat';
-                        });
-                        const otherCards = bloodProductsOnly.filter(([k]) => {
-                          const s = BLOOD_PRODUCTS[k]?.species;
-                          return s !== 'dog' && s !== 'cat';
-                        });
-                        const maxLen = Math.max(dogCards.length, catCards.length);
-                        const interleaved = [];
-                        for (let i = 0; i < maxLen; i++) {
-                          if (dogCards[i]) interleaved.push(dogCards[i]);
-                          if (catCards[i]) interleaved.push(catCards[i]);
-                        }
-                        const allCards = [...interleaved, ...otherCards];
-                        return allCards.map(([productKey, data]) => {
-                          const product = BLOOD_PRODUCTS[productKey];
-                          const isDog = product?.species === 'dog' || productKey.includes('כלב') || productKey.includes('dog');
-                          const isCat = product?.species === 'cat' || productKey.includes('חתול') || productKey.includes('cat');
-                          return (
-                            <div key={productKey} className={`rounded-lg p-3 border ${
-                              isDog ? 'bg-blue-900/20 border-blue-600' : 
-                              isCat ? 'bg-green-900/20 border-green-600' : 
-                              'bg-orange-900/20 border-orange-600'
-                            }`}>
-                              <div className={`text-xs font-semibold truncate mb-1 ${
-                                isDog ? 'text-blue-300' : 
-                                isCat ? 'text-green-300' : 
-                                'text-orange-300'
-                              }`} title={product ? product.code : productKey}>
-                                {product ? product.code : productKey.substring(0, 20)}
-                              </div>
-                              <div className={`text-sm font-bold ${
-                                isDog ? 'text-blue-200' : 
-                                isCat ? 'text-green-200' : 
-                                'text-orange-200'
-                              }`}>{data.quantity} units</div>
-                              <div className={`text-xs ${
-                                isDog ? 'text-blue-400' : 
-                                isCat ? 'text-green-400' : 
-                                'text-orange-400'
-                              }`}>₪{(data.revenueIncl/1000).toFixed(1)}k</div>
-                            </div>
-                          );
-                        });
-                      })()}
-                    </div>
-                  </div>
-                )}
+              <div className="bg-gradient-to-br from-green-900/70 to-green-900/90 rounded-xl p-4 border-2 border-green-400 shadow-md text-center overflow-hidden">
+                <div className="text-xs text-green-300 font-bold mb-1 text-center truncate">Best Month</div>
+                <div className="text-2xl md:text-3xl font-extrabold text-green-200 text-center truncate overflow-hidden text-ellipsis">₪{(bestRevenue/1000).toFixed(1)}k</div>
+                <div className="text-xs text-green-400 mt-1 text-center truncate overflow-hidden text-ellipsis">{label}</div>
               </div>
             );
           })()}
-
-
-          {/* Comparison Table */}
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b-2 border-blue-500">
-                  <th className="text-left py-3 px-2 text-blue-200 font-bold">Month</th>
-                  <th className="text-right py-3 px-2 text-blue-200 font-bold">Revenue</th>
-                  <th className="text-center py-3 px-2 text-blue-200 font-bold">Trend</th>
-                  <th className="text-right py-3 px-2 text-blue-200 font-bold">Units</th>
-                  <th className="text-center py-3 px-2 text-blue-200 font-bold">Trend</th>
-                  <th className="text-right py-3 px-2 text-blue-200 font-bold">Avg Price</th>
-                  <th className="text-center py-3 px-2 text-blue-200 font-bold">vs Avg</th>
-                </tr>
-              </thead>
-              <tbody>
-                {[...monthlySales].sort((a,b)=> b.date.substring(0,7).localeCompare(a.date.substring(0,7))).map((sale, idx, arr) => {
-                  const revenue = Object.values(sale.products).reduce((sum, p) => sum + (p?.revenueIncl || 0), 0);
-                  const units = Object.values(sale.products).reduce((sum, p) => sum + (p?.quantity || 0), 0);
-                  const avgPrice = units > 0 ? revenue / units : 0;
-                  
-                  // Calculate trends (compare to previous month)
-                  let revenueTrend = null;
-                  let unitsTrend = null;
-                  if (idx > 0) {
-                    const prevRevenue = Object.values(arr[idx - 1].products).reduce((sum, p) => sum + (p?.revenueIncl || 0), 0);
-                    const prevUnits = Object.values(arr[idx - 1].products).reduce((sum, p) => sum + (p?.quantity || 0), 0);
-                    revenueTrend = ((revenue - prevRevenue) / prevRevenue * 100).toFixed(0);
-                    unitsTrend = ((units - prevUnits) / prevUnits * 100).toFixed(0);
-                  }
-                  
-                  // Compare to average
-                  const avgRevenue = totalRevenue / monthlySales.length;
-                  const vsAvg = ((revenue - avgRevenue) / avgRevenue * 100).toFixed(0);
-                  
-                  // Get month label
-                  const monthLabel = (() => {
-                    if (!sale.date) return `File ${idx+1}`;
-                    const mk = sale.date.substring(0,7);
-                    const m = mk.split('-')[1];
-                    const map = { '01':'Jan','02':'Feb','03':'Mar','04':'Apr','05':'May','06':'Jun','07':'Jul','08':'Aug','09':'Sep','10':'Oct','11':'Nov','12':'Dec'};
-                    return `${map[m]} '${mk.substring(2,4)}`;
-                  })();
-                  
-                  return (
-                    <tr key={idx} className="border-b border-blue-500/30 hover:bg-blue-900/20 transition-colors">
-                      <td className="py-3 px-2 font-bold text-blue-100">{monthLabel}<div className="text-[10px] opacity-60">{sale.date.substring(0,7)}</div></td>
-                      <td className="text-right py-3 px-2 font-semibold text-blue-200">
-                        ₪{(revenue / 1000).toFixed(1)}k
-                      </td>
-                      <td className="text-center py-3 px-2">
-                        {revenueTrend !== null && (
-                          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold ${
-                            parseFloat(revenueTrend) > 0 
-                              ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 shadow-[0_0_8px_2px_rgba(34,197,94,0.4)] dark:shadow-[0_0_8px_2px_rgba(74,222,128,0.5)]' 
-                              : parseFloat(revenueTrend) < 0
-                              ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 shadow-[0_0_8px_2px_rgba(239,68,68,0.4)] dark:shadow-[0_0_8px_2px_rgba(248,113,113,0.5)]'
-                              : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
-                          }`}>
-                            {parseFloat(revenueTrend) > 0 ? '↗' : parseFloat(revenueTrend) < 0 ? '↘' : '→'}
-                            {Math.abs(revenueTrend)}%
-                          </span>
-                        )}
-                        {revenueTrend === null && <span className="text-gray-400 dark:text-gray-600 text-xs">-</span>}
-                      </td>
-                      <td className="text-right py-3 px-2 font-semibold text-blue-200">
-                        {units.toFixed(0)}
-                      </td>
-                      <td className="text-center py-3 px-2">
-                        {unitsTrend !== null && (
-                          <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold ${
-                            parseFloat(unitsTrend) > 0 
-                              ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 shadow-[0_0_8px_2px_rgba(34,197,94,0.4)] dark:shadow-[0_0_8px_2px_rgba(74,222,128,0.5)]' 
-                              : parseFloat(unitsTrend) < 0
-                              ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 shadow-[0_0_8px_2px_rgba(239,68,68,0.4)] dark:shadow-[0_0_8px_2px_rgba(248,113,113,0.5)]'
-                              : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
-                          }`}>
-                            {parseFloat(unitsTrend) > 0 ? '↗' : parseFloat(unitsTrend) < 0 ? '↘' : '→'}
-                            {Math.abs(unitsTrend)}%
-                          </span>
-                        )}
-                        {unitsTrend === null && <span className="text-gray-400 dark:text-gray-600 text-xs">-</span>}
-                      </td>
-                      <td className="text-right py-3 px-2 text-blue-200">
-                        ₪{avgPrice.toFixed(0)}
-                      </td>
-                      <td className="text-center py-3 px-2">
-                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-bold ${
-                          parseFloat(vsAvg) > 5 
-                            ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 shadow-[0_0_8px_2px_rgba(34,197,94,0.4)] dark:shadow-[0_0_8px_2px_rgba(74,222,128,0.5)]' 
-                            : parseFloat(vsAvg) < -5
-                            ? 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400 shadow-[0_0_8px_2px_rgba(239,68,68,0.4)] dark:shadow-[0_0_8px_2px_rgba(248,113,113,0.5)]'
-                            : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
-                        }`}>
-                          {parseFloat(vsAvg) > 0 ? '+' : ''}{vsAvg}%
-                        </span>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
+          {/* Avg Price/Unit */}
+          <div className="bg-gradient-to-br from-amber-900/70 to-amber-900/90 rounded-xl p-4 border-2 border-amber-400 shadow-md text-center overflow-hidden">
+            <div className="text-xs text-amber-300 font-bold mb-1 text-center truncate">Avg Price/Unit</div>
+            <div className="text-2xl md:text-3xl font-extrabold text-amber-200 text-center truncate overflow-hidden text-ellipsis">
+              ₪{totalUnits > 0 ? (totalRevenue / totalUnits).toFixed(0) : '0'}
+            </div>
+            <div className="text-xs text-amber-400 mt-1 text-center truncate overflow-hidden text-ellipsis">
+              Per blood unit
+            </div>
           </div>
         </div>
       )}
@@ -854,7 +611,15 @@ const FinancialTracker = () => {
         </div>
       ) : (
         <div className="space-y-6">
-          {monthlySales.map((sale, saleIndex) => {
+          {monthlySales
+            .slice() // Create copy to avoid mutating original
+            .sort((a, b) => {
+              // Sort chronologically (newest first) by monthKey or date
+              const monthA = a.monthKey || (a.date ? a.date.substring(0,7) : '0000-00');
+              const monthB = b.monthKey || (b.date ? b.date.substring(0,7) : '0000-00');
+              return monthB.localeCompare(monthA); // Descending (newest first)
+            })
+            .map((sale, saleIndex) => {
             const saleTotal = Object.values(sale.products).reduce((sum, p) => sum + (p?.revenueIncl || 0), 0);
             const saleQuantity = Object.values(sale.products).reduce((sum, p) => sum + (p?.quantity || 0), 0);
 

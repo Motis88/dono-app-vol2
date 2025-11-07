@@ -71,12 +71,18 @@ const DonorPivotTable = ({ donors, onLocationClick }) => {
     );
     row["total"] = row["totalDog"] + row["totalCat"];
     
-    // Calculate unique shifts (unique date + location combinations) for this month
-    row["shifts"] = new Set(
-      donors
-        .filter(d => getMonthKey(d.date) === month && d.date && d.location)
-        .map(d => `${d.date}_${d.location}`)
-    ).size;
+    // Calculate real shifts (only count days with 2+ animals at same location)
+    // First, count animals per day+location for this month
+    const dayLocationCounts = {};
+    donors
+      .filter(d => getMonthKey(d.date) === month && d.date && d.location)
+      .forEach(d => {
+        const key = `${d.date}_${d.location}`;
+        dayLocationCounts[key] = (dayLocationCounts[key] || 0) + 1;
+      });
+    
+    // Only count combinations where 2+ animals were checked
+    row["shifts"] = Object.values(dayLocationCounts).filter(count => count >= 2).length;
     
     return row;
   });
