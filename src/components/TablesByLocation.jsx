@@ -507,6 +507,37 @@ const TablesByLocation = ({ onEdit, locationFilter, monthFilter, onClearFilter }
 
   const handleRowClick = (donor) => setSelectedDonor(donor);
   const closeModal = () => setSelectedDonor(null);
+  
+  // Get all donations for the selected animal
+  // Identify same animal by: name + location + (private owner if exists)
+  const getDonationsForAnimal = (donor) => {
+    if (!donor) return [];
+    
+    const matchKey = (d) => {
+      const nameMatch = d.animalName?.toLowerCase() === donor.animalName?.toLowerCase();
+      const typeMatch = d.animalType?.toLowerCase() === donor.animalType?.toLowerCase();
+      const locationMatch = d.location?.toLowerCase() === donor.location?.toLowerCase();
+      
+      // If private owner exists, must match phone/owner name
+      if (donor.isPrivateOwner) {
+        const phoneMatch = donor.ownerPhone && d.ownerPhone === donor.ownerPhone;
+        const ownerMatch = donor.ownerName && d.ownerName?.toLowerCase() === donor.ownerName?.toLowerCase();
+        return nameMatch && typeMatch && locationMatch && (phoneMatch || ownerMatch);
+      }
+      
+      // For non-private: name + type + location is enough
+      return nameMatch && typeMatch && locationMatch;
+    };
+    
+    return donors.filter(matchKey).sort((a, b) => {
+      // Sort by date, newest first
+      if (!a.date) return 1;
+      if (!b.date) return -1;
+      return b.date.localeCompare(a.date);
+    });
+  };
+  
+  const animalDonations = selectedDonor ? getDonationsForAnimal(selectedDonor) : [];
 
   const handleExportCSV = async () => {
     try {
@@ -976,7 +1007,7 @@ const TablesByLocation = ({ onEdit, locationFilter, monthFilter, onClearFilter }
           onClick={closeModal}
         >
           <div
-            className={`${colors.bg.card} rounded-2xl max-w-2xl w-full shadow-2xl relative max-h-[90vh] overflow-hidden`}
+            className={`${colors.bg.card} rounded-2xl max-w-4xl w-full shadow-2xl relative max-h-[90vh] overflow-hidden`}
             onClick={e => e.stopPropagation()}
           >
             {/* Header */}
@@ -987,19 +1018,93 @@ const TablesByLocation = ({ onEdit, locationFilter, monthFilter, onClearFilter }
               >
                 ✕
               </button>
-              <div className="flex items-center gap-4">
-                <div className="w-16 h-16 bg-white/20 backdrop-blur rounded-full flex items-center justify-center text-3xl">
-                  {selectedDonor.animalType === 'Dog' ? '🐕' : '🐈'}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-16 h-16 bg-white/20 backdrop-blur rounded-full flex items-center justify-center text-3xl">
+                    {selectedDonor.animalType === 'Dog' ? '🐕' : '🐈'}
+                  </div>
+                  <div>
+                    <h3 className="text-2xl font-bold text-white">{selectedDonor.animalName}</h3>
+                    <p className="text-white/80 text-sm">{selectedDonor.animalType} • {animalDonations.length} donation{animalDonations.length !== 1 ? 's' : ''}</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="text-2xl font-bold text-white">{selectedDonor.animalName}</h3>
-                  <p className="text-white/80 text-sm">{selectedDonor.animalType} • {selectedDonor.bloodType || 'Unknown Blood Type'}</p>
-                </div>
+                <button
+                  onClick={() => {
+                    closeModal();
+                    // Navigate to form with only permanent fields (no test results)
+                    if (onEdit) {
+                      const permanentFields = {
+                        animalName: selectedDonor.animalName,
+                        animalType: selectedDonor.animalType,
+                        location: selectedDonor.location,
+                        bloodType: selectedDonor.bloodType,
+                        weight: selectedDonor.weight,
+                        age: selectedDonor.age,
+                        gender: selectedDonor.gender,
+                        isPrivateOwner: selectedDonor.isPrivateOwner,
+                        ownerName: selectedDonor.ownerName,
+                        ownerPhone: selectedDonor.ownerPhone,
+                        // Don't include test results: pcv, hct, wbc, plt, fiv, felv, donated, volume, etc.
+                      };
+                      onEdit(permanentFields);
+                    }
+                  }}
+                  className="bg-white/20 hover:bg-white/30 text-white font-bold py-2 px-4 rounded-lg transition-all duration-200 flex items-center gap-2"
+                >
+                  <span>➕</span> Add Donation
+                </button>
               </div>
             </div>
 
             {/* Content */}
             <div className="overflow-y-auto max-h-[calc(90vh-140px)] p-6 space-y-4">
+              {/* Previous Donations List */}
+              {animalDonations.length > 1 && (
+                <div className={`${colors.bg.secondary} rounded-xl p-4 border ${colors.border.primary}`}>
+                  <h4 className={`text-sm font-bold ${colors.text.primary} mb-3 flex items-center gap-2`}>
+                    <span>📜</span> Donation History ({animalDonations.length} total)
+                  </h4>
+                  <div className="space-y-2 max-h-48 overflow-y-auto">
+                    {animalDonations.map((donation, idx) => (
+                      <div 
+                        key={donation.id || idx}
+                        className={`${colors.bg.primary} p-3 rounded-lg border ${colors.border.primary} cursor-pointer hover:shadow-md transition-shadow ${donation.id === selectedDonor.id ? 'ring-2 ring-purple-500' : ''}`}
+                        onClick={() => setSelectedDonor(donation)}
+                      >
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className={`text-2xl ${donation.id === selectedDonor.id ? 'scale-110' : ''}`}>
+                              {donation.donated?.toLowerCase() === 'yes' || donation.donated?.toLowerCase() === 'כן' ? '✅' : '❌'}
+                            </div>
+                            <div>
+                              <p className={`text-sm font-semibold ${colors.text.primary}`}>{donation.date || 'No date'}</p>
+                              <p className={`text-xs ${colors.text.secondary}`}>{donation.location || 'Unknown location'}</p>
+                            </div>
+                          </div>
+                          <div className="text-right">
+                            {donation.volume && (
+                              <p className={`text-sm font-medium ${colors.text.primary}`}>{donation.volume} ml</p>
+                            )}
+                            {donation.bloodType && (
+                              <p className={`text-xs ${colors.text.secondary}`}>Type: {donation.bloodType}</p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              
+              {/* Current Donation Details Header */}
+              {animalDonations.length > 1 && (
+                <div className={`${colors.bg.tertiary} rounded-lg p-3 border-l-4 border-purple-500`}>
+                  <p className={`text-sm font-semibold ${colors.text.primary}`}>
+                    📍 Viewing donation from: {selectedDonor.date || 'No date'}
+                  </p>
+                </div>
+              )}
+              
               {/* Basic Info Card */}
               <div className={`${colors.bg.secondary} rounded-xl p-4 border ${colors.border.primary}`}>
                 <h4 className={`text-sm font-bold ${colors.text.primary} mb-3 flex items-center gap-2`}>

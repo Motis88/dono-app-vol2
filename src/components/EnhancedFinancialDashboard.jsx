@@ -10,10 +10,10 @@ const EnhancedFinancialDashboard = ({ salesHistory }) => {
   
   // Cost parameters
   const [costs, setCosts] = useState({
-    cbc: 28,
-    bloodType: 70,
+    cbc: 30,
+    COMITbloodType: 70,
     dogBag: 36,
-    fivFelv: 60
+    fivFelv: 70
   });
 
   // Bonus configuration
@@ -40,12 +40,35 @@ const EnhancedFinancialDashboard = ({ salesHistory }) => {
   useEffect(() => {
     loadSettings();
     loadManualData();
+    loadMonthlyData(); // Initial load
   }, []);
 
   useEffect(() => {
-    // Recompute months whenever salesHistory changes
+    // Recompute months whenever salesHistory or manualData changes
     loadMonthlyData();
-  }, [salesHistory, manualData]); // Re-run when manual data changes
+  }, [salesHistory, manualData]);
+
+  // Listen for changes to donor data in localStorage
+  useEffect(() => {
+    const handleStorageChange = (e) => {
+      if (e.key === 'animal_donors' || e.key === 'external_cells_data') {
+        loadMonthlyData();
+      }
+    };
+
+    // Listen to storage events from other tabs/windows
+    window.addEventListener('storage', handleStorageChange);
+
+    // Also refresh periodically to catch same-tab changes
+    const interval = setInterval(() => {
+      loadMonthlyData();
+    }, 2000); // Refresh every 2 seconds
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(interval);
+    };
+  }, [manualData])
 
   const loadSettings = () => {
     const saved = localStorage.getItem(SETTINGS_STORAGE_KEY);
@@ -164,23 +187,51 @@ const EnhancedFinancialDashboard = ({ salesHistory }) => {
           monthlyMap[monthKey].shifts.add(dayLocationKey);
         }
         
-        // Count donations
-        if (donor.donated?.toLowerCase() === 'yes' || donor.donated?.toLowerCase() === 'כן') {
+        const animalType = donor.animalType?.toLowerCase();
+        const isDog = animalType === 'dog' || animalType === 'כלב';
+        const isCat = animalType === 'cat' || animalType === 'חתול';
+        
+        // 1. CBC - count if ANY of HTC/WBC/PLT has a numeric value
+        const hasCBC = (donor.hct && !isNaN(parseFloat(donor.hct))) ||
+                       (donor.wbc && !isNaN(parseFloat(donor.wbc))) ||
+                       (donor.plt && !isNaN(parseFloat(donor.plt)));
+        
+        if (hasCBC) {
+          if (isDog) {
+            monthlyMap[monthKey].cbcDogs++;
+          } else if (isCat) {
+            monthlyMap[monthKey].cbcCats++;
+          }
+        }
+        
+        // Count actual donations first
+        const donated = donor.donated?.toLowerCase() === 'yes' || donor.donated?.toLowerCase() === 'כן';
+        
+        if (donated) {
           monthlyMap[monthKey].donations++;
           
-          // Count by animal type
-          const animalType = donor.animalType?.toLowerCase();
-          if (animalType === 'dog' || animalType === 'כלב') {
-            monthlyMap[monthKey].cbcDogs++;
+          // 2. Blood Type - every donor gets blood type test
+          monthlyMap[monthKey].bloodTypes++;
+          
+          // 3. Dog Bags - only for dogs that donated
+          if (isDog) {
             monthlyMap[monthKey].dogBags++;
-          } else if (animalType === 'cat' || animalType === 'חתול') {
-            monthlyMap[monthKey].cbcCats++;
-            monthlyMap[monthKey].fivFelv++;
           }
           
-          // Blood type test for all
-          if (donor.bloodType) {
-            monthlyMap[monthKey].bloodTypes++;
+          // 4. FIV/FELV - only for cats with positive/negative result
+          if (isCat) {
+            const hasFIV = donor.fiv && (donor.fiv.toLowerCase().includes('positive') || 
+                                         donor.fiv.toLowerCase().includes('negative') ||
+                                         donor.fiv.toLowerCase().includes('חיובי') || 
+                                         donor.fiv.toLowerCase().includes('שלילי'));
+            const hasFELV = donor.felv && (donor.felv.toLowerCase().includes('positive') || 
+                                           donor.felv.toLowerCase().includes('negative') ||
+                                           donor.felv.toLowerCase().includes('חיובי') || 
+                                           donor.felv.toLowerCase().includes('שלילי'));
+            
+            if (hasFIV || hasFELV) {
+              monthlyMap[monthKey].fivFelv++;
+            }
           }
         }
       });
@@ -204,17 +255,54 @@ const EnhancedFinancialDashboard = ({ salesHistory }) => {
           };
         }
         
-        // Sum external units from all product types
+        // Calculate external revenue based on actual product types and prices
         let totalExternal = 0;
-        if (cellData.wholeBloodCat) totalExternal += parseInt(cellData.wholeBloodCat) || 0;
-        if (cellData.wholeBloodDog) totalExternal += parseInt(cellData.wholeBloodDog) || 0;
-        if (cellData.plasmaCat) totalExternal += parseInt(cellData.plasmaCat) || 0;
-        if (cellData.plasmaDog) totalExternal += parseInt(cellData.plasmaDog) || 0;
-        if (cellData.pcCat) totalExternal += parseInt(cellData.pcCat) || 0;
-        if (cellData.pcDog) totalExternal += parseInt(cellData.pcDog) || 0;
+        let totalExternalRevenue = 0;
+        
+        // External unit prices
+        const prices = {
+          wholeBloodDog: 1350,   // דם מלא כלב
+          wholeBloodCat: 1650,   // דם מלא חתול
+          plasmaDog: 850,        // פלסמה כלב
+          plasmaCat: 650,        // פלסמה חתול
+          pcDog: 850,            // תרכיז כלב (PC = Packed Cells)
+          pcCat: 1650            // תרכיז חתול
+        };
+        
+        // Sum units and calculate accurate revenue
+        if (cellData.wholeBloodCat) {
+          const units = parseInt(cellData.wholeBloodCat) || 0;
+          totalExternal += units;
+          totalExternalRevenue += units * prices.wholeBloodCat;
+        }
+        if (cellData.wholeBloodDog) {
+          const units = parseInt(cellData.wholeBloodDog) || 0;
+          totalExternal += units;
+          totalExternalRevenue += units * prices.wholeBloodDog;
+        }
+        if (cellData.plasmaCat) {
+          const units = parseInt(cellData.plasmaCat) || 0;
+          totalExternal += units;
+          totalExternalRevenue += units * prices.plasmaCat;
+        }
+        if (cellData.plasmaDog) {
+          const units = parseInt(cellData.plasmaDog) || 0;
+          totalExternal += units;
+          totalExternalRevenue += units * prices.plasmaDog;
+        }
+        if (cellData.pcCat) {
+          const units = parseInt(cellData.pcCat) || 0;
+          totalExternal += units;
+          totalExternalRevenue += units * prices.pcCat;
+        }
+        if (cellData.pcDog) {
+          const units = parseInt(cellData.pcDog) || 0;
+          totalExternal += units;
+          totalExternalRevenue += units * prices.pcDog;
+        }
         
         monthlyMap[monthKey].externalUnits = totalExternal;
-        monthlyMap[monthKey].externalGross = totalExternal * 1500; // ₪1,500 per unit estimate
+        monthlyMap[monthKey].externalGross = totalExternalRevenue;
       });
       
       // Add external sales from inventory archives (if any exist)
@@ -236,15 +324,33 @@ const EnhancedFinancialDashboard = ({ salesHistory }) => {
           };
         }
         
-        // Count external units
+        // Count external units and calculate revenue with actual prices
         if (archive.totalExternal) {
-          Object.values(archive.totalExternal).forEach(count => {
+          const prices = {
+            'דם מלא כלב': 1350,
+            'דם מלא חתול': 1650,
+            'פלסמה כלב': 850,
+            'פלסמה חתול': 650,
+            'תרכיז כלב': 850,
+            'תרכיז חתול': 1650,
+            // English fallbacks
+            'Whole Blood Dog': 1350,
+            'Whole Blood Cat': 1650,
+            'Plasma Dog': 850,
+            'Plasma Cat': 650,
+            'PC Dog': 850,
+            'PC Cat': 1650
+          };
+          
+          let archiveRevenue = 0;
+          Object.entries(archive.totalExternal).forEach(([type, count]) => {
             monthlyMap[monthKey].externalUnits += count;
+            const price = prices[type] || 1200; // Default fallback price
+            archiveRevenue += count * price;
           });
+          
+          monthlyMap[monthKey].externalGross += archiveRevenue;
         }
-        
-        // Estimate external revenue (₪1,500 per unit average)
-        monthlyMap[monthKey].externalGross = monthlyMap[monthKey].externalUnits * 1500;
       });
       
       // Add financial sales data for actual revenue
@@ -298,7 +404,7 @@ const EnhancedFinancialDashboard = ({ salesHistory }) => {
         }
       });
       
-      // Apply manual data overrides (shifts & external units entered by user)
+      // Apply manual data overrides (shifts, equipment counts, & external units entered by user)
       Object.keys(manualData).forEach(monthKey => {
         const manual = manualData[monthKey];
         
@@ -325,6 +431,23 @@ const EnhancedFinancialDashboard = ({ salesHistory }) => {
           monthlyMap[monthKey].manualShifts = manual.shifts;
         }
         
+        // Override equipment counts if manually set
+        if (manual.cbcDogs !== undefined && manual.cbcDogs >= 0) {
+          monthlyMap[monthKey].cbcDogs = manual.cbcDogs;
+        }
+        if (manual.cbcCats !== undefined && manual.cbcCats >= 0) {
+          monthlyMap[monthKey].cbcCats = manual.cbcCats;
+        }
+        if (manual.bloodTypes !== undefined && manual.bloodTypes >= 0) {
+          monthlyMap[monthKey].bloodTypes = manual.bloodTypes;
+        }
+        if (manual.dogBags !== undefined && manual.dogBags >= 0) {
+          monthlyMap[monthKey].dogBags = manual.dogBags;
+        }
+        if (manual.fivFelv !== undefined && manual.fivFelv >= 0) {
+          monthlyMap[monthKey].fivFelv = manual.fivFelv;
+        }
+        
         // Override/add external units if manually set
         if (manual.externalUnits !== undefined && manual.externalUnits > 0) {
           monthlyMap[monthKey].externalUnits = manual.externalUnits;
@@ -340,14 +463,23 @@ const EnhancedFinancialDashboard = ({ salesHistory }) => {
           const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
           const isCurrentMonth = m.month === currentMonth;
           
+          const shiftsCount = m.manualShifts !== undefined ? m.manualShifts : m.shifts.size;
+          
+          // Calculate salary: shifts × (base rate + employee overhead per shift)
+          // Min: 2000 base + 300 overhead (2 employees × 150) = 2300 per shift
+          // Max: 2640 base + 450 overhead (3 employees × 150) = 3090 per shift
+          const minSalary = shiftsCount * 2300;    // 2300₪ per shift (includes 2 employees overhead)
+          const maxSalary = shiftsCount * 3090;    // 3090₪ per shift (includes 3 employees overhead)
+          const avgSalary = (minSalary + maxSalary) / 2;  // Average of min and max
+          
           return {
             ...m,
             // Use manual shifts if set, otherwise use auto-detected
-            shifts: m.manualShifts !== undefined ? m.manualShifts : m.shifts.size,
-            // Salary based on shifts (configurable)
-            minSalary: (m.manualShifts !== undefined ? m.manualShifts : m.shifts.size) * 2000,
-            maxSalary: (m.manualShifts !== undefined ? m.manualShifts : m.shifts.size) * 2640,
-            avgSalary: (m.manualShifts !== undefined ? m.manualShifts : m.shifts.size) * 2320,
+            shifts: shiftsCount,
+            // Salary based on shifts + employee overhead
+            minSalary,
+            maxSalary,
+            avgSalary,
             // For current incomplete month: only use actual data, don't estimate
             // For past months: use actual revenue if available, otherwise estimate
             grossRevenue: isCurrentMonth ? (m.grossRevenue || 0) : (m.grossRevenue || (m.donations * 1200)),
@@ -372,10 +504,13 @@ const EnhancedFinancialDashboard = ({ salesHistory }) => {
     const fivFelvCost = month.fivFelv * costs.fivFelv;
     const totalEquipment = cbcCost + bloodTypeCost + dogBagCost + fivFelvCost;
     const totalExpenses = totalEquipment + month.avgSalary;
+    
+    // grossRevenue from Import/Export already includes everything (including external units)
+    // No need to add externalGross separately - that's just for reference/estimation
     const netRevenue = month.grossRevenue - totalExpenses;
     const profitMargin = month.grossRevenue > 0 ? (netRevenue / month.grossRevenue) * 100 : 0;
     const profitRatio = month.grossRevenue > 0 ? netRevenue / month.grossRevenue : 0;
-    const calculatedExternalNet = month.externalGross * profitRatio;
+    const calculatedExternalNet = (month.externalGross || 0) * profitRatio;
 
     return {
       cbcCost,
@@ -396,7 +531,10 @@ const EnhancedFinancialDashboard = ({ salesHistory }) => {
   }));
 
   // Filter out incomplete/zero-revenue months for averages calculation
-  const completedMonths = calculatedMonths.filter(m => m.grossRevenue > 0);
+  // Exclude current month (incomplete) and any month with zero revenue
+  const today = new Date();
+  const currentMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
+  const completedMonths = calculatedMonths.filter(m => m.month !== currentMonth && m.grossRevenue > 0);
   
   const averages = completedMonths.length > 0 ? {
     grossRevenue: completedMonths.reduce((sum, m) => sum + m.grossRevenue, 0) / completedMonths.length,
@@ -774,47 +912,126 @@ const EnhancedFinancialDashboard = ({ salesHistory }) => {
                 Enter shifts and external units manually for each month. This data will override auto-detected values.
               </p>
               
-              <div className="space-y-4">
+              <div className="space-y-6">
                 {calculatedMonths.map((month) => (
-                  <div key={month.month} className={`${colors.bg.secondary} p-4 rounded-lg border ${colors.border.primary}`}>
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
-                      {/* Month Label */}
-                      <div className="md:col-span-1">
-                        <div className={`font-bold text-lg ${colors.text.primary}`}>{formatMonth(month.month)}</div>
-                        <div className={`text-sm ${colors.text.secondary}`}>{month.month}</div>
+                  <div key={month.month} className={`${colors.bg.secondary} p-6 rounded-lg border ${colors.border.primary}`}>
+                    {/* Month Header */}
+                    <div className={`font-bold text-xl ${colors.text.primary} mb-4 pb-3 border-b ${colors.border.primary}`}>
+                      {formatMonth(month.month)} <span className={`text-sm ${colors.text.secondary}`}>({month.month})</span>
+                    </div>
+                    
+                    {/* Input Fields Grid */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {/* Shifts */}
+                      <div>
+                        <label className={`block text-sm font-semibold ${colors.text.primary} mb-2`}>
+                          Shifts
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={manualData[month.month]?.shifts || ''}
+                          onChange={(e) => saveManualData(month.month, 'shifts', e.target.value)}
+                          placeholder={`Auto: ${month.shifts}`}
+                          className={`w-full px-3 py-2 border-2 ${colors.border.primary} rounded-lg focus:border-blue-500 focus:outline-none transition-colors ${colors.bg.primary} ${colors.text.primary}`}
+                        />
+                        <div className={`text-xs ${colors.text.secondary} mt-1`}>Auto: {month.shifts}</div>
                       </div>
                       
-                      {/* Input Fields */}
-                      <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        <div>
-                          <label className={`block text-sm font-semibold ${colors.text.primary} mb-2`}>
-                            Shifts
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            value={manualData[month.month]?.shifts || ''}
-                            onChange={(e) => saveManualData(month.month, 'shifts', e.target.value)}
-                            placeholder={`Current: ${month.shifts}`}
-                            className={`w-full px-3 py-2 border-2 ${colors.border.primary} rounded-lg focus:border-blue-500 focus:outline-none transition-colors ${colors.bg.primary} ${colors.text.primary}`}
-                          />
-                          <div className={`text-xs ${colors.text.secondary} mt-1`}>Auto-detected: {month.shifts}</div>
-                        </div>
-                        
-                        <div>
-                          <label className={`block text-sm font-semibold ${colors.text.primary} mb-2`}>
-                            External Units
-                          </label>
-                          <input
-                            type="number"
-                            min="0"
-                            value={manualData[month.month]?.externalUnits || ''}
-                            onChange={(e) => saveManualData(month.month, 'externalUnits', e.target.value)}
-                            placeholder={`Current: ${month.externalUnits}`}
-                            className={`w-full px-3 py-2 border-2 ${colors.border.primary} rounded-lg focus:border-blue-500 focus:outline-none transition-colors ${colors.bg.primary} ${colors.text.primary}`}
-                          />
-                          <div className={`text-xs ${colors.text.secondary} mt-1`}>Auto-detected: {month.externalUnits}</div>
-                        </div>
+                      {/* CBC Dogs */}
+                      <div>
+                        <label className={`block text-sm font-semibold ${colors.text.primary} mb-2`}>
+                          CBC Dogs
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={manualData[month.month]?.cbcDogs !== undefined ? manualData[month.month].cbcDogs : ''}
+                          onChange={(e) => saveManualData(month.month, 'cbcDogs', e.target.value)}
+                          placeholder={`Auto: ${month.cbcDogs}`}
+                          className={`w-full px-3 py-2 border-2 ${colors.border.primary} rounded-lg focus:border-blue-500 focus:outline-none transition-colors ${colors.bg.primary} ${colors.text.primary}`}
+                        />
+                        <div className={`text-xs ${colors.text.secondary} mt-1`}>Auto: {month.cbcDogs}</div>
+                      </div>
+                      
+                      {/* CBC Cats */}
+                      <div>
+                        <label className={`block text-sm font-semibold ${colors.text.primary} mb-2`}>
+                          CBC Cats
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={manualData[month.month]?.cbcCats !== undefined ? manualData[month.month].cbcCats : ''}
+                          onChange={(e) => saveManualData(month.month, 'cbcCats', e.target.value)}
+                          placeholder={`Auto: ${month.cbcCats}`}
+                          className={`w-full px-3 py-2 border-2 ${colors.border.primary} rounded-lg focus:border-blue-500 focus:outline-none transition-colors ${colors.bg.primary} ${colors.text.primary}`}
+                        />
+                        <div className={`text-xs ${colors.text.secondary} mt-1`}>Auto: {month.cbcCats}</div>
+                      </div>
+                      
+                      {/* Blood Types */}
+                      <div>
+                        <label className={`block text-sm font-semibold ${colors.text.primary} mb-2`}>
+                          Blood Types
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={manualData[month.month]?.bloodTypes !== undefined ? manualData[month.month].bloodTypes : ''}
+                          onChange={(e) => saveManualData(month.month, 'bloodTypes', e.target.value)}
+                          placeholder={`Auto: ${month.bloodTypes}`}
+                          className={`w-full px-3 py-2 border-2 ${colors.border.primary} rounded-lg focus:border-blue-500 focus:outline-none transition-colors ${colors.bg.primary} ${colors.text.primary}`}
+                        />
+                        <div className={`text-xs ${colors.text.secondary} mt-1`}>Auto: {month.bloodTypes}</div>
+                      </div>
+                      
+                      {/* Dog Bags */}
+                      <div>
+                        <label className={`block text-sm font-semibold ${colors.text.primary} mb-2`}>
+                          Dog Bags
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={manualData[month.month]?.dogBags !== undefined ? manualData[month.month].dogBags : ''}
+                          onChange={(e) => saveManualData(month.month, 'dogBags', e.target.value)}
+                          placeholder={`Auto: ${month.dogBags}`}
+                          className={`w-full px-3 py-2 border-2 ${colors.border.primary} rounded-lg focus:border-blue-500 focus:outline-none transition-colors ${colors.bg.primary} ${colors.text.primary}`}
+                        />
+                        <div className={`text-xs ${colors.text.secondary} mt-1`}>Auto: {month.dogBags}</div>
+                      </div>
+                      
+                      {/* FIV/FELV */}
+                      <div>
+                        <label className={`block text-sm font-semibold ${colors.text.primary} mb-2`}>
+                          FIV/FELV
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={manualData[month.month]?.fivFelv !== undefined ? manualData[month.month].fivFelv : ''}
+                          onChange={(e) => saveManualData(month.month, 'fivFelv', e.target.value)}
+                          placeholder={`Auto: ${month.fivFelv}`}
+                          className={`w-full px-3 py-2 border-2 ${colors.border.primary} rounded-lg focus:border-blue-500 focus:outline-none transition-colors ${colors.bg.primary} ${colors.text.primary}`}
+                        />
+                        <div className={`text-xs ${colors.text.secondary} mt-1`}>Auto: {month.fivFelv}</div>
+                      </div>
+                      
+                      {/* External Units */}
+                      <div>
+                        <label className={`block text-sm font-semibold ${colors.text.primary} mb-2`}>
+                          External Units
+                        </label>
+                        <input
+                          type="number"
+                          min="0"
+                          value={manualData[month.month]?.externalUnits || ''}
+                          onChange={(e) => saveManualData(month.month, 'externalUnits', e.target.value)}
+                          placeholder={`Auto: ${month.externalUnits}`}
+                          className={`w-full px-3 py-2 border-2 ${colors.border.primary} rounded-lg focus:border-blue-500 focus:outline-none transition-colors ${colors.bg.primary} ${colors.text.primary}`}
+                        />
+                        <div className={`text-xs ${colors.text.secondary} mt-1`}>Auto: {month.externalUnits}</div>
                       </div>
                     </div>
                   </div>
