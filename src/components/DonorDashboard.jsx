@@ -29,11 +29,51 @@ const DonorDashboard = ({ onLocationClick }) => {
   const dogColors = ['#3b82f6', '#f59e42'];
   const catColors = ['#ec4899', '#fbbf24', '#6366f1'];
 
-  // Blood type breakdown
-  const dogDonors = donors.filter(d => d.animalType?.toLowerCase() === 'dog' && d.bloodType);
-  const catDonors = donors.filter(d => d.animalType?.toLowerCase() === 'cat' && d.bloodType);
+  // Helper function to identify unique animals
+  const getUniqueAnimals = (animalsList) => {
+    const seen = new Set();
+    return animalsList.filter(animal => {
+      // Create unique key: name + type + location (+ owner if private)
+      const name = animal.animalName?.toLowerCase() || '';
+      const type = animal.animalType?.toLowerCase() || '';
+      const location = animal.location?.toLowerCase() || '';
+      
+      // Exception: Cats with numeric names from any location are considered different animals
+      const isCat = type === 'cat' || type === 'חתול';
+      const isNumericName = /^\d+$/.test(name.trim());
+      
+      if (isCat && isNumericName) {
+        // For numeric cat names, treat each record as unique
+        const uniqueKey = `${name}_${type}_${location}_${animal.date}_${animal.id}`;
+        if (seen.has(uniqueKey)) return false;
+        seen.add(uniqueKey);
+        return true;
+      }
+      
+      // For all others: unique by name + type + location (+ owner if private)
+      let uniqueKey = `${name}_${type}_${location}`;
+      if (animal.isPrivateOwner) {
+        const phone = animal.ownerPhone || '';
+        const owner = animal.ownerName?.toLowerCase() || '';
+        uniqueKey += `_${phone}_${owner}`;
+      }
+      
+      if (seen.has(uniqueKey)) return false;
+      seen.add(uniqueKey);
+      return true;
+    });
+  };
+
+  // Blood type breakdown - count unique animals only
+  const dogDonorsAll = donors.filter(d => d.animalType?.toLowerCase() === 'dog' && d.bloodType);
+  const catDonorsAll = donors.filter(d => d.animalType?.toLowerCase() === 'cat' && d.bloodType);
+  
+  const dogDonors = getUniqueAnimals(dogDonorsAll);
+  const catDonors = getUniqueAnimals(catDonorsAll);
+  
   const dogTypes = ['DEA 1.1 Positive', 'DEA 1.1 Negative'];
   const catTypes = ['A', 'AB', 'B'];
+  
   const dogData = dogTypes.map((type) => ({
     name: type,
     value: dogDonors.filter(d => d.bloodType === type).length

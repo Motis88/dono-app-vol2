@@ -36,6 +36,9 @@ const InventoryManager = () => {
   const [showSetModal, setShowSetModal] = useState(false);
   const [setValue, setSetValue] = useState('');
   const [setProductKey, setSetProductKey] = useState(null);
+  // External sales details modal
+  const [showExternalDetailsModal, setShowExternalDetailsModal] = useState(false);
+  const [selectedExternalMonth, setSelectedExternalMonth] = useState(null);
 
   useEffect(() => {
     loadInventory();
@@ -119,8 +122,16 @@ const InventoryManager = () => {
         totalRecords: salesData.length,
         totalUsage: {},
         totalExternal: {},
-        inventorySnapshot: {} // Save the inventory state at archive time
+        inventorySnapshot: {}, // Save the inventory state at archive time
+        externalSalesDetails: [] // Save all external sales details
       };
+      
+      // Collect all external sales details from the sales data
+      salesData.forEach(importRecord => {
+        if (importRecord.externalDetails && importRecord.externalDetails.length > 0) {
+          summary.externalSalesDetails.push(...importRecord.externalDetails);
+        }
+      });
       
       // Save current inventory totals before reset
       Object.keys(BLOOD_PRODUCTS).forEach(productKey => {
@@ -257,6 +268,8 @@ const InventoryManager = () => {
           const cumulativeByProduct = {};
           const deltaByProduct = {};
           const externalUsage = {};
+          const externalSalesDetails = []; // New: store detailed external sales info
+          
           // Parse CSV rows - now with duplicate detection
           data.forEach((row, index) => {
             // Skip header rows and empty rows
@@ -307,6 +320,22 @@ const InventoryManager = () => {
               if (isExternal) {
                 if (!externalUsage[matchedProduct]) externalUsage[matchedProduct] = 0;
                 externalUsage[matchedProduct] += cumulativeUsage;
+                
+                // Extract details for external sales
+                const saleDate = row[1]?.trim() || new Date().toISOString().split('T')[0]; // Column B (index 1): date
+                const fileNumber = 'אין'; // No file number column in this CSV
+                const ownerName = row[9]?.trim() || 'לא צוין'; // Column J (index 9): client name
+                const animalName = row[11]?.trim() || 'לא צוין'; // Column L (index 11): patient name
+                
+                externalSalesDetails.push({
+                  date: saleDate,
+                  fileNumber: fileNumber,
+                  ownerName: ownerName,
+                  animalName: animalName,
+                  productKey: matchedProduct,
+                  quantity: cumulativeUsage,
+                  productName: BLOOD_PRODUCTS[matchedProduct].name_he
+                });
               }
               
               // Add to processed invoices set
@@ -362,6 +391,7 @@ const InventoryManager = () => {
             cumulative: cumulativeByProduct,
             delta: deltaByProduct,
             external: externalUsage,
+            externalDetails: externalSalesDetails // Save the detailed external sales info
           };
           const updatedHistory = [...monthlySales, newUsage];
           setInventory(updatedInventory);
@@ -671,56 +701,98 @@ const InventoryManager = () => {
       alert('📊 No external sales data available yet.\n\nExternal sales will be tracked when you import usage reports with external sales marked.');
       return;
     }
+
+    // Build list of months with external sales
+    const monthsWithExternalSales = [];
     
-    let message = '🏥 External Sales by Month\n\n';
+    // Add current month if has data
+    if (Object.keys(currentMonthExternal).length > 0) {
+      const now = new Date();
+      const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+      monthsWithExternalSales.push({
+        monthKey: currentMonthKey,
+        isCurrent: true,
+        data: currentMonthExternal
+      });
+    }
     
-    // Show archived months
+    // Add archived months
     archives.forEach(archive => {
-      const monthDate = new Date(archive.month + '-01');
-      const monthName = monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-      
       const externalData = archive.totalExternal || {};
       const totalUnits = Object.values(externalData).reduce((sum, val) => sum + val, 0);
-      
       if (totalUnits > 0) {
-        message += `📅 ${monthName}\n`;
-        message += `━━━━━━━━━━━━━━━━━━━━━━\n`;
-        message += `Total External Units: ${totalUnits.toFixed(1)}\n\n`;
-        
-        Object.entries(externalData).forEach(([productKey, units]) => {
-          const product = BLOOD_PRODUCTS[productKey];
-          if (product && units > 0) {
-            message += `  • ${product.name_en}: ${units.toFixed(1)} units\n`;
-          }
+        monthsWithExternalSales.push({
+          monthKey: archive.month,
+          isCurrent: false,
+          data: externalData
         });
-        
-        message += `\n`;
+      }
+    });
+
+    if (monthsWithExternalSales.length === 0) {
+      alert('No external sales recorded yet.');
+      return;
+    }
+
+    // Show modal instead of alert
+    setShowExternalDetailsModal(true);
+  };
+
+  const getExternalUnitsDetails = (monthKey) => {
+    // Get the import history from monthlySales
+    const allDetails = [];
+    
+    // Helper to format month from date
+    const formatMonth = (dateStr) => {
+      if (!dateStr) return '';
+      const date = new Date(dateStr);
+      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    };
+    
+    // Go through all import records
+    monthlySales.forEach((importRecord, idx) => {
+      const importMonth = formatMonth(importRecord.date);
+      
+      // Only process imports from the selected month
+      if (importMonth === monthKey && importRecord.externalDetails && importRecord.externalDetails.length > 0) {
+        // Add all external sales from this import
+        importRecord.externalDetails.forEach(detail => {
+          allDetails.push({
+            date: detail.date,
+            animalName: detail.animalName || 'לא צוין',
+            ownerName: detail.ownerName || 'לא צוין',
+            fileNumber: detail.fileNumber || 'אין',
+            productName: detail.productName || BLOOD_PRODUCTS[detail.productKey]?.name_he || 'לא ידוע',
+            quantity: detail.quantity
+          });
+        });
       }
     });
     
-    // Show current month
-    if (Object.keys(currentMonthExternal).length > 0) {
-      const now = new Date();
-      const currentMonthName = now.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-      const totalCurrentUnits = Object.values(currentMonthExternal).reduce((sum, val) => sum + val, 0);
-      
-      message += `📅 ${currentMonthName} (Current)\n`;
-      message += `━━━━━━━━━━━━━━━━━━━━━━\n`;
-      message += `Total External Units: ${totalCurrentUnits.toFixed(1)}\n\n`;
-      
-      Object.entries(currentMonthExternal).forEach(([productKey, units]) => {
-        const product = BLOOD_PRODUCTS[productKey];
-        if (product) {
-          message += `  • ${product.name_en}: ${units.toFixed(1)} units\n`;
+    // Also check archived months
+    const archivesJson = localStorage.getItem('inventory_monthly_archives');
+    if (archivesJson) {
+      const archives = JSON.parse(archivesJson);
+      archives.forEach(archive => {
+        if (archive.month === monthKey && archive.externalSalesDetails) {
+          archive.externalSalesDetails.forEach(detail => {
+            allDetails.push({
+              date: detail.date,
+              animalName: detail.animalName || 'לא צוין',
+              ownerName: detail.ownerName || 'לא צוין',
+              fileNumber: detail.fileNumber || 'אין',
+              productName: detail.productName || 'לא ידוע',
+              quantity: detail.quantity
+            });
+          });
         }
       });
     }
     
-    if (message === '🏥 External Sales by Month\n\n') {
-      message += 'No external sales recorded yet.';
-    }
+    // Sort by date (newest first)
+    allDetails.sort((a, b) => new Date(b.date) - new Date(a.date));
     
-    alert(message);
+    return allDetails;
   };
 
   const showCurrentMonthStats = () => {
@@ -1194,6 +1266,188 @@ const InventoryManager = () => {
                   className="flex-1 bg-gradient-to-r from-gray-400 to-gray-500 text-white px-6 py-3 rounded-xl font-bold hover:from-gray-500 hover:to-gray-600 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg transition-all"
                 >
                   Cancel
+                </button>
+              </div>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* External Sales Details Modal */}
+      {showExternalDetailsModal && (
+        <>
+          <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm z-40" onClick={() => setShowExternalDetailsModal(false)} />
+          <div className="fixed inset-0 flex items-center justify-center z-50 p-4 overflow-y-auto">
+            <div className={`${colors.bg.card} rounded-3xl shadow-2xl p-8 max-w-4xl w-full border-2 ${colors.border.primary} my-8`}>
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="text-4xl">🏥</div>
+                  <h3 className={`text-3xl font-bold bg-gradient-to-r from-blue-600 to-sky-600 bg-clip-text text-transparent`}>External Sales - Select Month</h3>
+                </div>
+                <button
+                  onClick={() => setShowExternalDetailsModal(false)}
+                  className={`text-3xl ${colors.text.secondary} hover:text-red-600 transition-colors`}
+                >
+                  ×
+                </button>
+              </div>
+
+              {/* Month selection buttons */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {(() => {
+                  // Get archives
+                  const archivesJson = localStorage.getItem('inventory_monthly_archives');
+                  const archives = archivesJson ? JSON.parse(archivesJson) : [];
+                  
+                  // Get current month external data
+                  const currentMonthExternal = {};
+                  Object.keys(BLOOD_PRODUCTS).forEach(productKey => {
+                    const product = inventory[productKey];
+                    if (product && (product.external || 0) > 0) {
+                      currentMonthExternal[productKey] = product.external;
+                    }
+                  });
+
+                  const monthsWithData = [];
+
+                  // Add current month if has data
+                  if (Object.keys(currentMonthExternal).length > 0) {
+                    const now = new Date();
+                    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+                    const totalUnits = Object.values(currentMonthExternal).reduce((sum, val) => sum + val, 0);
+                    monthsWithData.push({
+                      monthKey: currentMonthKey,
+                      totalUnits,
+                      isCurrent: true
+                    });
+                  }
+
+                  // Add archived months
+                  archives.forEach(archive => {
+                    const externalData = archive.totalExternal || {};
+                    const totalUnits = Object.values(externalData).reduce((sum, val) => sum + val, 0);
+                    if (totalUnits > 0) {
+                      monthsWithData.push({
+                        monthKey: archive.month,
+                        totalUnits,
+                        isCurrent: false
+                      });
+                    }
+                  });
+
+                  // Sort by month (newest first)
+                  monthsWithData.sort((a, b) => b.monthKey.localeCompare(a.monthKey));
+
+                  return monthsWithData.map((monthData) => {
+                    const monthDate = new Date(monthData.monthKey + '-01');
+                    const monthName = monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                    const details = getExternalUnitsDetails(monthData.monthKey);
+                    const isSelected = selectedExternalMonth === monthData.monthKey;
+                    
+                    // Count sales: if we have detailed records use that, otherwise estimate from total units
+                    const salesCount = details.length > 0 ? details.length : Math.ceil(monthData.totalUnits);
+                    
+                    return (
+                      <button
+                        key={monthData.monthKey}
+                        onClick={() => setSelectedExternalMonth(monthData.monthKey)}
+                        className={`p-4 rounded-xl border-2 transition-all ${
+                          isSelected
+                            ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/30'
+                            : 'border-gray-200 dark:border-gray-700 hover:border-blue-400 hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                        }`}
+                      >
+                        <div className="text-right">
+                          <div className={`font-bold text-lg ${
+                            isSelected 
+                              ? 'text-blue-900 dark:text-blue-100' 
+                              : colors.text.primary
+                          }`}>
+                            {monthName} {monthData.isCurrent && '(Current)'}
+                          </div>
+                          <div className={`text-sm ${
+                            isSelected 
+                              ? 'text-blue-700 dark:text-blue-200' 
+                              : colors.text.secondary
+                          }`}>
+                            {monthData.totalUnits.toFixed(1)} units • {salesCount} sales
+                          </div>
+                        </div>
+                      </button>
+                    );
+                  });
+                })()}
+              </div>
+
+              {/* Details for selected month */}
+              {selectedExternalMonth && (
+                <div className="mt-6 border-t pt-6 border-gray-200 dark:border-gray-700">
+                  <h4 className={`text-xl font-bold mb-4 ${colors.text.primary}`}>
+                    Sales Details - {new Date(selectedExternalMonth + '-01').toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}
+                  </h4>
+                  <div className="space-y-4 max-h-96 overflow-y-auto">{(() => {
+                      const details = getExternalUnitsDetails(selectedExternalMonth);
+                      
+                      if (details.length === 0) {
+                        return (
+                          <div className="text-center py-12 bg-yellow-50 dark:bg-yellow-900/20 rounded-xl border-2 border-yellow-300 dark:border-yellow-700">
+                            <div className="text-4xl mb-3">⚠️</div>
+                            <p className="text-lg font-bold text-gray-800 dark:text-gray-200 mb-2">No Owner Details</p>
+                            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                              Previous imports were made before the fix and didn't save animal and owner details
+                            </p>
+                            <div className="bg-blue-50 dark:bg-blue-900/30 p-4 rounded-lg border border-blue-200 dark:border-blue-700 max-w-md mx-auto text-center">
+                              <p className="text-sm font-semibold text-blue-800 dark:text-blue-200 mb-2">💡 Solution:</p>
+                              <p className="text-xs text-blue-700 dark:text-blue-300">
+                                Re-import the Medicine Usage CSV file for this month.<br/>
+                                This time all details (animal name, owner name, file number) will be saved.
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      }
+                      
+                      return details.map((sale, idx) => (
+                      <div key={idx} className="p-4 bg-gray-50 dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
+                        <div className="grid grid-cols-2 gap-3 text-left mb-3">
+                          <div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">Date</div>
+                            <div className="font-semibold text-gray-800 dark:text-gray-200">{sale.date}</div>
+                          </div>
+                          <div>
+                            <div className="text-xs text-gray-500 dark:text-gray-400">Animal Name</div>
+                            <div className="font-semibold text-gray-800 dark:text-gray-200">{sale.animalName}</div>
+                          </div>
+                          <div className="col-span-2">
+                            <div className="text-xs text-gray-500 dark:text-gray-400">Owner Name</div>
+                            <div className="font-semibold text-gray-800 dark:text-gray-200">{sale.ownerName}</div>
+                          </div>
+                        </div>
+                        <div className="border-t pt-3">
+                          <div className="text-xs text-gray-500 dark:text-gray-400 mb-2">Unit Sold:</div>
+                          <div className="flex flex-wrap gap-2">
+                            <div className="bg-blue-100 dark:bg-blue-900/30 px-3 py-1 rounded-lg text-sm">
+                              <span className="font-semibold">{sale.productName}</span>
+                              <span className="text-blue-600 dark:text-blue-400 ml-2">×{sale.quantity}</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    ));
+                    })()}
+                  </div>
+                </div>
+              )}
+
+              <div className="mt-6 flex justify-end">
+                <button
+                  onClick={() => {
+                    setShowExternalDetailsModal(false);
+                    setSelectedExternalMonth(null);
+                  }}
+                  className="bg-gradient-to-r from-gray-400 to-gray-500 text-white px-6 py-3 rounded-xl font-bold hover:from-gray-500 hover:to-gray-600 shadow-lg transition-all"
+                >
+                  Close
                 </button>
               </div>
             </div>

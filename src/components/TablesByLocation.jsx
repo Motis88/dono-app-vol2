@@ -518,6 +518,23 @@ const TablesByLocation = ({ onEdit, locationFilter, monthFilter, onClearFilter }
       const typeMatch = d.animalType?.toLowerCase() === donor.animalType?.toLowerCase();
       const locationMatch = d.location?.toLowerCase() === donor.location?.toLowerCase();
       
+      // Special case: Cats with numeric-only names should NOT be grouped together
+      // Each numeric cat is considered a separate animal
+      const isCat = donor.animalType?.toLowerCase() === 'חתול' || donor.animalType?.toLowerCase() === 'cat';
+      const isNumericName = /^\d+$/.test(donor.animalName?.trim());
+      
+      if (isCat && isNumericName) {
+        // For numeric cats: only return this exact record (match by ID or all fields including date)
+        return d.id === donor.id || (
+          nameMatch && 
+          typeMatch && 
+          locationMatch && 
+          d.date === donor.date &&
+          d.bloodType === donor.bloodType &&
+          d.weight === donor.weight
+        );
+      }
+      
       // If private owner exists, must match phone/owner name
       if (donor.isPrivateOwner) {
         const phoneMatch = donor.ownerPhone && d.ownerPhone === donor.ownerPhone;

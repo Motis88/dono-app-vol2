@@ -596,6 +596,64 @@ const EnhancedFinancialDashboard = ({ salesHistory }) => {
     }
   };
 
+  // Get external units details from Medicine Usage data
+  const getExternalUnitsDetails = (monthKey) => {
+    try {
+      const inventoryJson = localStorage.getItem('blood_inventory');
+      if (!inventoryJson) return [];
+      
+      const inventoryData = JSON.parse(inventoryJson);
+      const sales = inventoryData.sales || [];
+      
+      // Filter sales from the selected month that have external units
+      return sales.filter(sale => {
+        const saleDate = new Date(sale.date);
+        const saleMonth = `${saleDate.getFullYear()}-${String(saleDate.getMonth() + 1).padStart(2, '0')}`;
+        
+        if (saleMonth !== monthKey) return false;
+        
+        // Check if this sale has any external units
+        const external = sale.external || {};
+        return Object.keys(external).some(key => external[key] > 0);
+      }).map(sale => {
+        // Extract external units details
+        const external = sale.external || {};
+        const externalItems = [];
+        
+        // Map product keys to readable names
+        const productNames = {
+          wholeBloodDog: 'דם מלא כלב',
+          wholeBloodCat: 'דם מלא חתול',
+          plasmaDog: 'פלסמה כלב',
+          plasmaCat: 'פלסמה חתול',
+          pcDog: 'תרכיז כלב (PC)',
+          pcCat: 'תרכיז חתול (PC)'
+        };
+        
+        Object.keys(external).forEach(key => {
+          const quantity = external[key];
+          if (quantity > 0) {
+            externalItems.push({
+              productType: productNames[key] || key,
+              quantity: quantity
+            });
+          }
+        });
+        
+        return {
+          date: sale.date,
+          animalName: sale.animalName || 'לא צוין',
+          ownerName: sale.ownerName || 'לא צוין',
+          fileNumber: sale.fileNumber || 'אין',
+          items: externalItems
+        };
+      });
+    } catch (error) {
+      console.error('Error loading external units details:', error);
+      return [];
+    }
+  };
+
   const calculateBonus = (units) => {
     const baseAmount = netPerUnitForBonus * units;
     let bonusRate = 0;
@@ -789,8 +847,11 @@ const EnhancedFinancialDashboard = ({ salesHistory }) => {
             <div className={`${colors.bg.card} rounded-2xl shadow-lg p-6 ${colors.border.primary} border`}>
               <h2 className={`text-xl font-bold ${colors.text.primary} mb-4`}>🏥 External Sales</h2>
               <div className="space-y-3">
-                {calculatedMonths.filter(m => m.externalUnits > 0).slice(0, 6).map((month, idx) => (
-                  <div key={idx} className={`flex justify-between items-center p-3 ${colors.bg.tertiary} rounded-lg`}>
+                {calculatedMonths.filter(m => m.externalUnits > 0).slice(-6).reverse().map((month, idx) => (
+                  <div 
+                    key={idx} 
+                    className={`flex justify-between items-center p-3 ${colors.bg.tertiary} rounded-lg`}
+                  >
                     <div>
                       <div className={`font-semibold ${colors.text.primary}`}>{formatMonth(month.month)}</div>
                       <div className={`text-sm ${colors.text.secondary}`}>{month.externalUnits} units</div>
@@ -1050,6 +1111,7 @@ const EnhancedFinancialDashboard = ({ salesHistory }) => {
           </div>
         </div>
       )}
+
     </div>
   );
 };

@@ -225,6 +225,11 @@ const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
         ...(name === "location" ? {} : {}),
       };
 
+      // Auto-set donated to "Yes" if volume has a numeric value
+      if (name === "volume" && finalValue && !isNaN(parseFloat(finalValue)) && parseFloat(finalValue) > 0) {
+        newForm.donated = "Yes";
+      }
+
       // Save location and date to localStorage for convenience
       if (name === "location") {
         donorStorage.saveLastLocation(finalValue);
