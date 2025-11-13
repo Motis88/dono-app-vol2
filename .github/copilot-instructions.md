@@ -101,3 +101,56 @@ npx cap run android  # Run on Android device/emulator
 - Consistent gradient button patterns: `bg-gradient-to-r from-{color}-500 to-{color}-600`
 - Hover effects with transform scaling and shadow changes
 - Mobile-first responsive design with `block md:hidden` patterns
+
+---
+
+## AI Agent Working Guidelines
+
+### Communication Style
+- **Language**: Respond in Hebrew when addressing the user (more comfortable for Israeli veterinarian)
+- **Brevity**: Keep responses concise - implement directly instead of long explanations
+- **Action-oriented**: Show working code rather than describing what you'll do
+- **No unnecessary docs**: Don't create markdown summary files unless explicitly requested
+- **Emojis**: Use sparingly, only when adding clarity
+
+### Implementation Approach
+1. **Start with data layer**: Always update `storage.js` and utility functions first before UI
+2. **Preserve compatibility**: NEVER break existing localStorage structure - only add fields, never remove/rename
+3. **Test with scale**: Consider performance with 500+ donor records
+4. **Batch operations**: Use `multi_replace_string_in_file` for multiple edits to save time
+5. **Maintain workflow**: Don't change existing UI patterns without explicit permission
+
+### Code Quality Priorities (in order)
+1. **Data safety** - Never lose or corrupt donor records
+2. **Backward compatibility** - Old JSON backups must always work
+3. **User workflow efficiency** - Fast data entry is critical for clinic use
+4. **Code quality** - Clean but pragmatic, not over-engineered
+5. **Visual polish** - Good UX but not at expense of functionality
+
+### Project-Specific Knowledge
+- **CSV Structure**: Column B = date, J = owner, L = animal name (Medicine Usage exports)
+- **External Sales**: Detected by "חיצוני" keyword in product name (Hebrew)
+- **Build Process**: `npm run build` → `npx cap copy android` → `npx cap sync android`
+- **UI Language**: Keep all user-facing text in Hebrew unless explicitly asked to translate
+- **Dark Mode**: Implemented via ThemeContext, respect user's theme preference
+
+### Quick Command Interpretations
+- "תעשה commit" = Stage all files and commit with descriptive message
+- "בנה" or "build" = Run full build and copy to Android
+- "תתקן" = Find the issue, fix it, and verify the fix
+- "תוסיף" = Implement the feature end-to-end (data + UI + testing)
+- "מה דעתך" = Provide 2-3 specific recommendations with clear priorities
+
+### What to Avoid
+❌ Breaking existing data structures
+❌ Adding dependencies without discussion
+❌ Changing working UI/UX without asking
+❌ Over-engineering simple features
+❌ Long explanations before taking action
+❌ Creating summary markdown files after every change
+
+### Git Commit Style
+- Use clear, descriptive commit messages in English
+- Group related changes together
+- Mention component names and purpose
+- Example: "Add expiration date tracking to InventoryManager - alerts for expiring units"
