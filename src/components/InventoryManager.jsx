@@ -981,128 +981,161 @@ const InventoryManager = () => {
           </div>
         </div>
 
-        {/* Summary Cards */}
-
-        {/* Symmetric Summary Cards */}
-  <div className="grid grid-cols-3 gap-3 mb-6 w-full max-w-sm mx-auto">
-          {/* Total Units in Stock */}
-          <div className="bg-white/80 dark:bg-gray-800/80 border border-blue-300 dark:border-blue-700 rounded-xl shadow flex flex-col items-center justify-center text-center aspect-square min-w-[80px] min-h-[80px] p-0">
-            <div className="flex flex-col justify-center items-center h-full w-full">
-              <span className="text-xl md:text-2xl font-extrabold text-blue-600 dark:text-blue-300 mb-1">{getTotalStock()}</span>
-              <span className="text-xs md:text-sm font-semibold text-blue-800 dark:text-blue-300">Total Units in Stock</span>
+        {/* Compact Summary Bar */}
+        <div className={`${colors.bg.card} rounded-xl shadow-lg p-3 mb-6 border ${colors.border.primary}`}>
+          <div className="flex justify-around items-center text-center">
+            <div>
+              <div className="text-2xl font-bold text-blue-600 dark:text-blue-300">{getTotalStock()}</div>
+              <div className="text-xs text-gray-600 dark:text-gray-400">Total Units</div>
             </div>
-          </div>
-          {/* Low Stock Alerts */}
-          <div className="bg-white/80 dark:bg-gray-800/80 border border-red-300 dark:border-red-700 rounded-xl shadow flex flex-col items-center justify-center text-center aspect-square min-w-[80px] min-h-[80px] p-0">
-            <div className="flex flex-col justify-center items-center h-full w-full">
-              <span className="text-xl md:text-2xl font-extrabold text-red-600 dark:text-red-400 mb-1">{lowStockProducts.length}</span>
-              <span className="text-xs md:text-sm font-semibold text-red-800 dark:text-red-300">Low Stock Alerts</span>
+            <div className="h-8 w-px bg-gray-300 dark:bg-gray-600"></div>
+            <div>
+              <div className="text-2xl font-bold text-red-600 dark:text-red-400">{lowStockProducts.length}</div>
+              <div className="text-xs text-gray-600 dark:text-gray-400">Low Stock</div>
             </div>
-          </div>
-          {/* Usage Reports Imported */}
-          <div className="bg-white/80 dark:bg-gray-800/80 border border-emerald-300 dark:border-emerald-700 rounded-xl shadow flex flex-col items-center justify-center text-center aspect-square min-w-[80px] min-h-[80px] p-0">
-            <div className="flex flex-col justify-center items-center h-full w-full">
-              <span className="text-xl md:text-2xl font-extrabold text-emerald-600 dark:text-emerald-400 mb-1">{monthlySales.length}</span>
-              <span className="text-xs md:text-sm font-semibold text-emerald-800 dark:text-emerald-300">Usage Reports Imported</span>
+            <div className="h-8 w-px bg-gray-300 dark:bg-gray-600"></div>
+            <div>
+              <div className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{monthlySales.length}</div>
+              <div className="text-xs text-gray-600 dark:text-gray-400">Reports</div>
             </div>
           </div>
         </div>
 
-        {/* Inventory Cards - Separated by Species */}
-        <div className="space-y-8">
-          {/* Dog Products */}
-          <div>
-            <h4 className="text-lg font-bold mb-2 drop-shadow-lg text-white dark:text-white dark:drop-shadow-[0_2px_12px_rgba(0,0,0,0.95)]">🐶 Dog Blood Products</h4>
-            <div className="space-y-3">
-              {Object.keys(BLOOD_PRODUCTS)
-                .filter((productKey) => BLOOD_PRODUCTS[productKey].species === 'dog')
-                .map((productKey) => {
-                  const product = BLOOD_PRODUCTS[productKey];
-                  const stock = inventory[productKey] || { stock: 0, received: 0, used: 0, external: 0 };
-                  const displayStock = Math.max(0, stock.stock);
-                  const displayReceived = Math.max(0, stock.received);
-                  const displayUsed = Math.max(0, stock.used);
-                  const displayExternal = Math.max(0, stock.external || 0);
-                  const handleSetStock = () => {
-                    setSetValue(String(displayStock));
-                    setSetProductKey(productKey);
-                    setShowSetModal(true);
-                  };
-                  // Show warning if stock is low or negative
-                  const isLow = stock.stock < LOW_STOCK_THRESHOLD && stock.stock >= 0;
-                  const isNegative = stock.stock < 0;
-                  return (
-                    <div key={productKey} className="rounded-xl shadow-md bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2 flex flex-col md:flex-row md:items-center gap-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-bold text-indigo-700 dark:text-indigo-300 text-sm truncate flex-1">{product.code}</span>
+        {/* Inventory Table - All Products */}
+        <div className={`${colors.bg.card} rounded-xl shadow-lg overflow-hidden border ${colors.border.primary}`}>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead className="bg-gradient-to-r from-indigo-500 to-purple-600">
+                <tr>
+                  <th className="text-left p-3 text-white text-sm font-bold">Product</th>
+                  <th className="text-center p-3 text-white text-sm font-bold">Stock</th>
+                  <th className="text-center p-3 text-white text-sm font-bold">In</th>
+                  <th className="text-center p-3 text-white text-sm font-bold">Out</th>
+                  <th className="text-center p-3 text-white text-sm font-bold">External</th>
+                  <th className="text-center p-3 text-white text-sm font-bold">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {/* Dog Products */}
+                <tr className="bg-blue-50 dark:bg-blue-900/40">
+                  <td colSpan="6" className="p-2 text-sm font-bold text-gray-700 dark:text-blue-200">
+                    🐶 Dog Blood Products
+                  </td>
+                </tr>
+                {Object.keys(BLOOD_PRODUCTS)
+                  .filter((productKey) => BLOOD_PRODUCTS[productKey].species === 'dog')
+                  .map((productKey) => {
+                    const product = BLOOD_PRODUCTS[productKey];
+                    const stock = inventory[productKey] || { stock: 0, received: 0, used: 0, external: 0 };
+                    const displayStock = Math.max(0, stock.stock);
+                    const displayReceived = Math.max(0, stock.received);
+                    const displayUsed = Math.max(0, stock.used);
+                    const displayExternal = Math.max(0, stock.external || 0);
+                    const isLow = stock.stock < LOW_STOCK_THRESHOLD && stock.stock >= 0;
+                    const isNegative = stock.stock < 0;
+                    
+                    return (
+                      <tr key={productKey} className={`border-b ${colors.border.secondary} hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors ${isLow ? 'bg-yellow-50 dark:bg-yellow-900/30' : ''} ${isNegative ? 'bg-red-50 dark:bg-red-900/30' : ''}`}>
+                        <td className="p-3">
+                          <div className="font-semibold text-indigo-700 dark:text-indigo-300 text-sm">{product.code}</div>
+                          {(isLow || isNegative) && (
+                            <div className={`text-xs font-bold mt-1 ${isNegative ? 'text-red-600 dark:text-red-400' : 'text-yellow-700 dark:text-yellow-400'}`}>
+                              {isNegative ? '⚠️ Negative!' : '⚠️ Low'}
+                            </div>
+                          )}
+                        </td>
+                        <td className="text-center p-3">
+                          <div className={`text-lg font-bold ${isNegative ? 'text-red-600 dark:text-red-400' : 'text-gray-800 dark:text-gray-200'}`}>
+                            {displayStock}
+                          </div>
+                        </td>
+                        <td className="text-center p-3">
+                          <div className="text-emerald-600 dark:text-emerald-400 font-semibold">+{displayReceived}</div>
+                        </td>
+                        <td className="text-center p-3">
+                          <div className="text-rose-600 dark:text-rose-400 font-semibold">-{displayUsed}</div>
+                        </td>
+                        <td className="text-center p-3">
+                          <div className="text-blue-600 dark:text-blue-400 font-semibold">{displayExternal}</div>
+                        </td>
+                        <td className="text-center p-3">
                           <button
-                            onClick={handleSetStock}
-                            className="ml-2 px-2 py-0.5 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                            title={`Set stock for ${product.name_en}`}
-                          >SET</button>
-                        </div>
-                        {(isLow || isNegative) && (
-                          <div className={`mb-2 text-xs font-bold ${isNegative ? 'text-red-600 dark:text-red-400' : 'text-yellow-700 dark:text-yellow-300'}`}
-                            style={{letterSpacing: '0.5px'}}>
-                            {isNegative ? '⚠️ Negative Stock! Please update received units.' : '⚠️ Low Stock!'}
+                            onClick={() => {
+                              setSetValue(String(displayStock));
+                              setSetProductKey(productKey);
+                              setShowSetModal(true);
+                            }}
+                            className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg text-xs font-bold transition-all"
+                          >
+                            SET
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                
+                {/* Cat Products */}
+                <tr className="bg-orange-50 dark:bg-orange-900/40">
+                  <td colSpan="6" className="p-2 text-sm font-bold text-gray-700 dark:text-orange-200">
+                    🐱 Cat Blood Products
+                  </td>
+                </tr>
+                {Object.keys(BLOOD_PRODUCTS)
+                  .filter((productKey) => BLOOD_PRODUCTS[productKey].species === 'cat')
+                  .map((productKey) => {
+                    const product = BLOOD_PRODUCTS[productKey];
+                    const stock = inventory[productKey] || { stock: 0, received: 0, used: 0, external: 0 };
+                    const displayStock = Math.max(0, stock.stock);
+                    const displayReceived = Math.max(0, stock.received);
+                    const displayUsed = Math.max(0, stock.used);
+                    const displayExternal = Math.max(0, stock.external || 0);
+                    const isLow = stock.stock < LOW_STOCK_THRESHOLD && stock.stock >= 0;
+                    const isNegative = stock.stock < 0;
+                    
+                    return (
+                      <tr key={productKey} className={`border-b ${colors.border.secondary} hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors ${isLow ? 'bg-yellow-50 dark:bg-yellow-900/30' : ''} ${isNegative ? 'bg-red-50 dark:bg-red-900/30' : ''}`}>
+                        <td className="p-3">
+                          <div className="font-semibold text-indigo-700 dark:text-indigo-300 text-sm">{product.code}</div>
+                          {(isLow || isNegative) && (
+                            <div className={`text-xs font-bold mt-1 ${isNegative ? 'text-red-600 dark:text-red-400' : 'text-yellow-700 dark:text-yellow-400'}`}>
+                              {isNegative ? '⚠️ Negative!' : '⚠️ Low'}
+                            </div>
+                          )}
+                        </td>
+                        <td className="text-center p-3">
+                          <div className={`text-lg font-bold ${isNegative ? 'text-red-600 dark:text-red-400' : 'text-gray-800 dark:text-gray-200'}`}>
+                            {displayStock}
                           </div>
-                        )}
-                        <div className="grid grid-cols-4 gap-1 text-sm md:text-base">
-                          <div className="text-center">
-                            <div className="font-semibold text-gray-500 dark:text-gray-400 text-base md:text-lg">Stock</div>
-                            <div className="font-bold text-indigo-700 dark:text-indigo-300 text-lg md:text-xl">{displayStock}</div>
-                          </div>
-                          <div className="text-center">
-                            <div className="font-semibold text-emerald-600 dark:text-emerald-400 text-base md:text-lg">In</div>
-                            <div className="font-bold text-emerald-700 dark:text-emerald-300 text-lg md:text-xl">+{displayReceived}</div>
-                          </div>
-                          <div className="text-center">
-                            <div className="font-semibold text-rose-600 dark:text-rose-400 text-base md:text-lg">Out</div>
-                            <div className="font-bold text-rose-700 dark:text-rose-300 text-lg md:text-xl">-{displayUsed}</div>
-                          </div>
-                          <div className="text-center">
-                            <div className="font-semibold text-blue-600 dark:text-blue-400 text-base md:text-lg">External</div>
-                            <div className="font-bold text-blue-700 dark:text-blue-300 text-lg md:text-xl">{displayExternal}</div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
+                        </td>
+                        <td className="text-center p-3">
+                          <div className="text-emerald-600 dark:text-emerald-400 font-semibold">+{displayReceived}</div>
+                        </td>
+                        <td className="text-center p-3">
+                          <div className="text-rose-600 dark:text-rose-400 font-semibold">-{displayUsed}</div>
+                        </td>
+                        <td className="text-center p-3">
+                          <div className="text-blue-600 dark:text-blue-400 font-semibold">{displayExternal}</div>
+                        </td>
+                        <td className="text-center p-3">
+                          <button
+                            onClick={() => {
+                              setSetValue(String(displayStock));
+                              setSetProductKey(productKey);
+                              setShowSetModal(true);
+                            }}
+                            className="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-lg text-xs font-bold transition-all"
+                          >
+                            SET
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })}
+              </tbody>
+            </table>
           </div>
-          {/* Cat Products */}
-          <div>
-            <h4 className="text-lg font-bold mb-2 mt-4 drop-shadow-lg text-white dark:text-white dark:drop-shadow-[0_2px_8px_rgba(0,0,0,0.7)]">🐱 Cat Blood Products</h4>
-            <div className="space-y-3">
-              {Object.keys(BLOOD_PRODUCTS)
-                .filter((productKey) => BLOOD_PRODUCTS[productKey].species === 'cat')
-                .map((productKey) => {
-                  const product = BLOOD_PRODUCTS[productKey];
-                  const stock = inventory[productKey] || { stock: 0, received: 0, used: 0, external: 0 };
-                  const displayStock = Math.max(0, stock.stock);
-                  const displayReceived = Math.max(0, stock.received);
-                  const displayUsed = Math.max(0, stock.used);
-                  const displayExternal = Math.max(0, stock.external || 0);
-                  const handleSetStock = () => {
-                    setSetValue(String(displayStock));
-                    setSetProductKey(productKey);
-                    setShowSetModal(true);
-                  };
-                  // Show warning if stock is low or negative
-                  const isLow = stock.stock < LOW_STOCK_THRESHOLD && stock.stock >= 0;
-                  const isNegative = stock.stock < 0;
-                  return (
-                    <div key={productKey} className="rounded-xl shadow-md bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-2 flex flex-col md:flex-row md:items-center gap-2">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="font-bold text-indigo-700 dark:text-indigo-300 text-sm truncate flex-1">{product.code}</span>
-                          <button
-                            onClick={handleSetStock}
-                            className="ml-2 px-2 py-0.5 bg-blue-500 text-white text-xs rounded hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-400"
-                            title={`Set stock for ${product.name_en}`}
-                          >SET</button>
+        </div>
+
       {/* SET Modal (global) */}
       {showSetModal && setProductKey && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={() => setShowSetModal(false)}>
@@ -1112,7 +1145,7 @@ const InventoryManager = () => {
               type="number"
               inputMode="numeric"
               pattern="[0-9]*"
-              className="w-full border-2 border-indigo-400 rounded-lg p-3 text-lg mb-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100"
+              className="w-full border-2 border-indigo-400 rounded-lg p-3 text-lg mb-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 dark:bg-gray-800"
               value={setValue}
               onChange={e => setSetValue(e.target.value.replace(/[^0-9]/g, ''))}
               autoFocus
@@ -1132,37 +1165,9 @@ const InventoryManager = () => {
           </div>
         </div>
       )}
-                        </div>
-                        {(isLow || isNegative) && (
-                          <div className={`mb-2 text-xs font-bold ${isNegative ? 'text-red-600 dark:text-red-400' : 'text-yellow-700 dark:text-yellow-300'}`}
-                            style={{letterSpacing: '0.5px'}}>
-                            {isNegative ? '⚠️ Negative Stock! Please update received units.' : '⚠️ Low Stock!'}
-                          </div>
-                        )}
-                        <div className="grid grid-cols-4 gap-1 text-sm md:text-base">
-                          <div className="text-center">
-                            <div className="font-semibold text-gray-500 dark:text-gray-400 text-base md:text-lg">Stock</div>
-                            <div className="font-bold text-indigo-700 dark:text-indigo-300 text-lg md:text-xl">{displayStock}</div>
-                          </div>
-                          <div className="text-center">
-                            <div className="font-semibold text-emerald-600 dark:text-emerald-400 text-base md:text-lg">In</div>
-                            <div className="font-bold text-emerald-700 dark:text-emerald-300 text-lg md:text-xl">+{displayReceived}</div>
-                          </div>
-                          <div className="text-center">
-                            <div className="font-semibold text-rose-600 dark:text-rose-400 text-base md:text-lg">Out</div>
-                            <div className="font-bold text-rose-700 dark:text-rose-300 text-lg md:text-xl">-{displayUsed}</div>
-                          </div>
-                          <div className="text-center">
-                            <div className="font-semibold text-blue-600 dark:text-blue-400 text-base md:text-lg">External</div>
-                            <div className="font-bold text-blue-700 dark:text-blue-300 text-lg md:text-xl">{displayExternal}</div>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-            </div>
-          </div>
+
+        {/* Inventory Cards - Separated by Species */}
+        <div className="space-y-8 hidden">
         </div>
 
         {/* External Sales at Bottom */}

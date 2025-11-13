@@ -27,7 +27,6 @@ const FinancialTracker = () => {
   const [showImport, setShowImport] = useState(false);
   const [importing, setImporting] = useState(false);
   const [expandedMonths, setExpandedMonths] = useState({});
-  const [activeTab, setActiveTab] = useState('dashboard'); // 'dashboard' or 'import'
 
   useEffect(() => {
     loadFinancialData();
@@ -312,9 +311,6 @@ const FinancialTracker = () => {
     }));
   };
 
-  const totalRevenue = Object.values(financialData).reduce((sum, p) => sum + (p?.revenueIncl || 0), 0);
-  const totalUnits = Object.values(financialData).reduce((sum, p) => sum + (p?.quantity || 0), 0);
-
   // Export financial report
   const exportFinancialReport = async () => {
     try {
@@ -447,37 +443,6 @@ const FinancialTracker = () => {
 
   return (
     <div className={`min-h-screen ${colors.bg.primary} p-2 md:p-4`}>
-      {/* Tab Navigation */}
-      <div className={`${colors.bg.card} rounded-t-2xl shadow-lg p-4 ${colors.border.primary} border-b`}>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setActiveTab('dashboard')}
-            className={`px-4 py-2 rounded-lg font-semibold transition-all duration-200 ${
-              activeTab === 'dashboard'
-                ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md'
-                : `${colors.bg.secondary} ${colors.text.secondary} hover:${colors.bg.tertiary}`
-            }`}
-          >
-            📊 Dashboard
-          </button>
-          <button
-            onClick={() => setActiveTab('import')}
-            className={`px-4 py-2 rounded-lg font-semibold transition-all duration-200 ${
-              activeTab === 'import'
-                ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-md'
-                : `${colors.bg.secondary} ${colors.text.secondary} hover:${colors.bg.tertiary}`
-            }`}
-          >
-            📥 Import/Export
-          </button>
-        </div>
-      </div>
-
-      {/* Tab Content */}
-      {activeTab === 'dashboard' ? (
-        <EnhancedFinancialDashboard salesHistory={monthlySales} />
-      ) : (
-        <div className="w-full mx-auto p-2 md:p-4 space-y-6">
       {/* Import Modal */}
       {showImport && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowImport(false)}>
@@ -499,262 +464,47 @@ const FinancialTracker = () => {
         </div>
       )}
 
-      {/* Header */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-        <div>
-          <h2 className={`text-3xl md:text-4xl font-extrabold ${colors.text.primary} mb-2`}>💰 Financial Tracker</h2>
-          <div className="flex gap-4 text-sm">
-            <div className={`${colors.text.secondary}`}>
-              <span className="font-semibold">Total Revenue:</span> ₪{(totalRevenue/1000).toFixed(1)}k
-            </div>
-            <div className={`${colors.text.secondary}`}>
-              <span className="font-semibold">Total Units:</span> {totalUnits.toFixed(1)}
-            </div>
+      {/* Header with Action Buttons */}
+      <div className={`${colors.bg.card} rounded-2xl shadow-lg p-4 mb-6`}>
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+          <div>
+            <h2 className={`text-3xl md:text-4xl font-extrabold ${colors.text.primary} mb-2`}>💰 Financial Tracker</h2>
+            {monthlySales.length > 0 && (
+              <div className="flex gap-4 text-sm">
+                <div className={`${colors.text.secondary}`}>
+                  <span className="font-semibold">Reports:</span> {monthlySales.length}
+                </div>
+              </div>
+            )}
           </div>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setShowImport(true)}
-            className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-4 py-3 rounded-xl font-bold hover:from-blue-600 hover:to-indigo-700 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center gap-2"
-          >
-            <span className="text-xl">📥</span>
-            <span className="text-sm">Import</span>
-          </button>
-          <button
-            onClick={exportFinancialReport}
-            className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-3 rounded-xl font-bold hover:from-green-600 hover:to-emerald-700 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center gap-2"
-          >
-            <span className="text-xl">📄</span>
-            <span className="text-sm">Export Report</span>
-          </button>
-          <button
-            onClick={resetAllData}
-            className="bg-gradient-to-r from-red-500 to-rose-600 text-white px-4 py-3 rounded-xl font-bold hover:from-red-600 hover:to-rose-700 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center gap-2"
-          >
-            <span className="text-xl">🗑️</span>
-            <span className="text-sm">Reset</span>
-          </button>
+          <div className="flex gap-2 flex-wrap">
+            <button
+              onClick={() => setShowImport(true)}
+              className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-4 py-2 rounded-xl font-bold hover:from-blue-600 hover:to-indigo-700 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center gap-2"
+            >
+              <span>📥</span>
+              <span className="text-sm">Import CSV</span>
+            </button>
+            <button
+              onClick={exportFinancialReport}
+              className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-2 rounded-xl font-bold hover:from-green-600 hover:to-emerald-700 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center gap-2"
+            >
+              <span>📄</span>
+              <span className="text-sm">Export</span>
+            </button>
+            <button
+              onClick={resetAllData}
+              className="bg-gradient-to-r from-red-500 to-rose-600 text-white px-4 py-2 rounded-xl font-bold hover:from-red-600 hover:to-rose-700 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center gap-2"
+            >
+              <span>🗑️</span>
+              <span className="text-sm">Reset</span>
+            </button>
+          </div>
         </div>
       </div>
 
-      {/* Quick Stats Cards */}
-      {monthlySales.length > 0 && (
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mb-6">
-          {/* Total Revenue */}
-          <div className="bg-gradient-to-br from-blue-900/70 to-blue-900/90 rounded-xl p-4 border-2 border-blue-400 shadow-md text-center overflow-hidden">
-            <div className="text-xs text-blue-300 font-bold mb-1 text-center truncate">Total Revenue</div>
-            <div className="text-2xl md:text-3xl font-extrabold text-blue-200 text-center truncate overflow-hidden text-ellipsis">
-              ₪{(totalRevenue / 1000).toFixed(1)}k
-            </div>
-            <div className="text-xs text-blue-400 mt-1 text-center truncate overflow-hidden text-ellipsis">
-              Avg: ₪{(totalRevenue / monthlySales.length / 1000).toFixed(1)}k/mo
-            </div>
-          </div>
-          {/* Total Units */}
-          <div className="bg-gradient-to-br from-purple-900/70 to-purple-900/90 rounded-xl p-4 border-2 border-purple-400 shadow-md text-center overflow-hidden">
-            <div className="text-xs text-purple-300 font-bold mb-1 text-center truncate">Total Units</div>
-            <div className="text-2xl md:text-3xl font-extrabold text-purple-200 text-center truncate overflow-hidden text-ellipsis">
-              {totalUnits.toFixed(0)}
-            </div>
-            <div className="text-xs text-purple-400 mt-1 text-center truncate overflow-hidden text-ellipsis">
-              Avg: {(totalUnits / monthlySales.length).toFixed(0)}/mo
-            </div>
-          </div>
-          {/* Best Month */}
-          {(() => {
-            const monthEntries = monthlySales.map(sale => {
-              const monthKey = sale.date ? sale.date.substring(0,7) : 'unknown';
-              const revenue = Object.values(sale.products).reduce((sum,p)=> sum + (p?.revenueIncl||0),0);
-              return { monthKey, revenue };
-            });
-            const byMonth = {};
-            monthEntries.forEach(e => {
-              if (!byMonth[e.monthKey]) byMonth[e.monthKey] = 0;
-              byMonth[e.monthKey] += e.revenue;
-            });
-            const best = Object.entries(byMonth).reduce((max, curr) => curr[1] > max[1] ? curr : max, ['', 0]);
-            const bestMonthKey = best[0];
-            const bestRevenue = best[1];
-            const label = (() => {
-              if (!bestMonthKey) return '-';
-              const m = bestMonthKey.split('-')[1];
-              const map = { '01':'Jan','02':'Feb','03':'Mar','04':'Apr','05':'May','06':'Jun','07':'Jul','08':'Aug','09':'Sep','10':'Oct','11':'Nov','12':'Dec'};
-              return map[m] || bestMonthKey;
-            })();
-            return (
-              <div className="bg-gradient-to-br from-green-900/70 to-green-900/90 rounded-xl p-4 border-2 border-green-400 shadow-md text-center overflow-hidden">
-                <div className="text-xs text-green-300 font-bold mb-1 text-center truncate">Best Month</div>
-                <div className="text-2xl md:text-3xl font-extrabold text-green-200 text-center truncate overflow-hidden text-ellipsis">₪{(bestRevenue/1000).toFixed(1)}k</div>
-                <div className="text-xs text-green-400 mt-1 text-center truncate overflow-hidden text-ellipsis">{label}</div>
-              </div>
-            );
-          })()}
-          {/* Avg Price/Unit */}
-          <div className="bg-gradient-to-br from-amber-900/70 to-amber-900/90 rounded-xl p-4 border-2 border-amber-400 shadow-md text-center overflow-hidden">
-            <div className="text-xs text-amber-300 font-bold mb-1 text-center truncate">Avg Price/Unit</div>
-            <div className="text-2xl md:text-3xl font-extrabold text-amber-200 text-center truncate overflow-hidden text-ellipsis">
-              ₪{totalUnits > 0 ? (totalRevenue / totalUnits).toFixed(0) : '0'}
-            </div>
-            <div className="text-xs text-amber-400 mt-1 text-center truncate overflow-hidden text-ellipsis">
-              Per blood unit
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* Monthly Sales Breakdown - Each import shown separately */}
-      {monthlySales.length === 0 ? (
-        <div className="text-center py-16 bg-gradient-to-br from-gray-50 to-gray-100 dark:from-gray-800 dark:to-gray-900 rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-700">
-          <div className="text-6xl mb-4">📊</div>
-          <p className="text-xl font-bold text-gray-600 dark:text-gray-400 mb-2">No sales data yet</p>
-          <p className="text-sm text-gray-500 dark:text-gray-500">Click Import to add your first sales report</p>
-        </div>
-      ) : (
-        <div className="space-y-6">
-          {monthlySales
-            .slice() // Create copy to avoid mutating original
-            .sort((a, b) => {
-              // Sort chronologically (newest first) by monthKey or date
-              const monthA = a.monthKey || (a.date ? a.date.substring(0,7) : '0000-00');
-              const monthB = b.monthKey || (b.date ? b.date.substring(0,7) : '0000-00');
-              return monthB.localeCompare(monthA); // Descending (newest first)
-            })
-            .map((sale, saleIndex) => {
-            const saleTotal = Object.values(sale.products).reduce((sum, p) => sum + (p?.revenueIncl || 0), 0);
-            const saleQuantity = Object.values(sale.products).reduce((sum, p) => sum + (p?.quantity || 0), 0);
-
-            // Reliable month labeling using explicit monthKey (YYYY-MM)
-            const MONTH_ABBR = {
-              '01': 'Jan', '02': 'Feb', '03': 'Mar', '04': 'Apr', '05': 'May', '06': 'Jun',
-              '07': 'Jul', '08': 'Aug', '09': 'Sep', '10': 'Oct', '11': 'Nov', '12': 'Dec'
-            };
-            const rawMonthKey = sale.monthKey || (sale.date ? sale.date.substring(0,7) : null);
-            let monthLabel = 'Unknown';
-            if (rawMonthKey) {
-              const [y,m] = rawMonthKey.split('-');
-              const short = MONTH_ABBR[m] || m;
-              monthLabel = `${short} '${y.slice(-2)}`; // e.g. Jul '25
-            }
-
-            // Calculate external sales for this month
-            let externalQuantity = 0;
-            let externalRevenue = 0;
-            Object.keys(sale.products).forEach(productKey => {
-              const p = sale.products[productKey];
-              const product = BLOOD_PRODUCTS[productKey];
-              if (p && p.external && p.external > 0) {
-                externalQuantity += p.external;
-                if (p.externalRevenue) {
-                  externalRevenue += p.externalRevenue;
-                } else if (p.revenueIncl && p.quantity) {
-                  externalRevenue += (p.revenueIncl / p.quantity) * p.external;
-                }
-              }
-            });
-            const isExpanded = expandedMonths[saleIndex];
-            
-            return (
-              <div key={saleIndex} className="relative bg-gradient-to-br from-white to-gray-50 dark:from-gray-800 dark:to-gray-900 rounded-2xl border-2 border-gray-200 dark:border-gray-700 shadow-lg overflow-hidden">
-                {/* REMOVE button in top-right */}
-                <button
-                  onClick={() => deleteImportHistory(saleIndex)}
-                  className="absolute top-2 right-2 bg-red-500 hover:bg-red-600 text-white px-2 py-1 rounded-lg text-xs font-bold transition-all shadow-md z-10"
-                  title="Remove from history (data will remain)"
-                >
-                  REMOVE
-                </button>
-                {/* Month Header - Clickable to expand/collapse */}
-                <div 
-                  onClick={() => toggleMonth(saleIndex)}
-                  className="bg-gradient-to-r from-blue-500 to-indigo-600 p-3 md:p-4 flex flex-col md:flex-row md:items-center justify-between gap-3 cursor-pointer hover:from-blue-600 hover:to-indigo-700 transition-all"
-                >
-                  <div className="flex items-center gap-3 flex-1 min-w-0">
-                    <div className="text-2xl md:text-3xl">{isExpanded ? '📂' : '📁'}</div>
-                    <div className="flex-1 min-w-0">
-                      <h3 className="text-base md:text-lg font-bold text-white truncate">{monthLabel}</h3>
-                      <p className="text-[10px] md:text-xs text-blue-100 truncate">RAW: {rawMonthKey} • DATE: {new Date(sale.date).toLocaleDateString('en-US')}</p>
-                    </div>
-                  </div>
-                  <div className="flex items-center gap-2 md:gap-3 flex-shrink-0">
-                    <div className="text-center">
-                      <div className="text-[9px] md:text-[10px] text-blue-100">REVENUE</div>
-                      <div className="text-sm md:text-lg font-bold text-white">₪{(saleTotal/1000).toFixed(1)}k</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-[9px] md:text-[10px] text-blue-100">UNITS</div>
-                      <div className="text-sm md:text-lg font-bold text-white">{saleQuantity.toFixed(1)}</div>
-                    </div>
-                    <div className="text-center">
-                      <div className="text-[9px] md:text-[10px] text-blue-100">מוצרי דם</div>
-                      <div className="text-sm md:text-lg font-bold text-white">{Object.keys(sale.products).filter(p => BLOOD_PRODUCTS[p]).length}</div>
-                    </div>
-                    <div className="text-white text-xl">{isExpanded ? '▼' : '▶'}</div>
-                  </div>
-                </div>
-                {/* Collapsible Content */}
-                {isExpanded && (
-                  <>
-                    {/* External Sales Summary */}
-                    {externalQuantity > 0 && (
-                      <div className="bg-gradient-to-r from-purple-100 to-pink-100 dark:from-purple-900/30 dark:to-pink-900/30 p-3 border-b border-purple-200 dark:border-purple-700">
-                        <div className="flex justify-between items-center">
-                          <div className="flex items-center gap-2">
-                            <span className="text-lg">🏥</span>
-                            <span className="font-bold text-purple-800 dark:text-purple-200">External Sales</span>
-                          </div>
-                          <div className="flex gap-4 text-sm">
-                            <div>
-                              <span className="text-purple-600 dark:text-purple-300">Units:</span>
-                              <span className="font-bold ml-1 text-purple-800 dark:text-purple-200">{externalQuantity}</span>
-                            </div>
-                            {externalRevenue > 0 && (
-                              <div>
-                                <span className="text-purple-600 dark:text-purple-300">Revenue:</span>
-                                <span className="font-bold ml-1 text-purple-800 dark:text-purple-200">₪{(externalRevenue/1000).toFixed(1)}k</span>
-                              </div>
-                            )}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-                    
-                    {/* Products Table */}
-                    <div className="p-3 md:p-4 overflow-x-auto">
-                      <table className="w-full text-sm">
-                        <thead>
-                          <tr className="border-b-2 border-gray-300 dark:border-gray-600">
-                            <th className="text-left py-2 px-2 text-gray-700 dark:text-gray-300 font-semibold">Product</th>
-                            <th className="text-right py-2 px-2 text-gray-700 dark:text-gray-300 font-semibold">Qty</th>
-                            <th className="text-right py-2 px-2 text-gray-700 dark:text-gray-300 font-semibold">Revenue</th>
-                            <th className="text-right py-2 px-2 text-gray-700 dark:text-gray-300 font-semibold">Avg Price</th>
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {Object.keys(sale.products).map(productKey => {
-                            const p = sale.products[productKey];
-                            const product = BLOOD_PRODUCTS[productKey];
-                            const avgPrice = p.quantity > 0 ? p.revenueIncl / p.quantity : 0;
-                            return (
-                              <tr key={productKey} className="border-b border-gray-200 dark:border-gray-700">
-                                <td className="py-2 px-2 font-medium text-gray-800 dark:text-gray-200">{product?.name_en || productKey}</td>
-                                <td className="text-right py-2 px-2 text-gray-700 dark:text-gray-300">{p.quantity?.toFixed(1) || '0'}</td>
-                                <td className="text-right py-2 px-2 text-gray-700 dark:text-gray-300">₪{(p.revenueIncl/1000)?.toFixed(2) || '0'}k</td>
-                                <td className="text-right py-2 px-2 text-gray-700 dark:text-gray-300">₪{avgPrice?.toFixed(0) || '0'}</td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                    </div>
-                  </>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-        </div>
-      )}
+      {/* Dashboard Component */}
+      <EnhancedFinancialDashboard salesHistory={monthlySales} />
     </div>
   );
 };
