@@ -1054,8 +1054,7 @@ const InventoryManager = () => {
                     return (
                       <tr key={productKey} className={`border-b ${colors.border.secondary} hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors ${isLow ? 'bg-yellow-50 dark:bg-yellow-900/30' : ''} ${isNegative ? 'bg-red-50 dark:bg-red-900/30' : ''}`}>
                         <td className="p-3">
-                          <div className="font-semibold text-sm text-gray-900 dark:text-gray-100">{product.code}</div>
-                          <div className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">{product.name_en}</div>
+                          <div className="font-semibold text-sm text-gray-900 dark:text-gray-100">{product.name_en}</div>
                           {(isLow || isNegative) && (
                             <div className={`text-xs font-bold mt-1 ${isNegative ? 'text-red-600 dark:text-red-400' : 'text-yellow-700 dark:text-yellow-400'}`}>
                               {isNegative ? '⚠️ Negative!' : '⚠️ Low'}
@@ -1125,8 +1124,7 @@ const InventoryManager = () => {
                     return (
                       <tr key={productKey} className={`border-b ${colors.border.secondary} hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors ${isLow ? 'bg-yellow-50 dark:bg-yellow-900/30' : ''} ${isNegative ? 'bg-red-50 dark:bg-red-900/30' : ''}`}>
                         <td className="p-3">
-                          <div className="font-semibold text-sm text-gray-900 dark:text-gray-100">{product.code}</div>
-                          <div className="text-xs text-gray-600 dark:text-gray-400 mt-0.5">{product.name_en}</div>
+                          <div className="font-semibold text-sm text-gray-900 dark:text-gray-100">{product.name_en}</div>
                           {(isLow || isNegative) && (
                             <div className={`text-xs font-bold mt-1 ${isNegative ? 'text-red-600 dark:text-red-400' : 'text-yellow-700 dark:text-yellow-400'}`}>
                               {isNegative ? '⚠️ Negative!' : '⚠️ Low'}
