@@ -7,10 +7,9 @@
  */
 // Create CSS rules for RTL support
 const css = `
-/* COPILOT RTL PATCH */
 .rendered-markdown > *:not(div) {
   direction: rtl !important;
-  font-family: vazirmatn !important;
+  font-family: 'Segoe UI', sans-serif !important;
   font-size: 17px !important;
 }`;
 // Create style element and add CSS
