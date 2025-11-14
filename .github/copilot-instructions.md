@@ -154,3 +154,161 @@ npx cap run android  # Run on Android device/emulator
 - Group related changes together
 - Mention component names and purpose
 - Example: "Add expiration date tracking to InventoryManager - alerts for expiring units"
+
+---
+
+## Performance & Optimization Guidelines
+
+### Performance Considerations
+- **localStorage limits**: Keep donor records under 5MB total (browser limit ~10MB)
+- **Table rendering**: Use virtualization if donor count exceeds 500 rows
+- **Image optimization**: Compress profile photos before storage
+- **Lazy loading**: Already implemented for Dashboard/Financial components - maintain pattern
+- **Mobile performance**: Test scroll performance on Android devices with 1000+ records
+
+---
+
+## Testing & Validation Protocols
+
+### Testing Checklist Before Commits
+1. **Visual Testing**: Always check both light AND dark mode
+2. **Data Integrity**: Run with real-scale data (300+ donor records)
+3. **Mobile Testing**: Test on actual Android device, not just browser dev tools
+4. **Edge Cases**: 
+   - Empty states (no donors, no inventory)
+   - Negative stock values
+   - Hebrew text overflow in mobile view
+   - Very long animal names (20+ characters)
+5. **localStorage**: Verify import/export works after schema changes
+
+---
+
+## Common Pitfalls & Solutions
+
+### Known Issues & Fixes
+- **WebView cache**: Always `npx cap sync` after builds, not just `copy`
+- **Date parsing**: Use `normalizeDate()` from donorUtils - Hebrew dates can break
+- **Hebrew sorting**: Use `localeCompare('he')` for animal name sorting
+- **Negative inventory**: Display as 0 but show warning - never hide the row
+- **CSV column shifts**: Medicine Usage exports change column order - always validate Column B/J/L
+
+---
+
+## Data Schema Documentation
+
+### Core Data Structures
+
+**Donor Record:**
+```javascript
+{
+  id: "uuid-or-heuristic",
+  date: "YYYY-MM-DD",
+  location: "normalized-hebrew",
+  animalName: "string",
+  animalType: "dog|cat",
+  ownerName?: "string",
+  ownerPhone?: "string",
+  bloodType?: "string",
+  lastDonation?: "YYYY-MM-DD",
+  notes?: "string"
+}
+```
+
+**Inventory Record (per product):**
+```javascript
+{
+  stock: number,
+  received: number,      // This month
+  used: number,         // This month  
+  external: number      // This month
+}
+```
+
+**localStorage Keys:**
+- `donors` - Main donor array
+- `active_location` - Current location filter
+- `removed_highlights` - Array of donor IDs manually unmarked
+- `blood_inventory` - Current month inventory state
+- `inventory_last_archive` - "YYYY-MM" string for monthly rollover
+
+---
+
+## UI/UX Patterns & Standards
+
+### Consistent Design Patterns
+
+**Colors:**
+- Primary actions: `bg-gradient-to-r from-blue-500 to-blue-600`
+- Danger: `from-red-500 to-red-600`
+- Success: `from-green-500 to-green-600`
+- Warning: `yellow-50 dark:yellow-900/30` backgrounds
+- Always provide `dark:` variants
+
+**Buttons:**
+- Standard: `px-4 py-2 rounded-lg font-bold shadow-lg hover:shadow-xl transform hover:scale-[1.02]`
+- Compact: `px-3 py-1 rounded-lg text-xs`
+- Icon-only: 40×40px minimum touch target
+
+**Modals:**
+- Backdrop: `bg-black/40`
+- Container: `bg-white dark:bg-gray-900 rounded-2xl shadow-xl p-6`
+- Always `onClick={e => e.stopPropagation()}` on content
+
+**Tables:**
+- Headers: `bg-gradient-to-r from-indigo-500 to-purple-600 text-white`
+- Hover: `hover:bg-gray-50 dark:hover:bg-gray-700/30`
+- Low stock: `bg-yellow-50 dark:bg-yellow-900/30`
+- Negative: `bg-red-50 dark:bg-red-900/30`
+
+---
+
+## Deployment & Build Process
+
+### Production Build Steps
+1. `npm run build` - Vite production build
+2. `npx cap sync android` - Copy assets + update plugins
+3. Android Studio → Clean Project → Rebuild Project
+4. Test on device with fresh install (clear data)
+5. Increment `versionCode` in `android/app/build.gradle` for updates
+
+### Version Numbering
+- Major: Breaking data structure changes (requires migration)
+- Minor: New features, UI changes
+- Patch: Bug fixes only
+- Current: `versionCode 2`, `versionName "1.1"`
+
+---
+
+## Hebrew/RTL Specific Rules
+
+### Hebrew Text Handling
+- **Never use CSS `text-align: right`** - use Flexbox `justify-end` instead
+- **Date formatting**: Keep ISO (YYYY-MM-DD) in storage, display Hebrew format in UI
+- **Number formatting**: Use English numerals (0-9) not Hebrew numerals
+- **Location names**: Store normalized Hebrew, display as-is
+- **Animal names**: Allow mixed Hebrew/English, sort by `localeCompare('he')`
+
+---
+
+## Security & Privacy Notes
+
+### Data Privacy (Single-User System)
+- No cloud sync = no backend security needed
+- localStorage is NOT encrypted - inform user if needed
+- Owner phone numbers stored in plain text
+- Export JSON contains all sensitive data - handle carefully
+- No analytics, no tracking, no telemetry
+
+---
+
+## Future Feature Roadmap
+
+### Potential Enhancements (Don't implement without approval)
+- Blood type compatibility checker
+- Push notifications for re-donation dates
+- PDF report generation for clinic records
+- Photo attachments for donors
+- Backup reminder system
+- Export to Excel with formatting
+- Search/filter by blood type
+- Donor health history tracking
