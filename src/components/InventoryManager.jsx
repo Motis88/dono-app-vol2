@@ -1171,32 +1171,15 @@ const InventoryManager = () => {
         </div>
 
         {/* External Sales at Bottom */}
-        {Object.keys(externalSummary).length > 0 && (
-          <div className="bg-gradient-to-r from-blue-50 to-cyan-50 dark:from-blue-900/20 dark:to-cyan-900/20 border-2 border-blue-400 dark:border-blue-600 rounded-2xl p-6 mt-8 shadow-lg">
-            <div className="flex items-center gap-3 mb-4">
-              <div className="text-3xl">🏥</div>
-              <h3 className="text-xl md:text-2xl font-bold text-blue-800 dark:text-blue-200">External Sales - Current Month</h3>
-            </div>
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 space-y-2">
-              {Object.keys(externalSummary).map(productKey => {
-                const data = externalSummary[productKey];
-                return (
-                  <div key={productKey} className="rounded-lg bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700 overflow-hidden">
-                    {/* Centered Product header */}
-                    <div className="px-3 py-2 border-b border-blue-200 dark:border-blue-700 text-center">
-                      <span className="text-[10px] text-blue-700 dark:text-blue-300 font-semibold whitespace-nowrap">
-                        {BLOOD_PRODUCTS[productKey].code}
-                      </span>
-                    </div>
-                    {/* Stats */}
-                    <div className="px-3 py-2 text-center">
-                      <div className="text-[10px] text-blue-600 dark:text-blue-400 font-semibold">Units</div>
-                      <div className="text-base font-extrabold text-blue-800 dark:text-blue-200">{data.units.toFixed(1)}</div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
+        {totalExternalUnits > 0 && (
+          <div className="mt-6">
+            <button
+              onClick={() => setShowExternalDetailsModal(true)}
+              className="w-full bg-gradient-to-r from-blue-500 to-cyan-600 hover:from-blue-600 hover:to-cyan-700 text-white px-4 py-3 rounded-xl font-bold shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all duration-200 flex items-center justify-center gap-2"
+            >
+              <span className="text-2xl">🏥</span>
+              <span>View External Sales Details ({totalExternalUnits.toFixed(1)} units this month)</span>
+            </button>
           </div>
         )}
 
