@@ -158,8 +158,8 @@ const ManualDonorList = ({ onEdit, onNewDonation }) => {
     <div className={`min-h-screen ${colors.bg.primary} p-4 sm:p-6`}>
   <div className="max-w-6xl mx-auto">
         <div className="text-center mb-8">
-          <h1 className={`text-2xl font-bold ${colors.text.primary} mb-3`}>
-            Private Owners
+          <h1 className={`text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3`}>
+            👥 Private Owners
           </h1>
           <div className={`w-24 h-1 bg-gradient-to-r from-blue-400 to-purple-400 mx-auto rounded-full ${colors.isDarkMode ? 'opacity-80' : ''}`}></div>
         </div>
