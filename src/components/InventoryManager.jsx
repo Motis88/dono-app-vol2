@@ -933,7 +933,7 @@ const InventoryManager = () => {
         <div className="flex flex-col gap-4 mb-8">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-              <h2 className="text-4xl font-extrabold mb-2 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
+              <h2 className="text-2xl font-bold mb-2 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 bg-clip-text text-transparent">
                 📦 Blood Inventory Manager
               </h2>
               <p className={`text-sm ${colors.text.secondary}`}>Import daily usage reports • Update stock manually</p>

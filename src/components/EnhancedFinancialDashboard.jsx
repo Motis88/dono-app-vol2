@@ -36,6 +36,9 @@ const EnhancedFinancialDashboard = ({ salesHistory }) => {
   
   // UI state for manual entry
   const [showManualEntry, setShowManualEntry] = useState(false);
+  // UI state for collapsible sections
+  const [showCostParams, setShowCostParams] = useState(false);
+  const [showBonusCalc, setShowBonusCalc] = useState(false);
 
   useEffect(() => {
     loadSettings();
@@ -689,32 +692,38 @@ const EnhancedFinancialDashboard = ({ salesHistory }) => {
       <div className="max-w-7xl mx-auto space-y-6">
         {/* Header */}
         <div className={`${colors.bg.card} rounded-2xl shadow-lg p-6 md:p-8 ${colors.border.primary} border`}>
-          <h1 className="text-3xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
+          <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
             💰 Financial Dashboard
           </h1>
           <p className={`${colors.text.secondary}`}>Comprehensive financial tracking and bonus calculator</p>
         </div>
 
-        {/* Cost Parameters */}
-        <div className={`${colors.bg.card} rounded-2xl shadow-lg p-6 md:p-8 ${colors.border.primary} border`}>
-          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
-            <h2 className={`text-2xl font-bold ${colors.text.primary}`}>💰 Cost Parameters</h2>
-            <div className="flex gap-2 flex-wrap">
-              <button
-                onClick={() => setShowManualEntry(!showManualEntry)}
-                className="flex-1 md:flex-none bg-gradient-to-r from-purple-500 to-purple-600 text-white px-4 py-2 rounded-lg font-semibold hover:from-purple-600 hover:to-purple-700 shadow-md transition-all duration-200 text-center"
-              >
-                ✏️ Manual Data
-              </button>
-              <button
-                onClick={saveSettings}
-                className="flex-1 md:flex-none bg-gradient-to-r from-blue-500 to-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:from-blue-600 hover:to-blue-700 shadow-md transition-all duration-200 text-center"
-              >
-                💾 Save
-              </button>
-            </div>
+        {/* Cost Parameters - Collapsible */}
+        <div className={`${colors.bg.card} rounded-xl shadow-lg ${colors.border.primary} border overflow-hidden`}>
+          <div 
+            className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors"
+            onClick={() => setShowCostParams(!showCostParams)}
+          >
+            <h2 className={`text-xl font-bold ${colors.text.primary}`}>💰 Cost Parameters</h2>
+            <span className="text-lg">{showCostParams ? '▼' : '▶'}</span>
           </div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {showCostParams && (
+            <div className="p-4 pt-0 border-t border-gray-200 dark:border-gray-700">
+              <div className="flex gap-2 flex-wrap mb-4">
+                <button
+                  onClick={() => setShowManualEntry(!showManualEntry)}
+                  className="flex-1 md:flex-none bg-gradient-to-r from-purple-500 to-purple-600 text-white px-3 py-1.5 rounded-lg text-sm font-semibold hover:from-purple-600 hover:to-purple-700 shadow-md transition-all duration-200"
+                >
+                  ✏️ Manual Data
+                </button>
+                <button
+                  onClick={saveSettings}
+                  className="flex-1 md:flex-none bg-gradient-to-r from-blue-500 to-blue-600 text-white px-3 py-1.5 rounded-lg text-sm font-semibold hover:from-blue-600 hover:to-blue-700 shadow-md transition-all duration-200"
+                >
+                  💾 Save
+                </button>
+              </div>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
             <div>
               <label className={`block text-sm font-semibold ${colors.text.primary} mb-2`}>CBC Test</label>
               <div className="relative">
@@ -764,6 +773,8 @@ const EnhancedFinancialDashboard = ({ salesHistory }) => {
               </div>
             </div>
           </div>
+            </div>
+          )}
         </div>
 
         {/* Summary Cards */}

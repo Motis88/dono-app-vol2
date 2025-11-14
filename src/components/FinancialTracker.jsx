@@ -468,7 +468,7 @@ const FinancialTracker = () => {
       <div className={`${colors.bg.card} rounded-2xl shadow-lg p-4 mb-6`}>
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
           <div>
-            <h2 className={`text-3xl md:text-4xl font-extrabold ${colors.text.primary} mb-2`}>💰 Financial Tracker</h2>
+            <h2 className={`text-2xl font-bold ${colors.text.primary} mb-2`}>💰 Financial Tracker</h2>
             {monthlySales.length > 0 && (
               <div className="flex gap-4 text-sm">
                 <div className={`${colors.text.secondary}`}>
