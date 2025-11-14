@@ -39,6 +39,9 @@ const InventoryManager = () => {
   // External sales details modal
   const [showExternalDetailsModal, setShowExternalDetailsModal] = useState(false);
   const [selectedExternalMonth, setSelectedExternalMonth] = useState(null);
+  // Collapsible sections for dogs and cats
+  const [showDogProducts, setShowDogProducts] = useState(true);
+  const [showCatProducts, setShowCatProducts] = useState(true);
 
   useEffect(() => {
     loadInventory();
@@ -1019,13 +1022,25 @@ const InventoryManager = () => {
               </thead>
               <tbody>
                 {/* Dog Products */}
-                <tr className="bg-blue-50 dark:bg-blue-900/40">
-                  <td colSpan="6" className="p-2 text-sm font-bold text-gray-700 dark:text-blue-200">
-                    🐶 Dog Blood Products
+                <tr 
+                  className="bg-blue-50 dark:bg-blue-900/40 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/60 transition-colors"
+                  onClick={() => setShowDogProducts(!showDogProducts)}
+                >
+                  <td colSpan="6" className="p-3 text-sm font-bold text-gray-700 dark:text-blue-200">
+                    <div className="flex items-center justify-between">
+                      <span>🐶 Dog Blood Products</span>
+                      <span className="text-lg">{showDogProducts ? '▼' : '▶'}</span>
+                    </div>
                   </td>
                 </tr>
-                {Object.keys(BLOOD_PRODUCTS)
-                  .filter((productKey) => BLOOD_PRODUCTS[productKey].species === 'dog')
+                {showDogProducts && Object.keys(BLOOD_PRODUCTS)
+                  .filter((productKey) => {
+                    const product = BLOOD_PRODUCTS[productKey];
+                    if (product.species !== 'dog') return false;
+                    // Hide products with zero activity
+                    const stock = inventory[productKey] || { stock: 0, received: 0, used: 0, external: 0 };
+                    return stock.stock !== 0 || stock.received !== 0 || stock.used !== 0 || stock.external !== 0;
+                  })
                   .map((productKey) => {
                     const product = BLOOD_PRODUCTS[productKey];
                     const stock = inventory[productKey] || { stock: 0, received: 0, used: 0, external: 0 };
@@ -1077,13 +1092,25 @@ const InventoryManager = () => {
                   })}
                 
                 {/* Cat Products */}
-                <tr className="bg-orange-50 dark:bg-orange-900/40">
-                  <td colSpan="6" className="p-2 text-sm font-bold text-gray-700 dark:text-orange-200">
-                    🐱 Cat Blood Products
+                <tr 
+                  className="bg-orange-50 dark:bg-orange-900/40 cursor-pointer hover:bg-orange-100 dark:hover:bg-orange-900/60 transition-colors"
+                  onClick={() => setShowCatProducts(!showCatProducts)}
+                >
+                  <td colSpan="6" className="p-3 text-sm font-bold text-gray-700 dark:text-orange-200">
+                    <div className="flex items-center justify-between">
+                      <span>🐱 Cat Blood Products</span>
+                      <span className="text-lg">{showCatProducts ? '▼' : '▶'}</span>
+                    </div>
                   </td>
                 </tr>
-                {Object.keys(BLOOD_PRODUCTS)
-                  .filter((productKey) => BLOOD_PRODUCTS[productKey].species === 'cat')
+                {showCatProducts && Object.keys(BLOOD_PRODUCTS)
+                  .filter((productKey) => {
+                    const product = BLOOD_PRODUCTS[productKey];
+                    if (product.species !== 'cat') return false;
+                    // Hide products with zero activity
+                    const stock = inventory[productKey] || { stock: 0, received: 0, used: 0, external: 0 };
+                    return stock.stock !== 0 || stock.received !== 0 || stock.used !== 0 || stock.external !== 0;
+                  })
                   .map((productKey) => {
                     const product = BLOOD_PRODUCTS[productKey];
                     const stock = inventory[productKey] || { stock: 0, received: 0, used: 0, external: 0 };
