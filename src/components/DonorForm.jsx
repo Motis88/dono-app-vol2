@@ -337,7 +337,8 @@ const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
   };
 
   return (
-    <div className={`max-w-7xl mx-auto p-1 sm:p-2 lg:p-3 ${colors.bg.form} rounded-lg sm:rounded-2xl shadow-xl sm:shadow-2xl ${colors.border.primary} border pb-20 sm:pb-24 select-none`}>
+    <div className={`min-h-screen ${colors.bg.primary} p-4`}>
+      <div className={`max-w-7xl mx-auto ${colors.bg.card} rounded-2xl shadow-lg p-6 ${colors.border.primary} border pb-20 sm:pb-24`}>
       <div className="text-center mb-4">
         <h2 className="text-2xl font-bold mb-3 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">📝 Donor Form</h2>
         <div className="w-24 h-1 bg-gradient-to-r from-blue-400 to-purple-400 mx-auto rounded-full"></div>
@@ -627,6 +628,7 @@ const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
           </div>
         )}
       </form>
+      </div>
     </div>
   );
 };

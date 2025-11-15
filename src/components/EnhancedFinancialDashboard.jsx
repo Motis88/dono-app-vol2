@@ -693,7 +693,7 @@ const EnhancedFinancialDashboard = ({ salesHistory }) => {
         {/* Cost Parameters - Collapsible */}
         <div className={`${colors.bg.card} rounded-xl shadow-lg ${colors.border.primary} border overflow-hidden`}>
           <div 
-            className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700/50 transition-colors"
+            className="flex items-center justify-between p-4 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors"
             onClick={() => setShowCostParams(!showCostParams)}
           >
             <h2 className={`text-xl font-bold ${colors.text.primary}`}>💰 Cost Parameters</h2>

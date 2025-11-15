@@ -928,8 +928,8 @@ const InventoryManager = () => {
   const { summary: externalSummary, totalExternalRevenue, totalUnits: totalExternalUnits } = getMonthlyExternalSummary();
 
   return (
-    <div className={`w-full max-w-7xl mx-auto ${colors.text.primary} p-4`}>
-      <div className={`${colors.bg.card} rounded-3xl shadow-2xl p-8 mb-6 border ${colors.border.primary}`}>
+    <div className={`min-h-screen ${colors.bg.primary} p-4`}>
+      <div className={`max-w-7xl mx-auto ${colors.bg.card} rounded-2xl shadow-lg p-6 ${colors.border.primary} border`}>
         <div className="flex flex-col gap-4 mb-8">
           <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>

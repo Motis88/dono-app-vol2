@@ -591,7 +591,8 @@ const TablesByLocation = ({ onEdit, locationFilter, monthFilter, onClearFilter }
   };
 
   return (
-    <div className={`p-4 max-w-7xl mx-auto ${colors.text.primary} select-none`}>
+    <div className={`min-h-screen ${colors.bg.primary} p-4`}>
+      <div className={`max-w-7xl mx-auto ${colors.bg.card} rounded-2xl shadow-lg p-6 ${colors.border.primary} border`}>
       {/* Page Title */}
       <div className="text-center mb-6">
         <h1 className={`text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3`}>
@@ -1204,6 +1205,7 @@ const TablesByLocation = ({ onEdit, locationFilter, monthFilter, onClearFilter }
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };

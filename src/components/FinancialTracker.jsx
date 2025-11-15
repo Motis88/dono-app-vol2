@@ -442,7 +442,8 @@ const FinancialTracker = () => {
   };
 
   return (
-    <div className={`min-h-screen ${colors.bg.primary} p-2 md:p-4`}>
+    <div className={`min-h-screen ${colors.bg.primary} p-4`}>
+      <div className={`max-w-7xl mx-auto ${colors.bg.card} rounded-2xl shadow-lg p-6 ${colors.border.primary} border`}>
       {/* Import Modal */}
       {showImport && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowImport(false)}>
@@ -465,8 +466,7 @@ const FinancialTracker = () => {
       )}
 
       {/* Header with Action Buttons */}
-      <div className={`${colors.bg.card} rounded-2xl shadow-lg p-4 mb-6`}>
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
           <div>
             <h2 className="text-2xl font-bold mb-3 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">💰 Financial Tracker</h2>
             <div className="w-24 h-1 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full mb-2"></div>
@@ -502,10 +502,10 @@ const FinancialTracker = () => {
             </button>
           </div>
         </div>
-      </div>
 
       {/* Dashboard Component */}
       <EnhancedFinancialDashboard salesHistory={monthlySales} />
+      </div>
     </div>
   );
 };
