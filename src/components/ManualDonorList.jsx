@@ -20,6 +20,9 @@ const ManualDonorList = ({ onEdit, onNewDonation }) => {
   const [donors, setDonors] = useState([]);
   const [showProfile, setShowProfile] = useState(null);
   const [bloodTypeFilter, setBloodTypeFilter] = useState("");
+  const [showReady, setShowReady] = useState(true);
+  const [showSoon, setShowSoon] = useState(false);
+  const [showNotReady, setShowNotReady] = useState(false);
 
   useEffect(() => {
     refreshDonors();
@@ -188,37 +191,25 @@ const ManualDonorList = ({ onEdit, onNewDonation }) => {
           </div>
         ) : (
           <>
-            {/* Summary */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
-              <div className={`${colors.bg.card} rounded-xl p-4 shadow-lg ${colors.border.primary} border`}>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-green-600">
-                    {donors.filter(d => d.status === 'ready').length}
+            {/* Ready to Donate - Collapsible */}
+            {donors.filter(d => d.status === 'ready').length > 0 && (
+              <div className={`${colors.bg.card} rounded-xl shadow-lg ${colors.border.primary} border overflow-hidden mb-4`}>
+                <div 
+                  className="flex items-center justify-between p-4 cursor-pointer hover:bg-green-100 dark:hover:bg-green-900/40 transition-colors"
+                  onClick={() => setShowReady(!showReady)}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="text-2xl font-bold text-green-600">
+                      {donors.filter(d => d.status === 'ready').length}
+                    </div>
+                    <h2 className="text-lg font-bold text-green-600">✅ Ready to Donate</h2>
                   </div>
-                  <div className="text-sm text-green-600 font-medium">Ready to Donate</div>
+                  <span className="text-lg text-green-600">{showReady ? '▼' : '▶'}</span>
                 </div>
-              </div>
-              <div className={`${colors.bg.card} rounded-xl p-4 shadow-lg ${colors.border.primary} border`}>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-yellow-600">
-                    {donors.filter(d => d.status === 'soon').length}
-                  </div>
-                  <div className="text-sm text-yellow-600 font-medium">Available Soon</div>
-                </div>
-              </div>
-              <div className={`${colors.bg.card} rounded-xl p-4 shadow-lg ${colors.border.primary} border`}>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-red-600">
-                    {donors.filter(d => d.status === 'not-ready').length}
-                  </div>
-                  <div className="text-sm text-red-600 font-medium">Not Ready</div>
-                </div>
-              </div>
-            </div>
-
-            {/* Animal Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
-              {donors.map((d, i) => (
+                {showReady && (
+                  <div className="p-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {donors.filter(d => d.status === 'ready').map((d, i) => (
                 <div
                   key={i}
                   className={`${colors.bg.card} rounded-xl shadow-lg border-l-4 p-6 cursor-pointer transition-all duration-200 hover:shadow-xl hover:scale-105 ${getStatusColor(d.status)}`}
@@ -282,7 +273,173 @@ const ManualDonorList = ({ onEdit, onNewDonation }) => {
                   </div>
                 </div>
               ))}
-            </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Available Soon - Collapsible */}
+            {donors.filter(d => d.status === 'soon').length > 0 && (
+              <div className={`${colors.bg.card} rounded-xl shadow-lg ${colors.border.primary} border overflow-hidden mb-4`}>
+                <div 
+                  className="flex items-center justify-between p-4 cursor-pointer hover:bg-yellow-100 dark:hover:bg-yellow-900/40 transition-colors"
+                  onClick={() => setShowSoon(!showSoon)}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="text-2xl font-bold text-yellow-600">
+                      {donors.filter(d => d.status === 'soon').length}
+                    </div>
+                    <h2 className="text-lg font-bold text-yellow-600">⌛ Available Soon</h2>
+                  </div>
+                  <span className="text-lg text-yellow-600">{showSoon ? '▼' : '▶'}</span>
+                </div>
+                {showSoon && (
+                  <div className="p-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {donors.filter(d => d.status === 'soon').map((d, i) => (
+                <div
+                  key={i}
+                  className={`${colors.bg.card} rounded-xl shadow-lg border-l-4 p-6 cursor-pointer transition-all duration-200 hover:shadow-xl hover:scale-105 ${getStatusColor(d.status)}`}
+                  onClick={() => setShowProfile(d)}
+                >
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex-1">
+                      <h3 className={`text-xl font-bold ${colors.text.primary} mb-1`}>{d.animalName || "Unknown"}</h3>
+                      <div className={`text-sm ${colors.text.secondary} ${colors.isDarkMode ? 'text-gray-300' : ''}`}>{d.animalType || "Unknown"} • {d.bloodType || "Unknown"}</div>
+                    </div>
+                    <div className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusTextColor(d.status)}`}>
+                      {d.status === 'ready' ? 'READY' : d.status === 'soon' ? 'SOON' : 'WAITING'}
+                    </div>
+                  </div>
+                  <div className="space-y-2 mb-4">
+                    <div className={`flex items-center text-sm ${colors.text.primary}`}>
+                      <span className={`font-medium w-16 ${colors.isDarkMode ? 'text-gray-300' : ''}`}>Owner:</span>
+                      <span className={`truncate ${colors.isDarkMode ? 'text-gray-100' : ''}`}>{d.ownerName || "Unknown"}</span>
+                    </div>
+                    <div className={`flex items-center text-sm ${colors.text.primary}`}>
+                      <span className={`font-medium w-16 ${colors.isDarkMode ? 'text-gray-300' : ''}`}>Phone:</span>
+                      <span className={`truncate ${colors.isDarkMode ? 'text-gray-100' : ''}`}>{d.ownerPhone || "Unknown"}</span>
+                    </div>
+                    {d.fileNumber && (
+                      <div className={`flex items-center text-sm ${colors.text.primary}`}>
+                        <span className={`font-medium w-16 ${colors.isDarkMode ? 'text-gray-300' : ''}`}>File #:</span>
+                        <span className={`truncate ${colors.isDarkMode ? 'text-gray-100' : ''}`}>{d.fileNumber}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="border-t pt-4">
+                    <div className={`text-sm font-medium ${getStatusTextColor(d.status)}`}>
+                      {d.daysStatus}
+                    </div>
+                    {d.donationDate && (
+                      <div className={`text-xs ${colors.text.secondary} mt-1`}>
+                        Last: {new Date(d.donationDate).toLocaleDateString()}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex gap-2 mt-4 pt-4 border-t" onClick={e => e.stopPropagation()}>
+                    <button
+                      onClick={() => onEdit(d)}
+                      className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold text-sm px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(i)}
+                      className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold text-sm px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* Not Ready - Collapsible */}
+            {donors.filter(d => d.status === 'not-ready').length > 0 && (
+              <div className={`${colors.bg.card} rounded-xl shadow-lg ${colors.border.primary} border overflow-hidden mb-4`}>
+                <div 
+                  className="flex items-center justify-between p-4 cursor-pointer hover:bg-red-100 dark:hover:bg-red-900/40 transition-colors"
+                  onClick={() => setShowNotReady(!showNotReady)}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="text-2xl font-bold text-red-600">
+                      {donors.filter(d => d.status === 'not-ready').length}
+                    </div>
+                    <h2 className="text-lg font-bold text-red-600">⏸️ Not Ready</h2>
+                  </div>
+                  <span className="text-lg text-red-600">{showNotReady ? '▼' : '▶'}</span>
+                </div>
+                {showNotReady && (
+                  <div className="p-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {donors.filter(d => d.status === 'not-ready').map((d, i) => (
+                <div
+                  key={i}
+                  className={`${colors.bg.card} rounded-xl shadow-lg border-l-4 p-6 cursor-pointer transition-all duration-200 hover:shadow-xl hover:scale-105 ${getStatusColor(d.status)}`}
+                  onClick={() => setShowProfile(d)}
+                >
+                  <div className="flex justify-between items-start mb-4">
+                    <div className="flex-1">
+                      <h3 className={`text-xl font-bold ${colors.text.primary} mb-1`}>{d.animalName || "Unknown"}</h3>
+                      <div className={`text-sm ${colors.text.secondary} ${colors.isDarkMode ? 'text-gray-300' : ''}`}>{d.animalType || "Unknown"} • {d.bloodType || "Unknown"}</div>
+                    </div>
+                    <div className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusTextColor(d.status)}`}>
+                      {d.status === 'ready' ? 'READY' : d.status === 'soon' ? 'SOON' : 'WAITING'}
+                    </div>
+                  </div>
+                  <div className="space-y-2 mb-4">
+                    <div className={`flex items-center text-sm ${colors.text.primary}`}>
+                      <span className={`font-medium w-16 ${colors.isDarkMode ? 'text-gray-300' : ''}`}>Owner:</span>
+                      <span className={`truncate ${colors.isDarkMode ? 'text-gray-100' : ''}`}>{d.ownerName || "Unknown"}</span>
+                    </div>
+                    <div className={`flex items-center text-sm ${colors.text.primary}`}>
+                      <span className={`font-medium w-16 ${colors.isDarkMode ? 'text-gray-300' : ''}`}>Phone:</span>
+                      <span className={`truncate ${colors.isDarkMode ? 'text-gray-100' : ''}`}>{d.ownerPhone || "Unknown"}</span>
+                    </div>
+                    {d.fileNumber && (
+                      <div className={`flex items-center text-sm ${colors.text.primary}`}>
+                        <span className={`font-medium w-16 ${colors.isDarkMode ? 'text-gray-300' : ''}`}>File #:</span>
+                        <span className={`truncate ${colors.isDarkMode ? 'text-gray-100' : ''}`}>{d.fileNumber}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="border-t pt-4">
+                    <div className={`text-sm font-medium ${getStatusTextColor(d.status)}`}>
+                      {d.daysStatus}
+                    </div>
+                    {d.donationDate && (
+                      <div className={`text-xs ${colors.text.secondary} mt-1`}>
+                        Last: {new Date(d.donationDate).toLocaleDateString()}
+                      </div>
+                    )}
+                  </div>
+                  <div className="flex gap-2 mt-4 pt-4 border-t" onClick={e => e.stopPropagation()}>
+                    <button
+                      onClick={() => onEdit(d)}
+                      className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold text-sm px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105"
+                    >
+                      Edit
+                    </button>
+                    <button
+                      onClick={() => handleDelete(i)}
+                      className="flex-1 bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold text-sm px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              ))}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
           </>
         )}
       </div>
