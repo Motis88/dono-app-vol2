@@ -444,19 +444,14 @@ const AppContent = () => {
       <div {...swipeHandlers} className="flex-1 overflow-y-auto px-3 pb-2 pt-1" style={{ minHeight: 'calc(100vh - 120px)' }}>
         <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-10 w-10 border-b-3 border-blue-600"></div></div>}>
           {view === 'form' && (
-            <div className="w-full mx-auto p-2 md:p-4 space-y-6 bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 min-h-screen">
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-                <DonorForm 
+            <DonorForm 
                   editingDonor={editingDonor} 
                   onCancelEdit={handleCancelEdit} 
                   onAddDonor={handleAddDonor} 
                 />
-              </div>
-            </div>
           )}
           {view === 'table' && (
-            <div className="w-full mx-auto p-2 md:p-4 space-y-6 bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 min-h-screen">
-              <TablesByLocation 
+            <TablesByLocation 
                 onEdit={(donor) => { setEditingDonor(donor); setView('form'); }} 
                 locationFilter={locationFilter}
                 monthFilter={monthFilter}
@@ -465,33 +460,24 @@ const AppContent = () => {
                   setMonthFilter(null);
                 }}
               />
-            </div>
           )}
           {view === 'dashboard' && (
-            <div className="w-full mx-auto p-2 md:p-4 space-y-6 bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 min-h-screen">
-              <Dashboard onLocationClick={handleLocationClick} />
-            </div>
+            <Dashboard onLocationClick={handleLocationClick} />
           )}
           {view === 'manual' && (
-            <div className="w-full mx-auto p-2 md:p-4 space-y-6 bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 min-h-screen">
-              <ManualDonorList 
+            <ManualDonorList 
                 onEdit={(donor) => { setEditingDonor(donor); setView('form'); }}
                 onNewDonation={(donor) => {
                   setEditingDonor({ ...donor, date: '', tests: [], notes: '' });
                   setView('form');
                 }}
               />
-            </div>
           )}
           {view === 'inventory' && (
-            <div className="w-full mx-auto p-2 md:p-4 space-y-6 bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 min-h-screen">
-              <InventoryManager />
-            </div>
+            <InventoryManager />
           )}
           {view === 'financial' && (
-            <div className="w-full mx-auto p-2 md:p-4 space-y-6 bg-gradient-to-br from-gray-900 via-blue-900 to-purple-900 min-h-screen">
-              <FinancialTracker />
-            </div>
+            <FinancialTracker />
           )}
         </Suspense>
       </div>

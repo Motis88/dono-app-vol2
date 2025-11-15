@@ -690,18 +690,10 @@ const EnhancedFinancialDashboard = ({ salesHistory }) => {
   return (
     <div className={`min-h-screen ${colors.bg.primary} p-4 md:p-8`}>
       <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className={`${colors.bg.card} rounded-2xl shadow-lg p-6 md:p-8 ${colors.border.primary} border`}>
-          <h1 className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2">
-            💰 Financial Dashboard
-          </h1>
-          <p className={`${colors.text.secondary}`}>Comprehensive financial tracking and bonus calculator</p>
-        </div>
-
         {/* Cost Parameters - Collapsible */}
         <div className={`${colors.bg.card} rounded-xl shadow-lg ${colors.border.primary} border overflow-hidden`}>
           <div 
-            className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/30 transition-colors"
+            className="flex items-center justify-between p-4 cursor-pointer hover:bg-gray-200 dark:hover:bg-gray-700/50 transition-colors"
             onClick={() => setShowCostParams(!showCostParams)}
           >
             <h2 className={`text-xl font-bold ${colors.text.primary}`}>💰 Cost Parameters</h2>
