@@ -40,6 +40,7 @@ const EnhancedFinancialDashboard = ({ salesHistory }) => {
   const [showCostParams, setShowCostParams] = useState(false);
   const [showBonusCalc, setShowBonusCalc] = useState(false);
   const [showAllMonths, setShowAllMonths] = useState(false);
+  const [expandedRows, setExpandedRows] = useState(new Set());
 
   useEffect(() => {
     loadSettings();
@@ -825,18 +826,58 @@ const EnhancedFinancialDashboard = ({ salesHistory }) => {
                 </thead>
                 <tbody>
                   {(showAllMonths ? calculatedMonths : calculatedMonths.slice(-6)).map((month, idx) => (
-                    <tr key={idx} className={`${colors.border.primary} border-b hover:${colors.bg.tertiary} transition-colors`}>
-                      <td className={`px-3 md:px-6 py-3 font-semibold ${colors.text.primary}`}>
-                        <div className="flex flex-col">
-                          <span>{formatMonth(month.month)}</span>
-                          <span className="text-xs opacity-60">{month.month}</span>
-                        </div>
-                      </td>
-                      <td className={`px-3 md:px-6 py-3 text-right ${colors.text.secondary}`}>{month.shifts}</td>
-                      <td className={`px-3 md:px-6 py-3 text-right ${colors.text.secondary}`}>{month.donations}</td>
-                      <td className={`px-3 md:px-6 py-3 text-right font-semibold text-red-600`}>{formatCurrency(month.totalExpenses)}</td>
-                      <td className={`px-3 md:px-6 py-3 text-right font-bold text-green-600`}>{formatCurrency(month.netRevenue)}</td>
-                    </tr>
+                    <React.Fragment key={idx}>
+                      <tr 
+                        className={`${colors.border.primary} border-b hover:${colors.bg.tertiary} transition-colors cursor-pointer`}
+                        onClick={() => {
+                          const newExpanded = new Set(expandedRows);
+                          if (newExpanded.has(month.month)) {
+                            newExpanded.delete(month.month);
+                          } else {
+                            newExpanded.add(month.month);
+                          }
+                          setExpandedRows(newExpanded);
+                        }}
+                      >
+                        <td className={`px-3 md:px-6 py-3 font-semibold ${colors.text.primary}`}>
+                          <div className="flex items-center gap-2">
+                            <span className="text-xs">{expandedRows.has(month.month) ? '▼' : '▶'}</span>
+                            <div className="flex flex-col">
+                              <span>{formatMonth(month.month)}</span>
+                              <span className="text-xs opacity-60">{month.month}</span>
+                            </div>
+                          </div>
+                        </td>
+                        <td className={`px-3 md:px-6 py-3 text-right ${colors.text.secondary}`}>{month.shifts}</td>
+                        <td className={`px-3 md:px-6 py-3 text-right ${colors.text.secondary}`}>{month.donations}</td>
+                        <td className={`px-3 md:px-6 py-3 text-right font-semibold text-red-600`}>{formatCurrency(month.totalExpenses)}</td>
+                        <td className={`px-3 md:px-6 py-3 text-right font-bold text-green-600`}>{formatCurrency(month.netRevenue)}</td>
+                      </tr>
+                      {expandedRows.has(month.month) && (
+                        <tr className={`${colors.bg.tertiary}`}>
+                          <td colSpan="5" className="px-6 py-4">
+                            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                              <div>
+                                <div className={`text-xs ${colors.text.secondary} mb-1`}>Equipment</div>
+                                <div className={`font-semibold ${colors.text.primary}`}>{formatCurrency(month.totalEquipment)}</div>
+                              </div>
+                              <div>
+                                <div className={`text-xs ${colors.text.secondary} mb-1`}>Salary</div>
+                                <div className={`font-semibold ${colors.text.primary}`}>{formatCurrency(month.avgSalary)}</div>
+                              </div>
+                              <div>
+                                <div className={`text-xs ${colors.text.secondary} mb-1`}>Gross Revenue</div>
+                                <div className="font-semibold text-blue-600">{formatCurrency(month.grossRevenue)}</div>
+                              </div>
+                              <div>
+                                <div className={`text-xs ${colors.text.secondary} mb-1`}>Profit Margin</div>
+                                <div className="font-semibold text-purple-600">{formatPercent(month.profitMargin)}</div>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
                   ))}
                 </tbody>
               </table>
