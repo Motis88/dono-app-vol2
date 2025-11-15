@@ -17,6 +17,7 @@ const Dashboard = lazy(() => import('./components/DonorDashboard'));
 const ManualDonorList = lazy(() => import('./components/ManualDonorList'));
 const InventoryManager = lazy(() => import('./components/InventoryManager'));
 const FinancialTracker = lazy(() => import('./components/FinancialTracker'));
+const CloudBackupManager = lazy(() => import('./components/CloudBackupManager'));
 
 const AppContent = () => {
   const { colors, isDarkMode, toggleTheme } = useTheme();
@@ -27,7 +28,7 @@ const AppContent = () => {
   const [monthFilter, setMonthFilter] = useState(null); // For filtering by specific month
 
   // Define view order for swipe navigation
-  const viewOrder = ['form', 'table', 'dashboard', 'manual', 'inventory', 'financial'];
+  const viewOrder = ['form', 'table', 'dashboard', 'manual', 'inventory', 'financial', 'cloud-backup'];
 
   // Swipe handlers - only block in tables and inputs
   const handleSwipeLeft = (eventData) => {
@@ -106,6 +107,27 @@ const AppContent = () => {
       donorStorage.removeEditingDonor();
       setView('form');
     }
+
+    // Check for auto cloud backup
+    const checkAutoBackup = async () => {
+      const { isCloudBackupDue, performAutoBackup } = await import('./utils/cloudBackupUtils.js');
+      
+      if (isCloudBackupDue()) {
+        toast.loading('Performing automatic cloud backup...', { id: 'auto-backup' });
+        
+        const result = await performAutoBackup();
+        
+        if (result.success) {
+          toast.success('☁️ Automatic backup completed!', { id: 'auto-backup', duration: 3000 });
+        } else if (result.reason !== 'Backup not due yet' && result.reason !== 'Not enabled or not authenticated') {
+          toast.error(`❌ Auto-backup failed: ${result.error || result.reason}`, { id: 'auto-backup' });
+        } else {
+          toast.dismiss('auto-backup');
+        }
+      }
+    };
+    
+    checkAutoBackup();
 
     // Check for backup reminder (once a week)
     const checkBackupReminder = () => {
@@ -439,6 +461,7 @@ const AppContent = () => {
           <button onClick={(e)=>{setView('manual'); e.currentTarget.blur();}} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-xl ${view==='manual'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Owners">👥</button>
           <button onClick={(e)=>{setView('inventory'); e.currentTarget.blur();}} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-xl ${view==='inventory'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Inventory">📦</button>
           <button onClick={(e)=>{setView('financial'); e.currentTarget.blur();}} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-xl ${view==='financial'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Financial">💰</button>
+          <button onClick={(e)=>{setView('cloud-backup'); e.currentTarget.blur();}} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-xl ${view==='cloud-backup'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Cloud Backup">☁️</button>
         </div>
       </nav>
       <div {...swipeHandlers} className="flex-1 overflow-y-auto px-3 pb-2 pt-1" style={{ minHeight: 'calc(100vh - 120px)' }}>
@@ -478,6 +501,9 @@ const AppContent = () => {
           )}
           {view === 'financial' && (
             <FinancialTracker />
+          )}
+          {view === 'cloud-backup' && (
+            <CloudBackupManager />
           )}
         </Suspense>
       </div>

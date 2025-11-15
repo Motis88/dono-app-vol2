@@ -1027,7 +1027,7 @@ const InventoryManager = () => {
                   className="bg-blue-50 dark:bg-blue-900/40 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/60 transition-colors"
                   onClick={() => setShowDogProducts(!showDogProducts)}
                 >
-                  <td colSpan="6" className="p-3 text-sm font-bold text-gray-700 dark:text-blue-200">
+                  <td colSpan="6" className={`p-3 text-sm font-bold transition-colors ${showDogProducts ? 'text-blue-800 dark:text-blue-200' : 'text-gray-800 dark:text-gray-200'}`}>
                     <div className="flex items-center justify-between">
                       <span>🐶 Dog Blood Products</span>
                       <span className="text-lg">{showDogProducts ? '▼' : '▶'}</span>
@@ -1053,9 +1053,9 @@ const InventoryManager = () => {
                     const isNegative = stock.stock < 0;
                     
                     return (
-                      <tr key={productKey} className={`border-b ${colors.border.secondary} hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors ${isLow ? 'bg-yellow-50 dark:bg-yellow-900/30' : ''} ${isNegative ? 'bg-red-50 dark:bg-red-900/30' : ''}`}>
+                      <tr key={productKey} className={`border-b ${colors.border.secondary} hover:bg-blue-50 dark:hover:bg-blue-900/30 transition-colors group`}>
                         <td className="p-3">
-                          <div className="font-semibold text-sm text-gray-900 dark:text-gray-100">{product.name_en}</div>
+                          <div className="font-semibold text-sm text-white group-hover:text-gray-900 dark:text-gray-100 dark:group-hover:text-gray-900 transition-colors">{product.name_en}</div>
                           {(isLow || isNegative) && (
                             <div className={`text-xs font-bold mt-1 ${isNegative ? 'text-red-600 dark:text-red-400' : 'text-yellow-700 dark:text-yellow-400'}`}>
                               {isNegative ? '⚠️ Negative!' : '⚠️ Low'}
@@ -1097,7 +1097,7 @@ const InventoryManager = () => {
                   className="bg-orange-50 dark:bg-orange-900/40 cursor-pointer hover:bg-orange-100 dark:hover:bg-orange-900/60 transition-colors"
                   onClick={() => setShowCatProducts(!showCatProducts)}
                 >
-                  <td colSpan="6" className="p-3 text-sm font-bold text-gray-700 dark:text-orange-200">
+                  <td colSpan="6" className={`p-3 text-sm font-bold transition-colors ${showCatProducts ? 'text-orange-800 dark:text-orange-200' : 'text-gray-800 dark:text-gray-200'}`}>
                     <div className="flex items-center justify-between">
                       <span>🐱 Cat Blood Products</span>
                       <span className="text-lg">{showCatProducts ? '▼' : '▶'}</span>
@@ -1123,9 +1123,9 @@ const InventoryManager = () => {
                     const isNegative = stock.stock < 0;
                     
                     return (
-                      <tr key={productKey} className={`border-b ${colors.border.secondary} hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors ${isLow ? 'bg-yellow-50 dark:bg-yellow-900/30' : ''} ${isNegative ? 'bg-red-50 dark:bg-red-900/30' : ''}`}>
+                      <tr key={productKey} className={`border-b ${colors.border.secondary} hover:bg-orange-50 dark:hover:bg-orange-900/30 transition-colors group`}>
                         <td className="p-3">
-                          <div className="font-semibold text-sm text-gray-900 dark:text-gray-100">{product.name_en}</div>
+                          <div className="font-semibold text-sm text-white group-hover:text-gray-900 dark:text-gray-100 dark:group-hover:text-gray-900 transition-colors">{product.name_en}</div>
                           {(isLow || isNegative) && (
                             <div className={`text-xs font-bold mt-1 ${isNegative ? 'text-red-600 dark:text-red-400' : 'text-yellow-700 dark:text-yellow-400'}`}>
                               {isNegative ? '⚠️ Negative!' : '⚠️ Low'}
@@ -1173,11 +1173,11 @@ const InventoryManager = () => {
             <div className="mb-4 text-lg font-bold text-indigo-700 dark:text-indigo-300">Set stock for {BLOOD_PRODUCTS[setProductKey].name_en}</div>
             <input
               type="number"
-              inputMode="numeric"
-              pattern="[0-9]*"
+              step="0.5"
+              inputMode="decimal"
               className="w-full border-2 border-indigo-400 rounded-lg p-3 text-lg mb-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 dark:bg-gray-800"
               value={setValue}
-              onChange={e => setSetValue(e.target.value.replace(/[^0-9]/g, ''))}
+              onChange={e => setSetValue(e.target.value)}
               autoFocus
             />
             <div className="flex gap-2 justify-end">
@@ -1185,7 +1185,7 @@ const InventoryManager = () => {
               <button
                 onClick={() => {
                   if (setValue !== '' && !isNaN(setValue)) {
-                    updateStock(setProductKey, parseInt(setValue), 'received');
+                    updateStock(setProductKey, parseFloat(setValue), 'received');
                     setShowSetModal(false);
                   }
                 }}
