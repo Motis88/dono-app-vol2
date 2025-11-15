@@ -41,7 +41,6 @@ const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
   const [animalSuggestions, setAnimalSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedSuggestion, setSelectedSuggestion] = useState(null);
-  const [isQuickFillMode, setIsQuickFillMode] = useState(false);
   const saveTimeoutRef = useRef(null);
   const suggestionsRef = useRef(null);
 
@@ -337,115 +336,6 @@ const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
     donorStorage.clearDraftForm(); // Also clear draft when manually resetting
   };
 
-  const quickAdd = () => {
-    // Validate only basic fields
-    const errors = [];
-    if (!formData.date) errors.push("Date is required");
-    if (!formData.location) errors.push("Location is required");
-    if (!formData.animalName) errors.push("Animal name is required");
-    if (!formData.animalType) errors.push("Animal type is required");
-
-    if (errors.length > 0) {
-      setValidationErrors(errors);
-      return;
-    }
-
-    // Save partial donor record
-    const quickDonor = sanitizeDonor({
-      date: formData.date,
-      location: formData.location,
-      animalName: formData.animalName,
-      age: formData.age,
-      weight: formData.weight,
-      gender: formData.gender,
-      animalType: formData.animalType,
-      isPrivateOwner: formData.isPrivateOwner,
-      ownerName: formData.ownerName,
-      fileNumber: formData.fileNumber,
-      ownerPhone: formData.ownerPhone,
-      notes: "⏳ Quick Entry - Lab results pending"
-    });
-
-    donorStorage.addDonor(quickDonor);
-    if (onAddDonor) onAddDonor(quickDonor);
-    
-    alert('✅ Quick entry saved!\n\nBasic info recorded. You can complete lab results later by editing this entry.');
-    
-    // Keep date and location, clear everything else
-    setFormData({
-      date: formData.date,
-      location: formData.location,
-      animalName: "",
-      age: "",
-      weight: "",
-      gender: "",
-      animalType: "",
-      bloodType: "",
-      fiv: "",
-      felv: "",
-      pcv: "",
-      hct: "",
-      wbc: "",
-      plt: "",
-      packedCell: "",
-      slideFindings: "",
-      donated: "",
-      volume: "",
-      notes: "",
-      isPrivateOwner: false,
-      ownerName: "",
-      fileNumber: "",
-      ownerPhone: "",
-    });
-    setValidationErrors([]);
-  };
-
-  const quickFill = () => {
-    // Get last used location or default to first location
-    const lastLocation = donorStorage.getLastLocation() || LOCATIONS[0];
-    const today = new Date().toISOString().split('T')[0];
-    
-    // Clear everything and enable quick mode
-    setFormData({
-      date: today,
-      location: lastLocation,
-      animalName: "",
-      age: "",
-      weight: "",
-      gender: "",
-      animalType: "",
-      bloodType: "",
-      fiv: "",
-      felv: "",
-      pcv: "",
-      hct: "",
-      wbc: "",
-      plt: "",
-      packedCell: "",
-      slideFindings: "",
-      donated: "",
-      volume: "",
-      notes: "",
-      isPrivateOwner: false,
-      ownerName: "",
-      fileNumber: "",
-      ownerPhone: "",
-    });
-    
-    setIsQuickFillMode(true);
-    setValidationErrors([]);
-    
-    // Focus on animal name field for immediate typing
-    setTimeout(() => {
-      const animalNameInput = document.querySelector('input[name="animalName"]');
-      if (animalNameInput) animalNameInput.focus();
-    }, 100);
-  };
-  
-  const exitQuickFillMode = () => {
-    setIsQuickFillMode(false);
-  };
-
   return (
     <div className={`min-h-screen ${colors.bg.primary} p-4`}>
       <div className={`max-w-7xl mx-auto ${colors.bg.card} rounded-2xl shadow-lg p-6 ${colors.border.primary} border pb-20 sm:pb-24`}>
@@ -453,21 +343,6 @@ const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
         <h2 className="text-2xl font-bold mb-3 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">📝 Donor Form</h2>
         <div className="w-24 h-1 bg-gradient-to-r from-blue-400 to-purple-400 mx-auto rounded-full"></div>
       </div>
-      
-      {/* Quick Fill Button - only show when not editing */}
-      {!editingDonor && (
-        <div className="mb-6">
-          <button
-            type="button"
-            onClick={quickFill}
-            className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white py-2 px-4 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-[1.02] text-sm flex items-center justify-center gap-2"
-          >
-            <span className="text-lg">⚡</span>
-            <span>Basic Info</span>
-          </button>
-        </div>
-      )}
-      
       {/* Validation Errors */}
       {validationErrors.length > 0 && (
         <div className={`mb-4 sm:mb-6 p-3 sm:p-5 ${colors.bg.tertiary} ${colors.border.secondary} border rounded-lg sm:rounded-xl shadow-sm`}>
@@ -580,8 +455,8 @@ const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
           </div>
           <input name="weight" placeholder="Weight (kg)" value={formData.weight} onChange={handleChange} type="number" step="any" className={inputStyles} />
           
-          {/* Second Row: Gender, Animal Type (Age and Blood Type hidden in Quick Fill mode) */}
-          {!isQuickFillMode && <input name="age" placeholder="Age" value={formData.age} onChange={handleChange} type="number" step="any" className={inputStyles} />}
+          {/* Second Row: Age, Gender, Animal Type, Blood Type */}
+          <input name="age" placeholder="Age" value={formData.age} onChange={handleChange} type="number" step="any" className={inputStyles} />
           <select name="gender" value={formData.gender} onChange={handleChange} className={selectStyles}>
             <option value="">Select Gender</option>
             <option value="Male">Male</option>
@@ -592,15 +467,13 @@ const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
             <option value="Dog">Dog</option>
             <option value="Cat">Cat</option>
           </select>
-          {!isQuickFillMode && (
-            <select name="bloodType" value={formData.bloodType} onChange={handleChange} className={selectStyles}>
-              <option value="">Blood Type</option>
-              {formData.animalType && (formData.animalType === "Dog" ? BLOOD_TYPES.DOG : formData.animalType === "Cat" ? BLOOD_TYPES.CAT : []).map(type => <option key={type} value={type}>{type}</option>)}
-            </select>
-          )}
+          <select name="bloodType" value={formData.bloodType} onChange={handleChange} className={selectStyles}>
+            <option value="">Blood Type</option>
+            {formData.animalType && (formData.animalType === "Dog" ? BLOOD_TYPES.DOG : formData.animalType === "Cat" ? BLOOD_TYPES.CAT : []).map(type => <option key={type} value={type}>{type}</option>)}
+          </select>
         </div>
-        {/* FIV & FeLV (cats only) - hidden in Quick Fill mode */}
-        {!isQuickFillMode && formData.animalType === 'Cat' && (
+        {/* FIV & FeLV (cats only) */}
+        {formData.animalType === 'Cat' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <select name="fiv" value={formData.fiv} onChange={handleChange} className={selectStyles}>
               <option value="">FIV Status</option>
@@ -614,20 +487,17 @@ const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
             </select>
           </div>
         )}
-        {/* Blood Work - hidden in Quick Fill mode */}
-        {!isQuickFillMode && (
-          <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4">
-            <input name="pcv" type="number" step="any" value={formData.pcv} onChange={handleChange} placeholder="PCV" className={inputStyles} />
-            <input name="hct" type="number" step="any" value={formData.hct} onChange={handleChange} placeholder="HCT" className={inputStyles} />
-            <input name="wbc" type="number" step="any" value={formData.wbc} onChange={handleChange} placeholder="WBC" className={inputStyles} />
-            <input name="plt" type="number" step="any" value={formData.plt} onChange={handleChange} placeholder="PLT" className={inputStyles} />
-            <input name="packedCell" placeholder="Packed Cell" value={formData.packedCell} onChange={handleChange} type="number" className={inputStyles} />
-            <input name="slideFindings" placeholder="Slide Findings" value={formData.slideFindings} onChange={handleChange} className={inputStyles} />
-          </div>
-        )}
-        {/* Donation Info - hidden in Quick Fill mode */}
-        {!isQuickFillMode && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+        {/* Blood Work - Compact Grid */}
+        <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4">
+          <input name="pcv" type="number" step="any" value={formData.pcv} onChange={handleChange} placeholder="PCV" className={inputStyles} />
+          <input name="hct" type="number" step="any" value={formData.hct} onChange={handleChange} placeholder="HCT" className={inputStyles} />
+          <input name="wbc" type="number" step="any" value={formData.wbc} onChange={handleChange} placeholder="WBC" className={inputStyles} />
+          <input name="plt" type="number" step="any" value={formData.plt} onChange={handleChange} placeholder="PLT" className={inputStyles} />
+          <input name="packedCell" placeholder="Packed Cell" value={formData.packedCell} onChange={handleChange} type="number" className={inputStyles} />
+          <input name="slideFindings" placeholder="Slide Findings" value={formData.slideFindings} onChange={handleChange} className={inputStyles} />
+        </div>
+        {/* Donation Info - Compact Grid */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           <div className="flex flex-col gap-3">
             <span className={`font-semibold ${colors.text.primary} text-sm sm:text-base`}>Donated?</span>
             <div className="flex gap-3 sm:gap-4">
@@ -672,77 +542,58 @@ const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
             rows={3}
             className={`${inputStyles} h-auto min-h-[80px] resize-none`}
           />
+        </div>
+        {/* Private Owner checkbox before Submit */}
+        <div className={`flex items-center mt-4 sm:mt-6 p-3 sm:p-4 ${colors.bg.tertiary} rounded-lg sm:rounded-xl border-2 ${colors.border.primary}`}>
+          <input
+            type="checkbox"
+            id="isPrivateOwner"
+            name="isPrivateOwner"
+            checked={formData.isPrivateOwner}
+            onChange={e =>
+              setFormData(prev => ({
+                ...prev,
+                isPrivateOwner: e.target.checked,
+                // Opens the fields only when checked
+                ownerName: e.target.checked ? prev.ownerName : "",
+                fileNumber: e.target.checked ? prev.fileNumber : "",
+                ownerPhone: e.target.checked ? prev.ownerPhone : ""
+              }))
+            }
+            className="mr-2 sm:mr-3 w-4 sm:w-5 h-4 sm:h-5 text-blue-600"
+          />
+          <label htmlFor="isPrivateOwner" className={`font-semibold ${colors.text.primary} cursor-pointer text-sm sm:text-base`}>Private Owner</label>
+        </div>
+        {formData.isPrivateOwner && (
+          <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mt-3 sm:mt-4 mb-3 sm:mb-4 p-4 sm:p-6 ${colors.bg.tertiary} rounded-lg sm:rounded-xl border-2 ${colors.border.primary}`}>
+            <input
+              placeholder="Owner Name"
+              value={formData.ownerName || ""}
+              onChange={e => setFormData(f => ({ ...f, ownerName: e.target.value }))}
+              className={inputStyles}
+            />
+            <input
+              placeholder="File Number"
+              value={formData.fileNumber || ""}
+              onChange={e => setFormData(f => ({ ...f, fileNumber: e.target.value }))}
+              className={inputStyles}
+            />
+            <input
+              placeholder="Owner Phone Number"
+              value={formData.ownerPhone || ""}
+              onChange={e => {
+                const value = e.target.value;
+                // Allow only digits, spaces, hyphens, and plus sign
+                const sanitized = value.replace(/[^0-9\s\-+]/g, '');
+                setFormData(f => ({ ...f, ownerPhone: sanitized }));
+              }}
+              className={inputStyles}
+              type="tel"
+              inputMode="tel"
+            />
           </div>
         )}
-        {/* Private Owner checkbox before Submit - hidden in Quick Fill mode */}
-        {!isQuickFillMode && (
-          <>
-            <div className={`flex items-center mt-4 sm:mt-6 p-3 sm:p-4 ${colors.bg.tertiary} rounded-lg sm:rounded-xl border-2 ${colors.border.primary}`}>
-              <input
-                type="checkbox"
-                id="isPrivateOwner"
-                name="isPrivateOwner"
-                checked={formData.isPrivateOwner}
-                onChange={e =>
-                  setFormData(prev => ({
-                    ...prev,
-                    isPrivateOwner: e.target.checked,
-                    // Opens the fields only when checked
-                    ownerName: e.target.checked ? prev.ownerName : "",
-                    fileNumber: e.target.checked ? prev.fileNumber : "",
-                    ownerPhone: e.target.checked ? prev.ownerPhone : ""
-                  }))
-                }
-                className="mr-2 sm:mr-3 w-4 sm:w-5 h-4 sm:h-5 text-blue-600"
-              />
-              <label htmlFor="isPrivateOwner" className={`font-semibold ${colors.text.primary} cursor-pointer text-sm sm:text-base`}>Private Owner</label>
-            </div>
-            {formData.isPrivateOwner && (
-              <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 mt-3 sm:mt-4 mb-3 sm:mb-4 p-4 sm:p-6 ${colors.bg.tertiary} rounded-lg sm:rounded-xl border-2 ${colors.border.primary}`}>
-                <input
-                  placeholder="Owner Name"
-                  value={formData.ownerName || ""}
-                  onChange={e => setFormData(f => ({ ...f, ownerName: e.target.value }))}
-                  className={inputStyles}
-                />
-                <input
-                  placeholder="File Number"
-                  value={formData.fileNumber || ""}
-                  onChange={e => setFormData(f => ({ ...f, fileNumber: e.target.value }))}
-                  className={inputStyles}
-                />
-                <input
-                  placeholder="Owner Phone Number"
-                  value={formData.ownerPhone || ""}
-                  onChange={e => {
-                    const value = e.target.value;
-                    // Allow only digits, spaces, hyphens, and plus sign
-                    const sanitized = value.replace(/[^0-9\s\-+]/g, '');
-                    setFormData(f => ({ ...f, ownerPhone: sanitized }));
-                  }}
-                  className={inputStyles}
-                  type="tel"
-                  inputMode="tel"
-                />
-              </div>
-            )}
-          </>
-        )}
-        {/* End of Quick Fill mode section and private owner section */}
-        
-        {/* Show "Exit Quick Fill Mode" button in Quick Fill mode */}
-        {isQuickFillMode && (
-          <div className="flex justify-center">
-            <button
-              type="button"
-              onClick={exitQuickFillMode}
-              className="bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white py-2 px-6 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 text-sm"
-            >
-              📋 Show All Fields
-            </button>
-          </div>
-        )}
-        
+        {/* End of private owner section */}
         {editingDonor ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 md:col-span-2 mt-6 sm:mt-8 pt-4 sm:pt-6 border-t-2 border-gray-200">
             <button 
@@ -760,19 +611,19 @@ const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 md:col-span-2 mt-6 sm:mt-8">
             <button 
               type="submit" 
               className="w-full bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white py-3 sm:py-4 px-6 sm:px-8 rounded-lg sm:rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 text-sm sm:text-base"
             >
-              💾 Save Donor
+              Submit
             </button>
             <button 
               type="button" 
               onClick={resetForm}
               className="w-full bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white py-3 sm:py-4 px-6 sm:px-8 rounded-lg sm:rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 text-sm sm:text-base"
             >
-              🗑️ Clear Form
+              Clear Form
             </button>
           </div>
         )}
