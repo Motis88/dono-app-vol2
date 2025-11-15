@@ -39,6 +39,7 @@ const EnhancedFinancialDashboard = ({ salesHistory }) => {
   // UI state for collapsible sections
   const [showCostParams, setShowCostParams] = useState(false);
   const [showBonusCalc, setShowBonusCalc] = useState(false);
+  const [showAllMonths, setShowAllMonths] = useState(false);
 
   useEffect(() => {
     loadSettings();
@@ -800,8 +801,16 @@ const EnhancedFinancialDashboard = ({ salesHistory }) => {
         {/* Monthly Summary Table */}
         {calculatedMonths.length > 0 && (
           <div className={`${colors.bg.card} rounded-2xl shadow-lg overflow-hidden ${colors.border.primary} border`}>
-            <div className="p-4 md:p-6">
-              <h2 className={`text-2xl font-bold ${colors.text.primary} mb-4`}>📅 Monthly Summary</h2>
+            <div className="p-4 md:p-6 flex justify-between items-center">
+              <h2 className={`text-2xl font-bold ${colors.text.primary}`}>📅 Monthly Summary</h2>
+              {calculatedMonths.length > 6 && (
+                <button
+                  onClick={() => setShowAllMonths(!showAllMonths)}
+                  className="bg-gradient-to-r from-blue-500 to-blue-600 text-white px-3 py-1.5 rounded-lg text-sm font-semibold hover:from-blue-600 hover:to-blue-700 shadow-md transition-all duration-200"
+                >
+                  {showAllMonths ? '📅 Last 6 Months' : '📜 Show All'}
+                </button>
+              )}
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
@@ -810,16 +819,12 @@ const EnhancedFinancialDashboard = ({ salesHistory }) => {
                     <th className={`px-3 md:px-6 py-3 text-left text-xs font-semibold ${colors.text.primary}`}>Month</th>
                     <th className={`px-3 md:px-6 py-3 text-right text-xs font-semibold ${colors.text.primary}`}>Shifts</th>
                     <th className={`px-3 md:px-6 py-3 text-right text-xs font-semibold ${colors.text.primary}`}>Donations</th>
-                    <th className={`px-3 md:px-6 py-3 text-right text-xs font-semibold ${colors.text.primary}`}>Equipment</th>
-                    <th className={`px-3 md:px-6 py-3 text-right text-xs font-semibold ${colors.text.primary}`}>Salary</th>
                     <th className={`px-3 md:px-6 py-3 text-right text-xs font-semibold ${colors.text.primary}`}>Expenses</th>
-                    <th className={`px-3 md:px-6 py-3 text-right text-xs font-semibold ${colors.text.primary}`}>Gross</th>
                     <th className={`px-3 md:px-6 py-3 text-right text-xs font-semibold ${colors.text.primary}`}>Net</th>
-                    <th className={`px-3 md:px-6 py-3 text-right text-xs font-semibold ${colors.text.primary}`}>Profit%</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {calculatedMonths.map((month, idx) => (
+                  {(showAllMonths ? calculatedMonths : calculatedMonths.slice(-6)).map((month, idx) => (
                     <tr key={idx} className={`${colors.border.primary} border-b hover:${colors.bg.tertiary} transition-colors`}>
                       <td className={`px-3 md:px-6 py-3 font-semibold ${colors.text.primary}`}>
                         <div className="flex flex-col">
@@ -829,12 +834,8 @@ const EnhancedFinancialDashboard = ({ salesHistory }) => {
                       </td>
                       <td className={`px-3 md:px-6 py-3 text-right ${colors.text.secondary}`}>{month.shifts}</td>
                       <td className={`px-3 md:px-6 py-3 text-right ${colors.text.secondary}`}>{month.donations}</td>
-                      <td className={`px-3 md:px-6 py-3 text-right ${colors.text.secondary}`}>{formatCurrency(month.totalEquipment)}</td>
-                      <td className={`px-3 md:px-6 py-3 text-right ${colors.text.secondary}`}>{formatCurrency(month.avgSalary)}</td>
                       <td className={`px-3 md:px-6 py-3 text-right font-semibold text-red-600`}>{formatCurrency(month.totalExpenses)}</td>
-                      <td className={`px-3 md:px-6 py-3 text-right font-semibold text-blue-600`}>{formatCurrency(month.grossRevenue)}</td>
                       <td className={`px-3 md:px-6 py-3 text-right font-bold text-green-600`}>{formatCurrency(month.netRevenue)}</td>
-                      <td className={`px-3 md:px-6 py-3 text-right font-bold text-purple-600`}>{formatPercent(month.profitMargin)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -869,11 +870,18 @@ const EnhancedFinancialDashboard = ({ salesHistory }) => {
             </div>
           )}
 
-          {/* Bonus Calculator */}
-          <div className={`${colors.bg.card} rounded-2xl shadow-lg p-6 ${colors.border.primary} border`}>
-            <h2 className={`text-xl font-bold ${colors.text.primary} mb-4`}>🧮 Bonus Calculator</h2>
-            
-            <div className="mb-4">
+          {/* Bonus Calculator - Collapsible */}
+          <div className={`${colors.bg.card} rounded-2xl shadow-lg ${colors.border.primary} border overflow-hidden`}>
+            <div 
+              className="flex items-center justify-between p-4 cursor-pointer hover:bg-blue-200 dark:hover:bg-blue-800/60 transition-colors"
+              onClick={() => setShowBonusCalc(!showBonusCalc)}
+            >
+              <h2 className={`text-xl font-bold ${colors.text.primary}`}>🧮 Bonus Calculator</h2>
+              <span className="text-lg">{showBonusCalc ? '▼' : '▶'}</span>
+            </div>
+            {showBonusCalc && (
+            <div className="p-6 pt-4 border-t border-gray-200 dark:border-gray-700">
+              <div className="mb-4">
               <label className={`block text-sm font-semibold ${colors.text.primary} mb-2`}>
                 External Units
               </label>
@@ -943,6 +951,8 @@ const EnhancedFinancialDashboard = ({ salesHistory }) => {
                 />
               </div>
             </div>
+            </div>
+            )}
           </div>
         </div>
 
