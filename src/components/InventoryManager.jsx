@@ -1071,11 +1071,11 @@ const InventoryManager = () => {
                     const isNegative = stock.stock < 0;
                     
                     return (
-                      <tr key={productKey} className={`border-b ${colors.border.secondary} hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors`}>
+                      <tr key={productKey} className={`border-b ${colors.border.secondary} hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors bg-white dark:bg-gray-950`}>
                         <td className="p-3">
                           <div className="font-semibold text-sm text-gray-900 dark:text-gray-100">{product.name_en}</div>
                           {(isLow || isNegative) && (
-                            <div className={`text-xs font-bold mt-1 ${isNegative ? 'text-red-600 dark:text-red-400' : 'text-yellow-700 dark:text-yellow-400'}`}>
+                            <div className="text-xs font-bold mt-1 text-gray-600 dark:text-gray-400">
                               {isNegative ? '⚠️ Negative!' : '⚠️ Low'}
                             </div>
                           )}
@@ -1147,11 +1147,11 @@ const InventoryManager = () => {
                     const isNegative = stock.stock < 0;
                     
                     return (
-                      <tr key={productKey} className={`border-b ${colors.border.secondary} hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors`}>
+                      <tr key={productKey} className={`border-b ${colors.border.secondary} hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors bg-white dark:bg-gray-950`}>
                         <td className="p-3">
                           <div className="font-semibold text-sm text-gray-900 dark:text-gray-100">{product.name_en}</div>
                           {(isLow || isNegative) && (
-                            <div className={`text-xs font-bold mt-1 ${isNegative ? 'text-red-600 dark:text-red-400' : 'text-yellow-700 dark:text-yellow-400'}`}>
+                            <div className="text-xs font-bold mt-1 text-gray-600 dark:text-gray-400">
                               {isNegative ? '⚠️ Negative!' : '⚠️ Low'}
                             </div>
                           )}
