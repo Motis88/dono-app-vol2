@@ -284,7 +284,7 @@ const InventoryManager = () => {
             
             // Skip if this invoice row was already processed
             if (processedInvoices.has(invoiceRowId)) {
-              // Skipping already processed invoice: ${invoiceRowId}
+              console.log(`Skipping already processed invoice: ${invoiceRowId}`);
               return;
             }
             
@@ -294,7 +294,7 @@ const InventoryManager = () => {
             
             if (isNaN(cumulativeUsage) || cumulativeUsage <= 0) return;
             
-            // Processing NEW: ${invoiceRowId} - ${medicineName} - Quantity: ${cumulativeUsage}
+            console.log(`Processing NEW: ${invoiceRowId} - ${medicineName} - Quantity: ${cumulativeUsage}`);
             
             // זיהוי חיצוני גמיש (עברית/אנגלית, רווחים, סוגריים, גרשיים, דש, גרשיים בודדים/כפולים)
             const isExternal = /[-–—\s'"\(\)\[\]]*['"]?חיצוני['"]?|['"]?external['"]?/i.test(medicineName);
@@ -344,9 +344,9 @@ const InventoryManager = () => {
               // Add to processed invoices set
               processedInvoices.add(invoiceRowId);
               
-              // Matched: ${matchedProduct} - ${cumulativeUsage} units (Invoice: ${invoiceRowId})
+              console.log(`Matched: ${matchedProduct} - ${cumulativeUsage} units (Invoice: ${invoiceRowId})`);
             } else {
-              // No match found for: ${medicineName} (Invoice: ${invoiceRowId})
+              console.log(`No match found for: ${medicineName} (Invoice: ${invoiceRowId})`);
             }
           });
           
@@ -604,7 +604,7 @@ const InventoryManager = () => {
   const handleFileSelect = (event) => {
     const file = event.target.files[0];
     if (file) {
-      // File selected: file.name, Type: file.type, Size: file.size
+      console.log('File selected:', file.name, 'Type:', file.type, 'Size:', file.size);
       const fileType = file.name.split('.').pop().toLowerCase();
       
       // Reset importing state first
@@ -618,7 +618,7 @@ const InventoryManager = () => {
         alert('❌ Unsupported file type. Please select a CSV or PDF file.');
       }
     } else {
-      // No file selected
+      console.log('No file selected');
     }
   };
 
@@ -1074,7 +1074,7 @@ const InventoryManager = () => {
                       <tr key={productKey} className={`border-b ${colors.border.secondary} hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors bg-white dark:bg-gray-950`}>
                         <td className="p-3">
                           <div className="font-semibold text-sm text-gray-900 dark:text-gray-100">{product.name_en}</div>
-                          {(isLow || isNegative) && (
+ע                          {(isLow || isNegative) && (
                             <div className="text-xs font-bold mt-1 text-gray-600 dark:text-gray-400">
                               {isNegative ? '⚠️ Negative!' : '⚠️ Low'}
                             </div>
@@ -1203,19 +1203,22 @@ const InventoryManager = () => {
             <div className="mb-4 text-lg font-bold text-indigo-700 dark:text-indigo-300">Set stock for {BLOOD_PRODUCTS[setProductKey].name_en}</div>
             <input
               type="number"
-              inputMode="numeric"
-              pattern="[0-9]*"
+              step="any"
+              inputMode="decimal"
               className="w-full border-2 border-indigo-400 rounded-lg p-3 text-lg mb-4 focus:outline-none focus:ring-2 focus:ring-indigo-500 text-gray-900 dark:text-gray-100 dark:bg-gray-800"
               value={setValue}
-              onChange={e => setSetValue(e.target.value.replace(/[^0-9]/g, ''))}
+              onChange={e => setSetValue(e.target.value.replace(/[^0-9.,]/g, ''))}
               autoFocus
             />
             <div className="flex gap-2 justify-end">
               <button onClick={() => setShowSetModal(false)} className="px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-200 font-bold">Cancel</button>
               <button
                 onClick={() => {
-                  if (setValue !== '' && !isNaN(setValue)) {
-                    updateStock(setProductKey, parseInt(setValue), 'received');
+                  if (setValue !== '') {
+                    const numeric = parseFloat(String(setValue).replace(',', '.'));
+                    if (!isNaN(numeric)) {
+                      updateStock(setProductKey, numeric, 'received');
+                    }
                     setShowSetModal(false);
                   }
                 }}
