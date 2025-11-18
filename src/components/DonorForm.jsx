@@ -41,6 +41,7 @@ const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
   const [animalSuggestions, setAnimalSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [selectedSuggestion, setSelectedSuggestion] = useState(null);
+  const [isQuickFillMode, setIsQuickFillMode] = useState(false);
   const saveTimeoutRef = useRef(null);
   const suggestionsRef = useRef(null);
 
@@ -336,6 +337,52 @@ const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
     donorStorage.clearDraftForm(); // Also clear draft when manually resetting
   };
 
+  const quickFill = () => {
+    // Get last used location or default to first location
+    const lastLocation = donorStorage.getLastLocation() || LOCATIONS[0];
+    const today = new Date().toISOString().split('T')[0];
+    
+    // Clear everything and enable quick mode
+    setFormData({
+      date: today,
+      location: lastLocation,
+      animalName: "",
+      age: "",
+      weight: "",
+      gender: "",
+      animalType: "",
+      bloodType: "",
+      fiv: "",
+      felv: "",
+      pcv: "",
+      hct: "",
+      wbc: "",
+      plt: "",
+      packedCell: "",
+      slideFindings: "",
+      donated: "",
+      volume: "",
+      notes: "",
+      isPrivateOwner: false,
+      ownerName: "",
+      fileNumber: "",
+      ownerPhone: "",
+    });
+    
+    setIsQuickFillMode(true);
+    setValidationErrors([]);
+    
+    // Focus on animal name field for immediate typing
+    setTimeout(() => {
+      const animalNameInput = document.querySelector('input[name="animalName"]');
+      if (animalNameInput) animalNameInput.focus();
+    }, 100);
+  };
+  
+  const exitQuickFillMode = () => {
+    setIsQuickFillMode(false);
+  };
+
   return (
     <div className={`min-h-screen ${colors.bg.primary} p-4`}>
       <div className={`max-w-7xl mx-auto ${colors.bg.card} rounded-2xl shadow-lg p-6 ${colors.border.primary} border pb-20 sm:pb-24`}>
@@ -343,6 +390,21 @@ const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
         <h2 className="text-2xl font-bold mb-3 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">📝 Donor Form</h2>
         <div className="w-24 h-1 bg-gradient-to-r from-blue-400 to-purple-400 mx-auto rounded-full"></div>
       </div>
+      
+      {/* Quick Fill Button - only show when not editing */}
+      {!editingDonor && (
+        <div className="mb-6">
+          <button
+            type="button"
+            onClick={quickFill}
+            className="w-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white py-2 px-4 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all duration-300 transform hover:scale-[1.02] text-sm flex items-center justify-center gap-2"
+          >
+            <span className="text-lg">⚡</span>
+            <span>Basic Info</span>
+          </button>
+        </div>
+      )}
+      
       {/* Validation Errors */}
       {validationErrors.length > 0 && (
         <div className={`mb-4 sm:mb-6 p-3 sm:p-5 ${colors.bg.tertiary} ${colors.border.secondary} border rounded-lg sm:rounded-xl shadow-sm`}>
@@ -455,8 +517,8 @@ const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
           </div>
           <input name="weight" placeholder="Weight (kg)" value={formData.weight} onChange={handleChange} type="number" step="any" className={inputStyles} />
           
-          {/* Second Row: Age, Gender, Animal Type, Blood Type */}
-          <input name="age" placeholder="Age" value={formData.age} onChange={handleChange} type="number" step="any" className={inputStyles} />
+          {/* Second Row: Gender, Animal Type (Age and Blood Type hidden in Quick Fill mode) */}
+          {!isQuickFillMode && <input name="age" placeholder="Age" value={formData.age} onChange={handleChange} type="number" step="any" className={inputStyles} />}
           <select name="gender" value={formData.gender} onChange={handleChange} className={selectStyles}>
             <option value="">Select Gender</option>
             <option value="Male">Male</option>
@@ -467,13 +529,15 @@ const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
             <option value="Dog">Dog</option>
             <option value="Cat">Cat</option>
           </select>
-          <select name="bloodType" value={formData.bloodType} onChange={handleChange} className={selectStyles}>
-            <option value="">Blood Type</option>
-            {formData.animalType && (formData.animalType === "Dog" ? BLOOD_TYPES.DOG : formData.animalType === "Cat" ? BLOOD_TYPES.CAT : []).map(type => <option key={type} value={type}>{type}</option>)}
-          </select>
+          {!isQuickFillMode && (
+            <select name="bloodType" value={formData.bloodType} onChange={handleChange} className={selectStyles}>
+              <option value="">Blood Type</option>
+              {formData.animalType && (formData.animalType === "Dog" ? BLOOD_TYPES.DOG : formData.animalType === "Cat" ? BLOOD_TYPES.CAT : []).map(type => <option key={type} value={type}>{type}</option>)}
+            </select>
+          )}
         </div>
-        {/* FIV & FeLV (cats only) */}
-        {formData.animalType === 'Cat' && (
+        {/* FIV & FeLV (cats only) - hidden in Quick Fill mode */}
+        {!isQuickFillMode && formData.animalType === 'Cat' && (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
             <select name="fiv" value={formData.fiv} onChange={handleChange} className={selectStyles}>
               <option value="">FIV Status</option>
@@ -487,17 +551,20 @@ const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
             </select>
           </div>
         )}
-        {/* Blood Work - Compact Grid */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4">
-          <input name="pcv" type="number" step="any" value={formData.pcv} onChange={handleChange} placeholder="PCV" className={inputStyles} />
-          <input name="hct" type="number" step="any" value={formData.hct} onChange={handleChange} placeholder="HCT" className={inputStyles} />
-          <input name="wbc" type="number" step="any" value={formData.wbc} onChange={handleChange} placeholder="WBC" className={inputStyles} />
-          <input name="plt" type="number" step="any" value={formData.plt} onChange={handleChange} placeholder="PLT" className={inputStyles} />
-          <input name="packedCell" placeholder="Packed Cell" value={formData.packedCell} onChange={handleChange} type="number" className={inputStyles} />
-          <input name="slideFindings" placeholder="Slide Findings" value={formData.slideFindings} onChange={handleChange} className={inputStyles} />
-        </div>
-        {/* Donation Info - Compact Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
+        {/* Blood Work - hidden in Quick Fill mode */}
+        {!isQuickFillMode && (
+          <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-6 gap-3 sm:gap-4">
+            <input name="pcv" type="number" step="any" value={formData.pcv} onChange={handleChange} placeholder="PCV" className={inputStyles} />
+            <input name="hct" type="number" step="any" value={formData.hct} onChange={handleChange} placeholder="HCT" className={inputStyles} />
+            <input name="wbc" type="number" step="any" value={formData.wbc} onChange={handleChange} placeholder="WBC" className={inputStyles} />
+            <input name="plt" type="number" step="any" value={formData.plt} onChange={handleChange} placeholder="PLT" className={inputStyles} />
+            <input name="packedCell" placeholder="Packed Cell" value={formData.packedCell} onChange={handleChange} type="number" className={inputStyles} />
+            <input name="slideFindings" placeholder="Slide Findings" value={formData.slideFindings} onChange={handleChange} className={inputStyles} />
+          </div>
+        )}
+        {/* Donation Info - hidden in Quick Fill mode */}
+        {!isQuickFillMode && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4">
           <div className="flex flex-col gap-3">
             <span className={`font-semibold ${colors.text.primary} text-sm sm:text-base`}>Donated?</span>
             <div className="flex gap-3 sm:gap-4">
@@ -542,9 +609,12 @@ const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
             rows={3}
             className={`${inputStyles} h-auto min-h-[80px] resize-none`}
           />
-        </div>
-        {/* Private Owner checkbox before Submit */}
-        <div className={`flex items-center mt-4 sm:mt-6 p-3 sm:p-4 ${colors.bg.tertiary} rounded-lg sm:rounded-xl border-2 ${colors.border.primary}`}>
+          </div>
+        )}
+        {/* Private Owner checkbox before Submit - hidden in Quick Fill mode */}
+        {!isQuickFillMode && (
+          <>
+            <div className={`flex items-center mt-4 sm:mt-6 p-3 sm:p-4 ${colors.bg.tertiary} rounded-lg sm:rounded-xl border-2 ${colors.border.primary}`}>
           <input
             type="checkbox"
             id="isPrivateOwner"
@@ -593,7 +663,23 @@ const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
             />
           </div>
         )}
-        {/* End of private owner section */}
+          </>
+        )}
+        {/* End of Quick Fill mode section and private owner section */}
+        
+        {/* Show "Exit Quick Fill Mode" button in Quick Fill mode */}
+        {isQuickFillMode && (
+          <div className="flex justify-center">
+            <button
+              type="button"
+              onClick={exitQuickFillMode}
+              className="bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white py-2 px-6 rounded-lg font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 text-sm"
+            >
+              📋 Show All Fields
+            </button>
+          </div>
+        )}
+        
         {editingDonor ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 md:col-span-2 mt-6 sm:mt-8 pt-4 sm:pt-6 border-t-2 border-gray-200">
             <button 
