@@ -284,7 +284,7 @@ const InventoryManager = () => {
             
             // Skip if this invoice row was already processed
             if (processedInvoices.has(invoiceRowId)) {
-              console.log(`Skipping already processed invoice: ${invoiceRowId}`);
+              // Skipping already processed invoice: ${invoiceRowId}
               return;
             }
             
@@ -294,7 +294,7 @@ const InventoryManager = () => {
             
             if (isNaN(cumulativeUsage) || cumulativeUsage <= 0) return;
             
-            console.log(`Processing NEW: ${invoiceRowId} - ${medicineName} - Quantity: ${cumulativeUsage}`);
+            // Processing NEW: ${invoiceRowId} - ${medicineName} - Quantity: ${cumulativeUsage}
             
             // זיהוי חיצוני גמיש (עברית/אנגלית, רווחים, סוגריים, גרשיים, דש, גרשיים בודדים/כפולים)
             const isExternal = /[-–—\s'"\(\)\[\]]*['"]?חיצוני['"]?|['"]?external['"]?/i.test(medicineName);
@@ -344,9 +344,9 @@ const InventoryManager = () => {
               // Add to processed invoices set
               processedInvoices.add(invoiceRowId);
               
-              console.log(`Matched: ${matchedProduct} - ${cumulativeUsage} units (Invoice: ${invoiceRowId})`);
+              // Matched: ${matchedProduct} - ${cumulativeUsage} units (Invoice: ${invoiceRowId})
             } else {
-              console.log(`No match found for: ${medicineName} (Invoice: ${invoiceRowId})`);
+              // No match found for: ${medicineName} (Invoice: ${invoiceRowId})
             }
           });
           
@@ -604,7 +604,7 @@ const InventoryManager = () => {
   const handleFileSelect = (event) => {
     const file = event.target.files[0];
     if (file) {
-      console.log('File selected:', file.name, 'Type:', file.type, 'Size:', file.size);
+      // File selected: file.name, Type: file.type, Size: file.size
       const fileType = file.name.split('.').pop().toLowerCase();
       
       // Reset importing state first
@@ -618,7 +618,7 @@ const InventoryManager = () => {
         alert('❌ Unsupported file type. Please select a CSV or PDF file.');
       }
     } else {
-      console.log('No file selected');
+      // No file selected
     }
   };
 
