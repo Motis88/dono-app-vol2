@@ -397,6 +397,24 @@ const InventoryManager = () => {
             externalDetails: externalSalesDetails // Save the detailed external sales info
           };
           const updatedHistory = [...monthlySales, newUsage];
+          
+          // Now add all processed invoice IDs to the set (after calculating deltas)
+          Object.keys(cumulativeByProduct).forEach(productKey => {
+            data.forEach((row, index) => {
+              if (index < 3 || !row[3]) return;
+              const invoiceRowId = row[0]?.trim();
+              const medicineName = row[3]?.trim();
+              if (medicineName && BLOOD_PRODUCTS[medicineName]) {
+                if (BLOOD_PRODUCTS[medicineName] === BLOOD_PRODUCTS[productKey] || Object.keys(BLOOD_PRODUCTS).find(key => {
+                  const productBase = key.split(' - ')[0];
+                  return medicineName.includes(productBase);
+                }) === productKey) {
+                  processedInvoices.add(invoiceRowId);
+                }
+              }
+            });
+          });
+          
           setInventory(updatedInventory);
           setMonthlySales(updatedHistory);
           setLastCumulativeUsage(updatedLastCumulative);
@@ -673,10 +691,12 @@ const InventoryManager = () => {
       
       // Clear processed invoices list so files can be re-imported
       setProcessedInvoices(new Set());
-      if (parsed.processedInvoices) {
-        parsed.processedInvoices = [];
-        localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(parsed));
-      }
+      parsed.processedInvoices = [];
+      
+      // Clear lastCumulativeUsage so next import processes all rows
+      delete parsed.lastCumulativeUsage;
+      
+      localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(parsed));
       
       // Update the month marker to current month
       const currentMonth = new Date().toISOString().slice(0, 7);
@@ -892,10 +912,8 @@ const InventoryManager = () => {
     }
     
     // Calculate totals
-    const total24h = Object.values(last24hUsage).reduce((sum, v) => sum + v, 0) + 
-                     Object.values(last24hExternal).reduce((sum, v) => sum + v, 0);
-    const totalMonth = Object.values(monthUsage).reduce((sum, v) => sum + v, 0) + 
-                       Object.values(monthExternal).reduce((sum, v) => sum + v, 0);
+    const total24h = Object.values(last24hUsage).reduce((sum, v) => sum + v, 0);
+    const totalMonth = Object.values(monthUsage).reduce((sum, v) => sum + v, 0);
     
     message += `\n━━━━━━━━━━━━━━━━━━━━━━\n`;
     message += `\n📊 TOTALS:\n`;
@@ -1053,7 +1071,7 @@ const InventoryManager = () => {
                     const isNegative = stock.stock < 0;
                     
                     return (
-                      <tr key={productKey} className={`border-b ${colors.border.secondary} hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors ${isLow ? 'bg-yellow-50 dark:bg-yellow-900/30' : ''} ${isNegative ? 'bg-red-50 dark:bg-red-900/30' : ''}`}>
+                      <tr key={productKey} className={`border-b ${colors.border.secondary} hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors`}>
                         <td className="p-3">
                           <div className="font-semibold text-sm text-gray-900 dark:text-gray-100">{product.name_en}</div>
                           {(isLow || isNegative) && (
@@ -1063,18 +1081,24 @@ const InventoryManager = () => {
                           )}
                         </td>
                         <td className="text-center p-3">
-                          <div className={`text-xl font-bold ${isNegative ? 'text-red-600 dark:text-red-400' : isLow ? 'text-yellow-600 dark:text-yellow-400' : 'text-indigo-600 dark:text-indigo-400'}`}>
+                          <div className="text-xl font-bold text-indigo-600 dark:text-indigo-400">
                             {displayStock}
                           </div>
                         </td>
                         <td className="text-center p-3">
-                          <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">+{displayReceived}</div>
+                          <div className={`text-lg font-bold ${displayReceived > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                            {displayReceived > 0 ? `+${displayReceived}` : '0'}
+                          </div>
                         </td>
                         <td className="text-center p-3">
-                          <div className="text-lg font-bold text-rose-600 dark:text-rose-400">-{displayUsed}</div>
+                          <div className={`text-lg font-bold ${displayUsed > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                            {displayUsed > 0 ? `-${displayUsed}` : '0'}
+                          </div>
                         </td>
                         <td className="text-center p-3">
-                          <div className="text-lg font-bold text-blue-600 dark:text-blue-400">{displayExternal}</div>
+                          <div className={`text-lg font-bold ${displayExternal > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                            {displayExternal > 0 ? displayExternal : '0'}
+                          </div>
                         </td>
                         <td className="text-center p-3">
                           <button
@@ -1123,7 +1147,7 @@ const InventoryManager = () => {
                     const isNegative = stock.stock < 0;
                     
                     return (
-                      <tr key={productKey} className={`border-b ${colors.border.secondary} hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors ${isLow ? 'bg-yellow-50 dark:bg-yellow-900/30' : ''} ${isNegative ? 'bg-red-50 dark:bg-red-900/30' : ''}`}>
+                      <tr key={productKey} className={`border-b ${colors.border.secondary} hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors`}>
                         <td className="p-3">
                           <div className="font-semibold text-sm text-gray-900 dark:text-gray-100">{product.name_en}</div>
                           {(isLow || isNegative) && (
@@ -1133,18 +1157,24 @@ const InventoryManager = () => {
                           )}
                         </td>
                         <td className="text-center p-3">
-                          <div className={`text-xl font-bold ${isNegative ? 'text-red-600 dark:text-red-400' : isLow ? 'text-yellow-600 dark:text-yellow-400' : 'text-indigo-600 dark:text-indigo-400'}`}>
+                          <div className="text-xl font-bold text-indigo-600 dark:text-indigo-400">
                             {displayStock}
                           </div>
                         </td>
                         <td className="text-center p-3">
-                          <div className="text-lg font-bold text-emerald-600 dark:text-emerald-400">+{displayReceived}</div>
+                          <div className={`text-lg font-bold ${displayReceived > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                            {displayReceived > 0 ? `+${displayReceived}` : '0'}
+                          </div>
                         </td>
                         <td className="text-center p-3">
-                          <div className="text-lg font-bold text-rose-600 dark:text-rose-400">-{displayUsed}</div>
+                          <div className={`text-lg font-bold ${displayUsed > 0 ? 'text-rose-600 dark:text-rose-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                            {displayUsed > 0 ? `-${displayUsed}` : '0'}
+                          </div>
                         </td>
                         <td className="text-center p-3">
-                          <div className="text-lg font-bold text-blue-600 dark:text-blue-400">{displayExternal}</div>
+                          <div className={`text-lg font-bold ${displayExternal > 0 ? 'text-blue-600 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}>
+                            {displayExternal > 0 ? displayExternal : '0'}
+                          </div>
                         </td>
                         <td className="text-center p-3">
                           <button
