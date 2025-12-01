@@ -403,45 +403,21 @@ const InventoryManager = () => {
             external: externalUsage,
             externalDetails: externalSalesDetails // Save the detailed external sales info
           };
-          // Check if CSV date belongs to previous month - if so, archive it instead of adding to current
+          
+          // Check if CSV date is from previous month and warn user
           const csvDateObj = csvDate ? new Date(csvDate) : new Date();
           const csvMonth = `${csvDateObj.getFullYear()}-${String(csvDateObj.getMonth() + 1).padStart(2, '0')}`;
           const currentMonth = new Date();
           const currentMonthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
           
-          let updatedHistory;
+          // Always add to current month history (inventory updates are always current)
+          const updatedHistory = [...monthlySales, newUsage];
+          
+          // But warn if importing from previous month
           if (csvMonth !== currentMonthKey) {
-            // CSV is from a different month - archive it to that month
-            const lastArchiveDate = localStorage.getItem('inventory_last_archive');
-            if (!lastArchiveDate || lastArchiveDate !== csvMonth) {
-              // Archive to the CSV's month
-              const existingArchives = JSON.parse(localStorage.getItem('monthly_archives') || '[]');
-              const existingArchiveIndex = existingArchives.findIndex(a => a.month === csvMonth);
-              
-              if (existingArchiveIndex >= 0) {
-                // Add to existing archive
-                existingArchives[existingArchiveIndex].sales.push(newUsage);
-                localStorage.setItem('monthly_archives', JSON.stringify(existingArchives));
-              } else {
-                // Create new archive for this month
-                const newArchive = {
-                  month: csvMonth,
-                  sales: [newUsage],
-                  summary: deltaByProduct,
-                  inventorySnapshot: {},
-                  externalSalesDetails: externalSalesDetails
-                };
-                existingArchives.push(newArchive);
-                localStorage.setItem('monthly_archives', JSON.stringify(existingArchives));
-              }
-              
-              alert(`📊 CSV from ${csvMonth} archived!\n\nThis CSV is from a previous month and has been archived accordingly.`);
-            }
-            // Don't add to current month history
-            updatedHistory = monthlySales;
-          } else {
-            // CSV is from current month - add normally
-            updatedHistory = [...monthlySales, newUsage];
+            const csvMonthName = csvDateObj.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            const currentMonthName = currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+            console.warn(`⚠️ CSV Date Mismatch: CSV is from ${csvMonthName}, but current month is ${currentMonthName}`);
           }
           
           // Now add all processed invoice IDs to the set (after calculating deltas)
@@ -706,7 +682,11 @@ const InventoryManager = () => {
   };
 
   const forceResetCounters = () => {
-    if (!confirm('🔄 Force Reset Usage Counters\n\nThis will reset used/external counters to 0 for the current month.\n\nContinue?')) {
+    const currentMonth = new Date();
+    const currentMonthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
+    const currentMonthName = currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+    
+    if (!confirm(`🔄 Reset Month & Start Fresh\n\nThis will:\n• Archive current ${currentMonthName} data\n• Reset used/external counters to 0\n• Clear import history for fresh start\n\nContinue?`)) {
       return;
     }
 
@@ -714,14 +694,32 @@ const InventoryManager = () => {
     if (saved) {
       const parsed = JSON.parse(saved);
       
+      // Archive current month data BEFORE resetting
+      if (parsed.sales && parsed.sales.length > 0) {
+        archiveMonthlyData(currentMonthKey, parsed.sales);
+      }
+      
       // Reset counters in localStorage
       if (parsed.current) {
         Object.keys(parsed.current).forEach(key => {
           parsed.current[key].used = 0;
           parsed.current[key].external = 0;
         });
-        localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(parsed));
       }
+      
+      // Reset sales history for new month
+      parsed.sales = [];
+      
+      // Clear processed invoices list so files can be re-imported
+      parsed.processedInvoices = [];
+      
+      // Clear lastCumulativeUsage so next import processes all rows
+      delete parsed.lastCumulativeUsage;
+      
+      localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(parsed));
+      
+      // Update the month marker to current month
+      localStorage.setItem('inventory_last_archive', currentMonthKey);
       
       // Reset counters in state
       setInventory(prev => {
@@ -732,23 +730,10 @@ const InventoryManager = () => {
         return updated;
       });
       
-      // Also reset sales history
       setMonthlySales([]);
-      
-      // Clear processed invoices list so files can be re-imported
       setProcessedInvoices(new Set());
-      parsed.processedInvoices = [];
       
-      // Clear lastCumulativeUsage so next import processes all rows
-      delete parsed.lastCumulativeUsage;
-      
-      localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(parsed));
-      
-      // Update the month marker to current month
-      const currentMonth = new Date().toISOString().slice(0, 7);
-      localStorage.setItem('inventory_last_archive', currentMonth);
-      
-      alert('✅ Counters reset successfully!\n\nUsed and External counters are now 0.\nProcessed invoices cleared.\nMonth marker updated to: ' + currentMonth);
+      alert(`✅ Month Reset Complete!\n\n${currentMonthName} data has been archived.\nCounters reset to 0.\nReady for new month imports.`);
     }
   };
 
