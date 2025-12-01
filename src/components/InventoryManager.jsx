@@ -322,9 +322,16 @@ const InventoryManager = () => {
           let csvDate = null; // Extract date from CSV
           
           // FIRST PASS: Extract CSV date to determine which month's processedInvoices to use
+          // Skip header rows (first 3 rows) and find first row with actual date data
           for (let i = 3; i < data.length; i++) {
-            if (data[i][1]?.trim()) {
-              csvDate = data[i][1].trim();
+            const dateCandidate = data[i][1]?.trim();
+            // Skip if it's a header like "Created timestamp" or empty
+            if (dateCandidate && 
+                !dateCandidate.toLowerCase().includes('created') && 
+                !dateCandidate.toLowerCase().includes('timestamp') &&
+                !dateCandidate.toLowerCase().includes('date')) {
+              csvDate = dateCandidate;
+              console.log(`📅 Found date at row ${i}:`, csvDate);
               break;
             }
           }
@@ -487,6 +494,8 @@ const InventoryManager = () => {
           const currentMonthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
           const isHistoricalImport = csvMonth !== currentMonthKey;
           
+          console.log('📅 CSV Month:', csvMonth, '| Current Month:', currentMonthKey, '| Is Historical:', isHistoricalImport);
+          
           // Calculate deltas - but only update inventory if NOT historical
           const updatedInventory = isHistoricalImport ? { ...inventory } : { ...inventory }; // Clone in both cases
           const updatedLastCumulative = { ...lastCumulativeUsage };
@@ -503,19 +512,19 @@ const InventoryManager = () => {
               updatedLastCumulative[productKey] = 0;
             }
             
-            deltaByProduct[productKey] = delta > 0 ? delta : 0;
+            deltaByProduct[productKey] = Number((delta > 0 ? delta : 0).toFixed(2));
             
             // Only update current inventory if this is NOT a historical import
             if (!isHistoricalImport) {
               if (!updatedInventory[productKey]) {
                 updatedInventory[productKey] = { stock: 0, received: 0, used: 0, external: 0, lastUpdated: new Date().toISOString() };
               }
-              updatedInventory[productKey].stock = (updatedInventory[productKey].stock || 0) - (delta > 0 ? delta : 0);
-              updatedInventory[productKey].used = (updatedInventory[productKey].used || 0) + (delta > 0 ? delta : 0);
+              updatedInventory[productKey].stock = Number(((updatedInventory[productKey].stock || 0) - (delta > 0 ? delta : 0)).toFixed(2));
+              updatedInventory[productKey].used = Number(((updatedInventory[productKey].used || 0) + (delta > 0 ? delta : 0)).toFixed(2));
               
               // Accumulate external usage for this product if present in this import
               const externalDelta = externalUsage[productKey] || 0;
-              updatedInventory[productKey].external = (updatedInventory[productKey].external || 0) + externalDelta;
+              updatedInventory[productKey].external = Number(((updatedInventory[productKey].external || 0) + externalDelta).toFixed(2));
               updatedInventory[productKey].lastUpdated = new Date().toISOString();
               updatedLastCumulative[productKey] = newCumulative;
               
