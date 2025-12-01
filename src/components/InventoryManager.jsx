@@ -1016,6 +1016,29 @@ const InventoryManager = () => {
               </button>
               
               <button
+                onClick={() => {
+                  const archivesJson = localStorage.getItem('inventory_monthly_archives');
+                  const archives = archivesJson ? JSON.parse(archivesJson) : [];
+                  if (archives.length === 0) {
+                    alert('📊 No archived months yet.\n\nMonthly data will be archived when you use the "Reset Month" function.');
+                  } else {
+                    const archiveList = archives.map((archive, idx) => {
+                      const monthDate = new Date(archive.month + '-01');
+                      const monthName = monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
+                      const totalUsage = Object.values(archive.totalUsage || {}).reduce((sum, v) => sum + v, 0);
+                      const totalExternal = Object.values(archive.totalExternal || {}).reduce((sum, v) => sum + v, 0);
+                      return `${idx + 1}. ${monthName}\n   📦 Total Used: ${totalUsage} units\n   🏥 External: ${totalExternal} units\n   📄 Records: ${archive.totalRecords || 0}`;
+                    }).join('\n\n');
+                    alert(`📚 Monthly Archives\n\n${archiveList}\n\n💡 Tip: Data is safely stored and can be exported if needed.`);
+                  }
+                }}
+                className="bg-gradient-to-r from-amber-500 to-orange-600 text-white px-3 py-2.5 rounded-xl font-bold hover:from-amber-600 hover:to-orange-700 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2"
+              >
+                <span className="text-lg md:text-xl">📚</span>
+                <span className="text-xs md:text-sm">View Archives</span>
+              </button>
+              
+              <button
                 onClick={forceResetCounters}
                 className="bg-gradient-to-r from-purple-500 to-pink-600 text-white px-3 py-2.5 rounded-xl font-bold hover:from-purple-600 hover:to-pink-700 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2"
               >
