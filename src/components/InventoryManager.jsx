@@ -28,8 +28,9 @@ const InventoryManager = () => {
   const [monthlySales, setMonthlySales] = useState([]);
   // Track last known cumulative usage per product
   const [lastCumulativeUsage, setLastCumulativeUsage] = useState({});
-  // Track processed invoice rows to avoid duplicates
+  // Track processed invoice rows to avoid duplicates - PER MONTH
   const [processedInvoices, setProcessedInvoices] = useState(new Set());
+  const [currentMonthKey, setCurrentMonthKey] = useState('');
   const [showImport, setShowImport] = useState(false);
   const [importing, setImporting] = useState(false);
   // SET modal state (global)
@@ -197,13 +198,20 @@ const InventoryManager = () => {
   };
 
   const loadInventory = () => {
+    const now = new Date();
+    const monthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    setCurrentMonthKey(monthKey);
+    
     const saved = localStorage.getItem(INVENTORY_STORAGE_KEY);
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
         setInventory(parsed.current || {});
         setMonthlySales(parsed.sales || []);
-        setProcessedInvoices(new Set(parsed.processedInvoices || []));
+        
+        // Load processedInvoices for CURRENT MONTH ONLY
+        const allProcessed = parsed.processedInvoicesByMonth || {};
+        setProcessedInvoices(new Set(allProcessed[monthKey] || []));
       } catch (e) {
         console.error('Error loading inventory:', e);
         initializeInventory();
@@ -227,12 +235,22 @@ const InventoryManager = () => {
     saveInventory(initial, []);
   };
 
-  const saveInventory = (currentInventory, sales, processedInvoicesArray = null) => {
+  const saveInventory = (currentInventory, sales, processedInvoicesArray = null, monthKeyToSave = null) => {
+    const saved = localStorage.getItem(INVENTORY_STORAGE_KEY);
+    const parsed = saved ? JSON.parse(saved) : {};
+    
+    // Get existing processedInvoices by month
+    const allProcessed = parsed.processedInvoicesByMonth || {};
+    
+    // Update for current month
+    const monthKey = monthKeyToSave || currentMonthKey;
     const invoicesToSave = processedInvoicesArray !== null ? processedInvoicesArray : Array.from(processedInvoices);
+    allProcessed[monthKey] = invoicesToSave;
+    
     localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify({
       current: currentInventory,
       sales: sales,
-      processedInvoices: invoicesToSave,
+      processedInvoicesByMonth: allProcessed,
       lastUpdated: new Date().toISOString(),
     }));
   };
@@ -263,9 +281,38 @@ const InventoryManager = () => {
   const importUsageCSV = async (file) => {
     setImporting(true);
     try {
-      const text = await file.text();
+      console.log('📂 File info:', { name: file.name, size: file.size, type: file.type });
+      
+      if (!file) {
+        throw new Error('No file selected');
+      }
+      
+      if (file.size === 0) {
+        throw new Error('File is empty');
+      }
+      
+      let text;
+      try {
+        text = await file.text();
+      } catch (readError) {
+        console.error('Error reading file:', readError);
+        // Try alternative method using FileReader
+        text = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = (e) => resolve(e.target.result);
+          reader.onerror = (e) => reject(new Error('Failed to read file: ' + e.target.error));
+          reader.readAsText(file);
+        });
+      }
+      
+      if (!text || text.trim().length === 0) {
+        throw new Error('File content is empty');
+      }
+      
+      console.log('✅ File read successfully, size:', text.length);
+      
       Papa.parse(text, {
-        complete: (results) => {
+        complete: async (results) => {
           const data = results.data;
           let totalImported = 0;
           const cumulativeByProduct = {};
@@ -274,23 +321,92 @@ const InventoryManager = () => {
           const externalSalesDetails = []; // New: store detailed external sales info
           let csvDate = null; // Extract date from CSV
           
-          // Parse CSV rows - now with duplicate detection
+          // FIRST PASS: Extract CSV date to determine which month's processedInvoices to use
+          for (let i = 3; i < data.length; i++) {
+            if (data[i][1]?.trim()) {
+              csvDate = data[i][1].trim();
+              break;
+            }
+          }
+          
+          console.log('📅 Extracted CSV date string:', csvDate);
+          
+          // Determine which month this CSV belongs to
+          let csvDateObj;
+          let csvMonth;
+          
+          try {
+            if (!csvDate) {
+              throw new Error('No date found in CSV');
+            }
+            
+            // Try parsing the date - handle multiple formats
+            // Common formats: DD/MM/YYYY, DD.MM.YYYY, YYYY-MM-DD
+            let parsedDate;
+            
+            if (csvDate.includes('/')) {
+              // DD/MM/YYYY format
+              const parts = csvDate.split('/');
+              if (parts.length === 3) {
+                const day = parseInt(parts[0]);
+                const month = parseInt(parts[1]) - 1; // JS months are 0-indexed
+                const year = parseInt(parts[2]);
+                parsedDate = new Date(year, month, day);
+              }
+            } else if (csvDate.includes('.')) {
+              // DD.MM.YYYY format
+              const parts = csvDate.split('.');
+              if (parts.length === 3) {
+                const day = parseInt(parts[0]);
+                const month = parseInt(parts[1]) - 1;
+                const year = parseInt(parts[2]);
+                parsedDate = new Date(year, month, day);
+              }
+            } else if (csvDate.includes('-')) {
+              // YYYY-MM-DD format
+              parsedDate = new Date(csvDate);
+            } else {
+              // Try direct parsing
+              parsedDate = new Date(csvDate);
+            }
+            
+            if (!parsedDate || isNaN(parsedDate.getTime())) {
+              throw new Error(`Invalid date format: ${csvDate}`);
+            }
+            
+            csvDateObj = parsedDate;
+            csvMonth = `${csvDateObj.getFullYear()}-${String(csvDateObj.getMonth() + 1).padStart(2, '0')}`;
+            console.log('✅ Parsed date:', csvDateObj, 'Month:', csvMonth);
+            
+          } catch (dateError) {
+            console.error('Date parsing error:', dateError);
+            // Fallback to current month
+            csvDateObj = new Date();
+            csvMonth = `${csvDateObj.getFullYear()}-${String(csvDateObj.getMonth() + 1).padStart(2, '0')}`;
+            console.warn('⚠️ Using current month as fallback:', csvMonth);
+          }
+          
+          // Load the correct month's processedInvoices Set
+          const saved = localStorage.getItem(INVENTORY_STORAGE_KEY);
+          const parsed = saved ? JSON.parse(saved) : {};
+          const allProcessed = parsed.processedInvoicesByMonth || {};
+          const csvMonthProcessed = new Set(allProcessed[csvMonth] || []);
+          
+          console.log(`📅 CSV Date: ${csvDate} (Month: ${csvMonth})`);
+          console.log(`📋 Previously processed invoices for ${csvMonth}: ${csvMonthProcessed.size}`);
+          
+          // SECOND PASS: Parse CSV rows - now with correct month's duplicate detection
           data.forEach((row, index) => {
             // Skip header rows and empty rows
             if (index < 3 || !row[3]) return;
-            
-            // Extract date from first data row (Column B)
-            if (!csvDate && row[1]?.trim()) {
-              csvDate = row[1].trim();
-            }
             
             const invoiceRowId = row[0]?.trim(); // Invoice row # column
             const medicineName = row[3]?.trim();
             if (!medicineName || !invoiceRowId) return;
             
-            // Skip if this invoice row was already processed
-            if (processedInvoices.has(invoiceRowId)) {
-              console.log(`Skipping already processed invoice: ${invoiceRowId}`);
+            // Skip if this invoice row was already processed IN THIS CSV'S MONTH
+            if (csvMonthProcessed.has(invoiceRowId)) {
+              console.log(`Skipping already processed invoice in ${csvMonth}: ${invoiceRowId}`);
               return;
             }
             
@@ -342,13 +458,14 @@ const InventoryManager = () => {
                   ownerName: ownerName,
                   animalName: animalName,
                   productKey: matchedProduct,
-                  quantity: cumulativeUsage,
-                  productName: BLOOD_PRODUCTS[matchedProduct].name_he
+                  quantity: Number(cumulativeUsage.toFixed(2)),
+                  productName: BLOOD_PRODUCTS[matchedProduct].name_he,
+                  month: csvMonth // Add month identifier
                 });
               }
               
-              // Add to processed invoices set
-              processedInvoices.add(invoiceRowId);
+              // Add to the CSV month's processed invoices set (not current month!)
+              csvMonthProcessed.add(invoiceRowId);
               
               console.log(`Matched: ${matchedProduct} - ${cumulativeUsage} units (Invoice: ${invoiceRowId})`);
             } else {
@@ -364,37 +481,53 @@ const InventoryManager = () => {
             return;
           }
           
-          // Calculate deltas and update inventory
-          const updatedInventory = { ...inventory };
+          // FIRST: Check if CSV is from previous month BEFORE updating inventory
+          // (csvDateObj and csvMonth already defined at top of function)
+          const currentMonth = new Date();
+          const currentMonthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
+          const isHistoricalImport = csvMonth !== currentMonthKey;
+          
+          // Calculate deltas - but only update inventory if NOT historical
+          const updatedInventory = isHistoricalImport ? { ...inventory } : { ...inventory }; // Clone in both cases
           const updatedLastCumulative = { ...lastCumulativeUsage };
           const warnings = [];
+          
           Object.keys(cumulativeByProduct).forEach(productKey => {
             const newCumulative = cumulativeByProduct[productKey];
             const prevCumulative = lastCumulativeUsage[productKey] ?? 0;
             let delta = newCumulative - prevCumulative;
+            
             // If cumulative resets (new < prev), treat as reset
             if (newCumulative < prevCumulative) {
               delta = newCumulative;
               updatedLastCumulative[productKey] = 0;
             }
-            if (!updatedInventory[productKey]) {
-              updatedInventory[productKey] = { stock: 0, received: 0, used: 0, external: 0, lastUpdated: new Date().toISOString() };
-            }
-            updatedInventory[productKey].stock = (updatedInventory[productKey].stock || 0) - (delta > 0 ? delta : 0);
-            updatedInventory[productKey].used = (updatedInventory[productKey].used || 0) + (delta > 0 ? delta : 0);
-            // Accumulate external usage for this product if present in this import
-            const externalDelta = externalUsage[productKey] || 0;
-            updatedInventory[productKey].external = (updatedInventory[productKey].external || 0) + externalDelta;
-            updatedInventory[productKey].lastUpdated = new Date().toISOString();
-            updatedLastCumulative[productKey] = newCumulative;
+            
             deltaByProduct[productKey] = delta > 0 ? delta : 0;
-            if (updatedInventory[productKey].stock < LOW_STOCK_THRESHOLD) {
-              const product = BLOOD_PRODUCTS[productKey];
-              warnings.push(`${product.name_he}: Stock is ${updatedInventory[productKey].stock} units (${updatedInventory[productKey].stock < 0 ? 'NEGATIVE' : 'LOW'})`);
+            
+            // Only update current inventory if this is NOT a historical import
+            if (!isHistoricalImport) {
+              if (!updatedInventory[productKey]) {
+                updatedInventory[productKey] = { stock: 0, received: 0, used: 0, external: 0, lastUpdated: new Date().toISOString() };
+              }
+              updatedInventory[productKey].stock = (updatedInventory[productKey].stock || 0) - (delta > 0 ? delta : 0);
+              updatedInventory[productKey].used = (updatedInventory[productKey].used || 0) + (delta > 0 ? delta : 0);
+              
+              // Accumulate external usage for this product if present in this import
+              const externalDelta = externalUsage[productKey] || 0;
+              updatedInventory[productKey].external = (updatedInventory[productKey].external || 0) + externalDelta;
+              updatedInventory[productKey].lastUpdated = new Date().toISOString();
+              updatedLastCumulative[productKey] = newCumulative;
+              
+              if (updatedInventory[productKey].stock < LOW_STOCK_THRESHOLD) {
+                const product = BLOOD_PRODUCTS[productKey];
+                warnings.push(`${product.name_he}: Stock is ${updatedInventory[productKey].stock} units (${updatedInventory[productKey].stock < 0 ? 'NEGATIVE' : 'LOW'})`);
+              }
             }
           });
-          // Add to usage history - use CSV date if available, otherwise current date
-          const usageDate = csvDate ? new Date(csvDate).toISOString() : new Date().toISOString();
+          
+          // Add to usage history - use parsed CSV date if available, otherwise current date
+          const usageDate = csvDateObj ? csvDateObj.toISOString() : new Date().toISOString();
           const newUsage = {
             date: usageDate,
             fileName: file.name,
@@ -404,59 +537,134 @@ const InventoryManager = () => {
             externalDetails: externalSalesDetails // Save the detailed external sales info
           };
           
-          // Check if CSV date is from previous month and warn user
-          const csvDateObj = csvDate ? new Date(csvDate) : new Date();
-          const csvMonth = `${csvDateObj.getFullYear()}-${String(csvDateObj.getMonth() + 1).padStart(2, '0')}`;
-          const currentMonth = new Date();
-          const currentMonthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
+          // Now handle based on whether it's historical or current month
+          let updatedHistory = monthlySales;
           
-          // Always add to current month history (inventory updates are always current)
-          const updatedHistory = [...monthlySales, newUsage];
-          
-          // But warn if importing from previous month
-          if (csvMonth !== currentMonthKey) {
+          // If CSV is from PREVIOUS month, archive it directly instead of adding to current month
+          if (isHistoricalImport) {
             const csvMonthName = csvDateObj.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-            const currentMonthName = currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-            console.warn(`⚠️ CSV Date Mismatch: CSV is from ${csvMonthName}, but current month is ${currentMonthName}`);
+            
+            // Add to archive directly
+            const archivesJson = localStorage.getItem('inventory_monthly_archives');
+            const archives = archivesJson ? JSON.parse(archivesJson) : [];
+            
+            // Check if archive for this month already exists
+            let existingArchive = archives.find(a => a.month === csvMonth);
+            if (!existingArchive) {
+              existingArchive = {
+                month: csvMonth,
+                archivedAt: new Date().toISOString(),
+                totalRecords: 0,
+                totalUsage: {},
+                totalExternal: {},
+                inventorySnapshot: {},
+                externalSalesDetails: [],
+                records: []
+              };
+              archives.push(existingArchive);
+            }
+            
+            // Add this import to the archive
+            existingArchive.records.push(newUsage);
+            existingArchive.totalRecords = existingArchive.records.length;
+            
+            // Update totals and snapshot
+            Object.keys(deltaByProduct).forEach(productKey => {
+              const delta = Number(deltaByProduct[productKey]);
+              existingArchive.totalUsage[productKey] = Number(((existingArchive.totalUsage[productKey] || 0) + delta).toFixed(2));
+              
+              // Update inventory snapshot for this product
+              if (!existingArchive.inventorySnapshot[productKey]) {
+                existingArchive.inventorySnapshot[productKey] = {
+                  stock: 0,
+                  used: 0,
+                  external: 0,
+                  received: 0
+                };
+              }
+              existingArchive.inventorySnapshot[productKey].used = Number(((existingArchive.inventorySnapshot[productKey].used || 0) + delta).toFixed(2));
+            });
+            
+            Object.keys(externalUsage).forEach(productKey => {
+              const external = Number(externalUsage[productKey]);
+              existingArchive.totalExternal[productKey] = Number(((existingArchive.totalExternal[productKey] || 0) + external).toFixed(2));
+              
+              // Update inventory snapshot external
+              if (!existingArchive.inventorySnapshot[productKey]) {
+                existingArchive.inventorySnapshot[productKey] = {
+                  stock: 0,
+                  used: 0,
+                  external: 0,
+                  received: 0
+                };
+              }
+              existingArchive.inventorySnapshot[productKey].external = Number(((existingArchive.inventorySnapshot[productKey].external || 0) + external).toFixed(2));
+            });
+            
+            if (externalSalesDetails.length > 0) {
+              existingArchive.externalSalesDetails.push(...externalSalesDetails);
+            }
+            
+            console.log('📦 Archive saved:', existingArchive);
+            localStorage.setItem('inventory_monthly_archives', JSON.stringify(archives));
+            
+            warnings.push(`📚 CSV from ${csvMonthName} - Added to archive instead of current month`);
+            console.log(`✅ Archived to ${csvMonth}:`, newUsage);
+          } else {
+            // Current month - add to history normally
+            updatedHistory = [...monthlySales, newUsage];
           }
           
-          // Now add all processed invoice IDs to the set (after calculating deltas)
-          Object.keys(cumulativeByProduct).forEach(productKey => {
-            data.forEach((row, index) => {
-              if (index < 3 || !row[3]) return;
-              const invoiceRowId = row[0]?.trim();
-              const medicineName = row[3]?.trim();
-              if (medicineName && BLOOD_PRODUCTS[medicineName]) {
-                if (BLOOD_PRODUCTS[medicineName] === BLOOD_PRODUCTS[productKey] || Object.keys(BLOOD_PRODUCTS).find(key => {
-                  const productBase = key.split(' - ')[0];
-                  return medicineName.includes(productBase);
-                }) === productKey) {
-                  processedInvoices.add(invoiceRowId);
-                }
-              }
-            });
-          });
-          
+          // Update state and save (csvMonthProcessed already contains all invoices for this CSV's month)
           setInventory(updatedInventory);
           setMonthlySales(updatedHistory);
-          setLastCumulativeUsage(updatedLastCumulative);
-          setProcessedInvoices(processedInvoices); // Update the state
-          saveInventory(updatedInventory, updatedHistory, Array.from(processedInvoices));
+          
+          // Only update cumulative if current month (historical imports don't affect tracking)
+          if (!isHistoricalImport) {
+            setLastCumulativeUsage(updatedLastCumulative);
+          }
+          
+          // Save the CSV month's processed invoices to localStorage
+          const savedData = localStorage.getItem(INVENTORY_STORAGE_KEY);
+          const parsedData = savedData ? JSON.parse(savedData) : {};
+          const allProcessedByMonth = parsedData.processedInvoicesByMonth || {};
+          allProcessedByMonth[csvMonth] = Array.from(csvMonthProcessed);
+          parsedData.processedInvoicesByMonth = allProcessedByMonth;
+          
+          if (!isHistoricalImport) {
+            // Current month - update state AND save
+            setProcessedInvoices(new Set(csvMonthProcessed)); // Update state with new Set
+            parsedData.current = updatedInventory;
+            parsedData.sales = updatedHistory;
+            parsedData.lastUpdated = new Date().toISOString();
+            localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(parsedData));
+          } else {
+            // Historical import - only save the processedInvoices, don't update current inventory
+            localStorage.setItem(INVENTORY_STORAGE_KEY, JSON.stringify(parsedData));
+          }
           setImporting(false);
           setShowImport(false);
           // Reset file input
           document.querySelector('input[type="file"]').value = '';
-          let message = `✅ Import Successful!\n\nProcessed ${totalImported} NEW usage records\nInventory updated for ${Object.keys(deltaByProduct).length} products\n\nTotal units deducted:\n${Object.keys(deltaByProduct).map(k => `${BLOOD_PRODUCTS[k].name_he}: ${deltaByProduct[k]}`).join('\n')}`;
+          
+          let message = isHistoricalImport 
+            ? `✅ Historical Import Successful!\n\nProcessed ${totalImported} records from previous month\nData added to monthly archive (${csvMonth})\n\n📚 View in "View Archives" section`
+            : `✅ Import Successful!\n\nProcessed ${totalImported} NEW usage records\nInventory updated for ${Object.keys(deltaByProduct).length} products`;
+          
+          if (!isHistoricalImport) {
+            message += `\n\nTotal units deducted:\n${Object.keys(deltaByProduct).map(k => `${BLOOD_PRODUCTS[k].name_he}: ${Number(deltaByProduct[k]).toFixed(2)}`).join('\n')}`;
+          }
+          
           if (Object.keys(externalUsage).length > 0) {
-            message += `\n\n🏥 External Sales:\n${Object.keys(externalUsage).map(k => `${BLOOD_PRODUCTS[k].name_he}: ${externalUsage[k]}`).join('\n')}`;
+            message += `\n\n🏥 External Sales:\n${Object.keys(externalUsage).map(k => `${BLOOD_PRODUCTS[k].name_he}: ${Number(externalUsage[k]).toFixed(2)}`).join('\n')}`;
           }
           if (warnings.length > 0) {
-            message += `\n\n⚠️ Warnings:\n${warnings.join('\n')}`;
+            message += `\n\n⚠️ Notes:\n${warnings.join('\n')}`;
           }
           
           const skippedCount = data.length - 3 - totalImported; // Total rows minus headers minus imported
           if (skippedCount > 0) {
-            message += `\n\n📝 Note: ${skippedCount} records were skipped (already processed or invalid)`;
+            message += `\n\n📝 ${skippedCount} records were skipped (already processed or invalid)`;
           }
           
           alert(message);
@@ -471,10 +679,12 @@ const InventoryManager = () => {
       });
     } catch (error) {
       console.error('Error importing CSV:', error);
-      alert('❌ Error reading file');
+      const errorMessage = error.message || 'Unknown error';
+      alert(`❌ Error reading file\n\n${errorMessage}\n\nPlease make sure the file is a valid CSV file.`);
       setImporting(false);
       // Reset file input
-      document.querySelector('input[type="file"]').value = '';
+      const fileInput = document.querySelector('input[type="file"]');
+      if (fileInput) fileInput.value = '';
     }
   };
 
@@ -657,10 +867,23 @@ const InventoryManager = () => {
   };
 
   const resetAllData = () => {
-    if (confirm('⚠️ WARNING: This will delete ALL inventory data and import history for this month.\n\nAre you absolutely sure?')) {
+    if (confirm('⚠️ WARNING: This will delete ALL inventory data, import history, AND monthly archives.\n\nAre you absolutely sure?')) {
       if (confirm('This action cannot be undone. Continue?')) {
+        // Clear all archives
+        localStorage.removeItem('inventory_monthly_archives');
+        localStorage.removeItem('inventory_last_archive');
+        
+        // Clear the entire inventory storage (including processedInvoicesByMonth)
+        localStorage.removeItem(INVENTORY_STORAGE_KEY);
+        
+        // Re-initialize fresh inventory
         initializeInventory();
-        alert('✅ All data has been reset.');
+        setProcessedInvoices(new Set());
+        setMonthlySales([]);
+        setLastCumulativeUsage({});
+        
+        console.log('🗑️ All data cleared from localStorage');
+        alert('✅ All data has been reset including archives and processed invoices.');
       }
     }
   };
@@ -686,7 +909,7 @@ const InventoryManager = () => {
     const currentMonthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
     const currentMonthName = currentMonth.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
     
-    if (!confirm(`🔄 Reset Month & Start Fresh\n\nThis will:\n• Archive current ${currentMonthName} data\n• Reset used/external counters to 0\n• Clear import history for fresh start\n\nContinue?`)) {
+    if (!confirm(`🔄 Reset Month & Start Fresh\n\nThis will:\n• Archive previous month data\n• Reset used/external counters to 0\n• Clear import history for fresh start\n\nContinue?`)) {
       return;
     }
 
@@ -694,9 +917,12 @@ const InventoryManager = () => {
     if (saved) {
       const parsed = JSON.parse(saved);
       
-      // Archive current month data BEFORE resetting
+      // Get the PREVIOUS month key for archiving
+      const lastArchiveDate = localStorage.getItem('inventory_last_archive') || currentMonthKey;
+      
+      // Archive PREVIOUS month data BEFORE resetting (using lastArchiveDate, not currentMonthKey)
       if (parsed.sales && parsed.sales.length > 0) {
-        archiveMonthlyData(currentMonthKey, parsed.sales);
+        archiveMonthlyData(lastArchiveDate, parsed.sales);
       }
       
       // Reset counters in localStorage
@@ -710,8 +936,10 @@ const InventoryManager = () => {
       // Reset sales history for new month
       parsed.sales = [];
       
-      // Clear processed invoices list so files can be re-imported
-      parsed.processedInvoices = [];
+      // Clear processed invoices for CURRENT MONTH ONLY
+      const allProcessed = parsed.processedInvoicesByMonth || {};
+      allProcessed[currentMonthKey] = []; // Clear current month
+      parsed.processedInvoicesByMonth = allProcessed;
       
       // Clear lastCumulativeUsage so next import processes all rows
       delete parsed.lastCumulativeUsage;
@@ -733,7 +961,10 @@ const InventoryManager = () => {
       setMonthlySales([]);
       setProcessedInvoices(new Set());
       
-      alert(`✅ Month Reset Complete!\n\n${currentMonthName} data has been archived.\nCounters reset to 0.\nReady for new month imports.`);
+      // Reload from localStorage to ensure sync
+      loadInventory();
+      
+      alert(`✅ Month Reset Complete!\n\nPrevious month data has been archived.\nCounters reset to 0.\nReady for new month imports.`);
     }
   };
 
@@ -793,37 +1024,34 @@ const InventoryManager = () => {
   };
 
   const getExternalUnitsDetails = (monthKey) => {
-    // Get the import history from monthlySales
     const allDetails = [];
     
-    // Helper to format month from date
-    const formatMonth = (dateStr) => {
-      if (!dateStr) return '';
-      const date = new Date(dateStr);
-      return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-    };
-    
-    // Go through all import records
-    monthlySales.forEach((importRecord, idx) => {
-      const importMonth = formatMonth(importRecord.date);
-      
-      // Only process imports from the selected month
-      if (importMonth === monthKey && importRecord.externalDetails && importRecord.externalDetails.length > 0) {
-        // Add all external sales from this import
+    // Check CURRENT month's imports (monthlySales)
+    monthlySales.forEach((importRecord) => {
+      if (importRecord.externalDetails && importRecord.externalDetails.length > 0) {
         importRecord.externalDetails.forEach(detail => {
-          allDetails.push({
-            date: detail.date,
-            animalName: detail.animalName || 'לא צוין',
-            ownerName: detail.ownerName || 'לא צוין',
-            fileNumber: detail.fileNumber || 'אין',
-            productName: detail.productName || BLOOD_PRODUCTS[detail.productKey]?.name_he || 'לא ידוע',
-            quantity: detail.quantity
-          });
+          // Use detail.month if available, otherwise calculate from detail.date
+          const detailMonth = detail.month || (() => {
+            const date = new Date(detail.date);
+            return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+          })();
+          
+          // Only include if this detail belongs to the requested month
+          if (detailMonth === monthKey) {
+            allDetails.push({
+              date: detail.date,
+              animalName: detail.animalName || 'לא צוין',
+              ownerName: detail.ownerName || 'לא צוין',
+              fileNumber: detail.fileNumber || 'אין',
+              productName: detail.productName || BLOOD_PRODUCTS[detail.productKey]?.name_he || 'לא ידוע',
+              quantity: Number(detail.quantity || 0).toFixed(2)
+            });
+          }
         });
       }
     });
     
-    // Also check archived months
+    // Also check ARCHIVED months
     const archivesJson = localStorage.getItem('inventory_monthly_archives');
     if (archivesJson) {
       const archives = JSON.parse(archivesJson);
@@ -836,7 +1064,7 @@ const InventoryManager = () => {
               ownerName: detail.ownerName || 'לא צוין',
               fileNumber: detail.fileNumber || 'אין',
               productName: detail.productName || 'לא ידוע',
-              quantity: detail.quantity
+              quantity: Number(detail.quantity || 0).toFixed(2)
             });
           });
         }
@@ -1018,16 +1246,18 @@ const InventoryManager = () => {
               <button
                 onClick={() => {
                   const archivesJson = localStorage.getItem('inventory_monthly_archives');
+                  console.log('📚 Reading archives from localStorage:', archivesJson);
                   const archives = archivesJson ? JSON.parse(archivesJson) : [];
+                  console.log('📚 Parsed archives:', archives);
                   if (archives.length === 0) {
-                    alert('📊 No archived months yet.\n\nMonthly data will be archived when you use the "Reset Month" function.');
+                    alert('📊 No archived months yet.\n\nMonthly data will be archived when you import historical CSV files.');
                   } else {
                     const archiveList = archives.map((archive, idx) => {
                       const monthDate = new Date(archive.month + '-01');
                       const monthName = monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' });
-                      const totalUsage = Object.values(archive.totalUsage || {}).reduce((sum, v) => sum + v, 0);
-                      const totalExternal = Object.values(archive.totalExternal || {}).reduce((sum, v) => sum + v, 0);
-                      return `${idx + 1}. ${monthName}\n   📦 Total Used: ${totalUsage} units\n   🏥 External: ${totalExternal} units\n   📄 Records: ${archive.totalRecords || 0}`;
+                      const totalUsage = Object.values(archive.totalUsage || {}).reduce((sum, v) => sum + Number(v), 0);
+                      const totalExternal = Object.values(archive.totalExternal || {}).reduce((sum, v) => sum + Number(v), 0);
+                      return `${idx + 1}. ${monthName}\n   📦 Total Used: ${totalUsage.toFixed(2)} units\n   🏥 External: ${totalExternal.toFixed(2)} units\n   📄 Records: ${archive.totalRecords || 0}`;
                     }).join('\n\n');
                     alert(`📚 Monthly Archives\n\n${archiveList}\n\n💡 Tip: Data is safely stored and can be exported if needed.`);
                   }
