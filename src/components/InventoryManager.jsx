@@ -272,11 +272,17 @@ const InventoryManager = () => {
           const deltaByProduct = {};
           const externalUsage = {};
           const externalSalesDetails = []; // New: store detailed external sales info
+          let csvDate = null; // Extract date from CSV
           
           // Parse CSV rows - now with duplicate detection
           data.forEach((row, index) => {
             // Skip header rows and empty rows
             if (index < 3 || !row[3]) return;
+            
+            // Extract date from first data row (Column B)
+            if (!csvDate && row[1]?.trim()) {
+              csvDate = row[1].trim();
+            }
             
             const invoiceRowId = row[0]?.trim(); // Invoice row # column
             const medicineName = row[3]?.trim();
@@ -387,16 +393,56 @@ const InventoryManager = () => {
               warnings.push(`${product.name_he}: Stock is ${updatedInventory[productKey].stock} units (${updatedInventory[productKey].stock < 0 ? 'NEGATIVE' : 'LOW'})`);
             }
           });
-          // Add to usage history
+          // Add to usage history - use CSV date if available, otherwise current date
+          const usageDate = csvDate ? new Date(csvDate).toISOString() : new Date().toISOString();
           const newUsage = {
-            date: new Date().toISOString(),
+            date: usageDate,
             fileName: file.name,
             cumulative: cumulativeByProduct,
             delta: deltaByProduct,
             external: externalUsage,
             externalDetails: externalSalesDetails // Save the detailed external sales info
           };
-          const updatedHistory = [...monthlySales, newUsage];
+          // Check if CSV date belongs to previous month - if so, archive it instead of adding to current
+          const csvDateObj = csvDate ? new Date(csvDate) : new Date();
+          const csvMonth = `${csvDateObj.getFullYear()}-${String(csvDateObj.getMonth() + 1).padStart(2, '0')}`;
+          const currentMonth = new Date();
+          const currentMonthKey = `${currentMonth.getFullYear()}-${String(currentMonth.getMonth() + 1).padStart(2, '0')}`;
+          
+          let updatedHistory;
+          if (csvMonth !== currentMonthKey) {
+            // CSV is from a different month - archive it to that month
+            const lastArchiveDate = localStorage.getItem('inventory_last_archive');
+            if (!lastArchiveDate || lastArchiveDate !== csvMonth) {
+              // Archive to the CSV's month
+              const existingArchives = JSON.parse(localStorage.getItem('monthly_archives') || '[]');
+              const existingArchiveIndex = existingArchives.findIndex(a => a.month === csvMonth);
+              
+              if (existingArchiveIndex >= 0) {
+                // Add to existing archive
+                existingArchives[existingArchiveIndex].sales.push(newUsage);
+                localStorage.setItem('monthly_archives', JSON.stringify(existingArchives));
+              } else {
+                // Create new archive for this month
+                const newArchive = {
+                  month: csvMonth,
+                  sales: [newUsage],
+                  summary: deltaByProduct,
+                  inventorySnapshot: {},
+                  externalSalesDetails: externalSalesDetails
+                };
+                existingArchives.push(newArchive);
+                localStorage.setItem('monthly_archives', JSON.stringify(existingArchives));
+              }
+              
+              alert(`📊 CSV from ${csvMonth} archived!\n\nThis CSV is from a previous month and has been archived accordingly.`);
+            }
+            // Don't add to current month history
+            updatedHistory = monthlySales;
+          } else {
+            // CSV is from current month - add normally
+            updatedHistory = [...monthlySales, newUsage];
+          }
           
           // Now add all processed invoice IDs to the set (after calculating deltas)
           Object.keys(cumulativeByProduct).forEach(productKey => {
