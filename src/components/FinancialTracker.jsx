@@ -68,8 +68,6 @@ const FinancialTracker = () => {
         parsedData = await parseCsvFile(file);
       }
       
-      console.log('Parsed data:', parsedData);
-      
       if (parsedData.length === 0) {
         alert('❌ No valid data found in file');
         setImporting(false);
@@ -84,8 +82,6 @@ const FinancialTracker = () => {
         if (item.type === 'sale' && item.productName && item.quantity > 0) {
           const itemDate = item.date || new Date().toISOString().split('T')[0];
           const monthKey = itemDate.substring(0, 7); // YYYY-MM
-          
-          console.log('Processing:', item.productName, 'Date:', itemDate, 'Month:', monthKey, 'Qty:', item.quantity, 'Revenue:', item.totalInclVat);
           
           // Try to match with known blood products
           let matchedProduct = null;
@@ -114,7 +110,6 @@ const FinancialTracker = () => {
 
           // Skip non-blood products
           if (!matchedProduct) {
-            console.log('❌ Skipping non-blood product:', item.productName);
             return;
           }
 
@@ -142,8 +137,6 @@ const FinancialTracker = () => {
         setImporting(false);
         return;
       }
-
-      console.log('Sales by month:', salesByMonth);
 
       // Create monthly sales entries
       const newSales = Object.keys(salesByMonth).map(monthKey => ({

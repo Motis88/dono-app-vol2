@@ -31,7 +31,6 @@ const AppContent = () => {
 
   // Swipe handlers - only block in tables and inputs
   const handleSwipeLeft = (eventData) => {
-    console.log('🔄 Swipe LEFT detected');
     const target = eventData.event?.target;
     if (target) {
       // Only block if DIRECTLY inside:
@@ -43,19 +42,16 @@ const AppContent = () => {
       const inNoSwipe = target.closest('[data-no-swipe]');
       
       if (inTable || inInput || inNoSwipe) {
-        console.log('❌ Swipe blocked:', { inTable: !!inTable, inInput, inNoSwipe: !!inNoSwipe });
         return;
       }
     }
     
-    console.log('✅ Swipe LEFT executed');
     const currentIndex = viewOrder.indexOf(view);
     const nextIndex = (currentIndex + 1) % viewOrder.length;
     setView(viewOrder[nextIndex]);
   };
 
   const handleSwipeRight = (eventData) => {
-    console.log('🔄 Swipe RIGHT detected');
     const target = eventData.event?.target;
     if (target) {
       // Only block if DIRECTLY inside:
@@ -67,12 +63,10 @@ const AppContent = () => {
       const inNoSwipe = target.closest('[data-no-swipe]');
       
       if (inTable || inInput || inNoSwipe) {
-        console.log('❌ Swipe blocked:', { inTable: !!inTable, inInput, inNoSwipe: !!inNoSwipe });
         return;
       }
     }
     
-    console.log('✅ Swipe RIGHT executed');
     const currentIndex = viewOrder.indexOf(view);
     const prevIndex = (currentIndex - 1 + viewOrder.length) % viewOrder.length;
     setView(viewOrder[prevIndex]);
