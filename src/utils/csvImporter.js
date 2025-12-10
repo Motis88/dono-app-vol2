@@ -8,12 +8,49 @@ import Papa from 'papaparse';
 export const parseCsvFile = (file) => {
   return new Promise((resolve, reject) => {
     Papa.parse(file, {
-      header: true,
+      header: false, // Don't use header auto-detection
       skipEmptyLines: true,
       encoding: 'UTF-8',
       complete: (results) => {
         try {
-          const normalizedData = normalizeData(results.data);
+          // Find the actual header row (looks for "Invoice date" or "Date" column)
+          let headerRowIndex = -1;
+          let headers = [];
+          
+          for (let i = 0; i < Math.min(results.data.length, 10); i++) {
+            const row = results.data[i];
+            if (Array.isArray(row)) {
+              // Check if this row contains header keywords
+              const rowStr = row.join('|').toLowerCase();
+              if (rowStr.includes('invoice date') || 
+                  (rowStr.includes('date') && (rowStr.includes('name') || rowStr.includes('quantity')))) {
+                headerRowIndex = i;
+                headers = row;
+                console.log('📋 Found header row at index:', i, '→', headers);
+                break;
+              }
+            }
+          }
+          
+          if (headerRowIndex === -1) {
+            throw new Error('לא נמצאה שורת headers בקובץ');
+          }
+          
+          // Convert to object format using the found headers
+          const dataRows = results.data.slice(headerRowIndex + 1);
+          const objectData = dataRows
+            .filter(row => Array.isArray(row) && row.length >= headers.length)
+            .map(row => {
+              const obj = {};
+              headers.forEach((header, index) => {
+                obj[header] = row[index] || '';
+              });
+              return obj;
+            });
+          
+          console.log('📦 Parsed', objectData.length, 'data rows');
+          
+          const normalizedData = normalizeData(objectData);
           resolve(normalizedData);
         } catch (error) {
           reject(error);

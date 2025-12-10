@@ -409,7 +409,10 @@ const InventoryManager = () => {
             
             const invoiceRowId = row[0]?.trim(); // Invoice row # column
             const medicineName = row[3]?.trim();
+            
+            // Skip rows without invoice ID, or rows that are summary/total rows
             if (!medicineName || !invoiceRowId) return;
+            if (medicineName.toLowerCase().includes('total') || medicineName.toLowerCase().includes('all total')) return;
             
             // Skip if this invoice row was already processed IN THIS CSV'S MONTH
             if (csvMonthProcessed.has(invoiceRowId)) {
@@ -425,31 +428,62 @@ const InventoryManager = () => {
             
             console.log(`Processing NEW: ${invoiceRowId} - ${medicineName} - Quantity: ${cumulativeUsage}`);
             
-            // זיהוי חיצוני גמיש (עברית/אנגלית, רווחים, סוגריים, גרשיים, דש, גרשיים בודדים/כפולים)
-            const isExternal = /[-–—\s'"\(\)\[\]]*['"]?חיצוני['"]?|['"]?external['"]?/i.test(medicineName);
+            // זיהוי חיצוני - מחפש "חיצוני" או "external" בכל מקום בשם (עם או בלי גרשיים/סימנים)
+            const isExternal = /חיצוני|external/i.test(medicineName);
+            console.log(`🔍 Checking External: "${medicineName}" → isExternal: ${isExternal}`);
             let matchedProduct = null;
+            
+            // Normalize medicine name for better matching
+            const medicineNameLower = medicineName.toLowerCase().trim();
             
             // Direct match first
             if (BLOOD_PRODUCTS[medicineName]) {
               matchedProduct = medicineName;
             } else {
-              // Try partial matching
+              // Enhanced partial matching with multiple strategies
               Object.keys(BLOOD_PRODUCTS).forEach(productKey => {
-                const productBase = productKey.split(' - ')[0];
-                if (medicineName.includes(productBase) || medicineName.includes(BLOOD_PRODUCTS[productKey].code)) {
+                if (matchedProduct) return; // Already found
+                
+                const product = BLOOD_PRODUCTS[productKey];
+                const productCode = product.code.toLowerCase();
+                const productNameHe = product.name_he.toLowerCase();
+                
+                // Strategy 1: Check for product codes (mdm, mdp, mdtt, mdttbig)
+                if (medicineNameLower.includes('mdttbig') && medicineNameLower.includes('cat')) {
+                  if (productKey.includes('mdttbig cat')) matchedProduct = productKey;
+                } else if (medicineNameLower.includes('mdtt') && medicineNameLower.includes('dog')) {
+                  if (productKey.includes('mdtt dog') && !productKey.includes('mdttbig')) matchedProduct = productKey;
+                } else if (medicineNameLower.includes('mdm') && medicineNameLower.includes('cat')) {
+                  if (productKey.includes('mdm cat')) matchedProduct = productKey;
+                } else if (medicineNameLower.includes('mdm') && medicineNameLower.includes('dog')) {
+                  if (productKey.includes('mdm') && productKey.includes('dog')) matchedProduct = productKey;
+                } else if (medicineNameLower.includes('mdp') && medicineNameLower.includes('cat')) {
+                  if (productKey.includes('mdp cat')) matchedProduct = productKey;
+                } else if (medicineNameLower.includes('mdp') && medicineNameLower.includes('dog')) {
+                  if (productKey.includes('mdp') && productKey.includes('dog')) matchedProduct = productKey;
+                }
+                
+                // Strategy 2: Check for English product codes in the BLOOD_PRODUCTS definition
+                if (!matchedProduct && productCode && medicineNameLower.includes(productCode.toLowerCase())) {
                   matchedProduct = productKey;
+                }
+                
+                // Strategy 3: Check for Hebrew name parts
+                if (!matchedProduct) {
+                  const hebrewParts = productNameHe.split(' ');
+                  const matchCount = hebrewParts.filter(part => part.length > 2 && medicineNameLower.includes(part)).length;
+                  if (matchCount >= 2) { // At least 2 words match
+                    matchedProduct = productKey;
+                  }
                 }
               });
             }
             
             if (matchedProduct) {
-              if (!cumulativeByProduct[matchedProduct]) {
-                cumulativeByProduct[matchedProduct] = 0;
-              }
-              cumulativeByProduct[matchedProduct] += cumulativeUsage;
               totalImported++;
               
               if (isExternal) {
+                // External - add only to externalUsage, NOT to internal
                 if (!externalUsage[matchedProduct]) externalUsage[matchedProduct] = 0;
                 externalUsage[matchedProduct] += cumulativeUsage;
                 
@@ -469,6 +503,12 @@ const InventoryManager = () => {
                   productName: BLOOD_PRODUCTS[matchedProduct].name_he,
                   month: csvMonth // Add month identifier
                 });
+              } else {
+                // Internal - add to cumulativeByProduct
+                if (!cumulativeByProduct[matchedProduct]) {
+                  cumulativeByProduct[matchedProduct] = 0;
+                }
+                cumulativeByProduct[matchedProduct] += cumulativeUsage;
               }
               
               // Add to the CSV month's processed invoices set (not current month!)
@@ -1181,7 +1221,9 @@ const InventoryManager = () => {
     
     // Calculate totals
     const total24h = Object.values(last24hUsage).reduce((sum, v) => sum + v, 0);
-    const totalMonth = Object.values(monthUsage).reduce((sum, v) => sum + v, 0);
+    const totalMonthInternal = Object.values(monthUsage).reduce((sum, v) => sum + v, 0);
+    const totalMonthExternal = Object.values(monthExternal).reduce((sum, v) => sum + v, 0);
+    const totalMonth = totalMonthInternal + totalMonthExternal;
     
     message += `\n━━━━━━━━━━━━━━━━━━━━━━\n`;
     message += `\n📊 TOTALS:\n`;

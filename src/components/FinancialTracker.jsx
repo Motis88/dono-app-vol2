@@ -2,31 +2,27 @@ import React, { useState, useEffect } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import Papa from 'papaparse';
 import * as XLSX from 'xlsx';
-import { Share } from '@capacitor/share';
-import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
-import { parseCsvFile, exportToCsv, getDataSummary } from '../utils/csvImporter';
-import EnhancedFinancialDashboard from './EnhancedFinancialDashboard';
+import { parseCsvFile } from '../utils/csvImporter';
 
-// Blood product definitions - matching the CSV reports
+// Blood product definitions
 const BLOOD_PRODUCTS = {
-  'מנת דם טרי כלב': { code: 'FRESH BLOOD', type: 'fresh', species: 'dog', name_he: 'דם טרי כלב', name_en: 'Fresh Whole Blood Dog' },
-  'מנת דם מלא- חתול  mdm cat': { code: 'WHOLE BLOOD CAT', type: 'whole', species: 'cat', name_he: 'דם מלא חתול', name_en: 'Whole Blood Cat' },
-  'מנת דם מלא- כלב n mdm dog': { code: 'WHOLE BLOOD DOG', type: 'whole', species: 'dog', name_he: 'דם מלא כלב', name_en: 'Whole Blood Dog' },
-  'מנת דם פלסמה חתול  mdp cat': { code: 'PLASMA CAT', type: 'plasma', species: 'cat', name_he: 'פלסמה חתול', name_en: 'Plasma Cat' },
-  'מנת דם פלסמה כלב  mdp dog': { code: 'PLASMA DOG', type: 'plasma', species: 'dog', name_he: 'פלסמה כלב', name_en: 'Plasma Dog' },
-  'מנת דם תרכיז תאים כלב  mdtt dog': { code: 'PC DOG', type: 'prbc', species: 'dog', name_he: 'תרכיז תאים כלב', name_en: 'Packed Cells Dog' },
-  'מנת דם תרכיז תאים-גדול-חתול  mdttbig cat': { code: 'PC CAT', type: 'prbc_large', species: 'cat', name_he: 'תרכיז תאים גדול חתול', name_en: 'Packed Cells Cat' },
+  'מנת דם טרי כלב': { code: 'FRESH_BLOOD_DOG', name_en: 'Fresh Whole Blood Dog', species: 'dog' },
+  'מנת דם מלא- חתול  mdm cat': { code: 'WHOLE_BLOOD_CAT', name_en: 'Whole Blood Cat', species: 'cat' },
+  'מנת דם מלא- כלב n mdm dog': { code: 'WHOLE_BLOOD_DOG', name_en: 'Whole Blood Dog', species: 'dog' },
+  'מנת דם פלסמה חתול  mdp cat': { code: 'PLASMA_CAT', name_en: 'Plasma Cat', species: 'cat' },
+  'מנת דם פלסמה כלב  mdp dog': { code: 'PLASMA_DOG', name_en: 'Plasma Dog', species: 'dog' },
+  'מנת דם תרכיז תאים כלב  mdtt dog': { code: 'PRBC_DOG', name_en: 'pRBC Dog', species: 'dog' },
+  'מנת דם תרכיז תאים-גדול-חתול  mdttbig cat': { code: 'PRBC_CAT', name_en: 'pRBC Large Cat', species: 'cat' },
 };
 
 const FINANCIAL_STORAGE_KEY = 'financial_data';
 
 const FinancialTracker = () => {
   const { colors } = useTheme();
-  const [financialData, setFinancialData] = useState({});
   const [monthlySales, setMonthlySales] = useState([]);
   const [showImport, setShowImport] = useState(false);
   const [importing, setImporting] = useState(false);
-  const [expandedMonths, setExpandedMonths] = useState({});
+  const [expandedMonth, setExpandedMonth] = useState(null);
 
   useEffect(() => {
     loadFinancialData();
@@ -37,7 +33,6 @@ const FinancialTracker = () => {
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
-        setFinancialData(parsed.summary || {});
         setMonthlySales(parsed.sales || []);
       } catch (e) {
         console.error('Error loading financial data:', e);
@@ -45,9 +40,8 @@ const FinancialTracker = () => {
     }
   };
 
-  const saveFinancialData = (summary, sales) => {
+  const saveFinancialData = (sales) => {
     localStorage.setItem(FINANCIAL_STORAGE_KEY, JSON.stringify({
-      summary: summary,
       sales: sales,
       lastUpdated: new Date().toISOString(),
     }));
@@ -61,46 +55,37 @@ const FinancialTracker = () => {
       // Check if file is Excel or CSV
       const fileName = file.name.toLowerCase();
       if (fileName.endsWith('.xlsx') || fileName.endsWith('.xls')) {
-        // Parse Excel file
         const arrayBuffer = await file.arrayBuffer();
         const workbook = XLSX.read(arrayBuffer, { type: 'array' });
         const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
         const jsonData = XLSX.utils.sheet_to_json(firstSheet, { raw: false });
         
-        // Convert to CSV-like format for the parser
         const csvText = Papa.unparse(jsonData);
         const csvBlob = new Blob([csvText], { type: 'text/csv' });
         const csvFile = new File([csvBlob], 'converted.csv', { type: 'text/csv' });
         parsedData = await parseCsvFile(csvFile);
       } else {
-        // Parse CSV file normally
         parsedData = await parseCsvFile(file);
       }
       
+      console.log('Parsed data:', parsedData);
+      
       if (parsedData.length === 0) {
-        alert('❌ לא נמצאו נתונים תקינים בקובץ');
+        alert('❌ No valid data found in file');
         setImporting(false);
         return;
       }
 
-      // Get summary of imported data
-      const summary = getDataSummary(parsedData);
-      console.log('Import summary:', summary);
-
       // Process sales data - group by month
-      const salesByMonth = {}; // { 'YYYY-MM': { date, products: {} } }
+      const salesByMonth = {}; // { 'YYYY-MM': { products: {} } }
       let totalImported = 0;
 
       parsedData.forEach(item => {
         if (item.type === 'sale' && item.productName && item.quantity > 0) {
-          // Get month from item date
           const itemDate = item.date || new Date().toISOString().split('T')[0];
           const monthKey = itemDate.substring(0, 7); // YYYY-MM
           
-          // Debug: log first few items to see dates
-          if (totalImported < 5) {
-            console.log('Item date:', item.date, '→ monthKey:', monthKey, 'Product:', item.productName);
-          }
+          console.log('Processing:', item.productName, 'Date:', itemDate, 'Month:', monthKey, 'Qty:', item.quantity, 'Revenue:', item.totalInclVat);
           
           // Try to match with known blood products
           let matchedProduct = null;
@@ -109,402 +94,383 @@ const FinancialTracker = () => {
           if (BLOOD_PRODUCTS[item.productName]) {
             matchedProduct = item.productName;
           } else {
-            // Fuzzy match
-            Object.keys(BLOOD_PRODUCTS).forEach(productKey => {
-              const simplifiedProduct = productKey.replace(/[^א-ת\w]/g, '').toLowerCase();
-              const simplifiedItem = item.productName.replace(/[^א-ת\w]/g, '').toLowerCase();
-              
-              if (simplifiedItem.includes(simplifiedProduct.substring(0, 6)) || 
-                  simplifiedProduct.includes(simplifiedItem.substring(0, 6))) {
-                matchedProduct = productKey;
-              }
-            });
+            // Fuzzy match - look for product codes
+            const itemNameLower = item.productName.toLowerCase();
+            
+            if (itemNameLower.includes('mdm') && itemNameLower.includes('cat')) {
+              matchedProduct = 'מנת דם מלא- חתול  mdm cat';
+            } else if (itemNameLower.includes('mdm') && itemNameLower.includes('dog')) {
+              matchedProduct = 'מנת דם מלא- כלב n mdm dog';
+            } else if (itemNameLower.includes('mdp') && itemNameLower.includes('cat')) {
+              matchedProduct = 'מנת דם פלסמה חתול  mdp cat';
+            } else if (itemNameLower.includes('mdp') && itemNameLower.includes('dog')) {
+              matchedProduct = 'מנת דם פלסמה כלב  mdp dog';
+            } else if (itemNameLower.includes('mdttbig') && itemNameLower.includes('cat')) {
+              matchedProduct = 'מנת דם תרכיז תאים-גדול-חתול  mdttbig cat';
+            } else if (itemNameLower.includes('mdtt') && itemNameLower.includes('dog')) {
+              matchedProduct = 'מנת דם תרכיז תאים כלב  mdtt dog';
+            }
           }
 
-          // If no match found, create generic entry
+          // Skip non-blood products
           if (!matchedProduct) {
-            matchedProduct = item.productName;
+            console.log('❌ Skipping non-blood product:', item.productName);
+            return;
           }
 
           // Initialize month if needed
           if (!salesByMonth[monthKey]) {
-            salesByMonth[monthKey] = {
-              date: itemDate,
-              products: {}
-            };
+            salesByMonth[monthKey] = { products: {} };
           }
 
           // Initialize product in this month if needed
           if (!salesByMonth[monthKey].products[matchedProduct]) {
-            salesByMonth[monthKey].products[matchedProduct] = { quantity: 0, revenueExcl: 0, revenueIncl: 0 };
-          }
-
-          salesByMonth[monthKey].products[matchedProduct].quantity += item.quantity;
-          salesByMonth[monthKey].products[matchedProduct].revenueExcl += item.totalExclVat || 0;
-          salesByMonth[monthKey].products[matchedProduct].revenueIncl += item.totalInclVat || 0;
-          totalImported++;
-        }
-
-        // Process medicine usage data
-        if (item.type === 'medicine_usage' && item.medicine && item.quantityUnits > 0) {
-          const itemDate = item.date || new Date().toISOString().split('T')[0];
-          const monthKey = itemDate.substring(0, 7);
-          const medicineKey = `${item.medicine} (שימוש)`;
-          
-          if (!salesByMonth[monthKey]) {
-            salesByMonth[monthKey] = {
-              date: itemDate,
-              products: {}
+            salesByMonth[monthKey].products[matchedProduct] = { 
+              quantity: 0, 
+              revenueIncl: 0 
             };
           }
 
-          if (!salesByMonth[monthKey].products[medicineKey]) {
-            salesByMonth[monthKey].products[medicineKey] = { quantity: 0, revenueExcl: 0, revenueIncl: 0 };
-          }
-
-          salesByMonth[monthKey].products[medicineKey].quantity += item.quantityUnits;
+          salesByMonth[monthKey].products[matchedProduct].quantity += item.quantity;
+          salesByMonth[monthKey].products[matchedProduct].revenueIncl += item.totalInclVat || 0;
           totalImported++;
         }
       });
 
       if (Object.keys(salesByMonth).length === 0) {
-        alert('❌ לא נמצאו מוצרים תקינים לייבוא');
+        alert('❌ No blood products found for import');
         setImporting(false);
         return;
       }
 
-      // Create monthly sales entries - use first day of month as date
+      console.log('Sales by month:', salesByMonth);
+
+      // Create monthly sales entries
       const newSales = Object.keys(salesByMonth).map(monthKey => ({
-        monthKey, // explicit month identifier YYYY-MM
-        date: `${monthKey}-15T12:00:00.000Z`, // canonical mid-month date
-        // Preserve original file reference but DON'T depend on it for month parsing
-        fileName: `${file.name} (${monthKey})`,
-        products: salesByMonth[monthKey].products,
-        importSummary: summary
+        monthKey, // YYYY-MM
+        products: salesByMonth[monthKey].products
       }));
 
-      // Update total financial data (all-time totals)
-      const updatedData = { ...financialData };
-      Object.keys(salesByMonth).forEach(monthKey => {
-        Object.keys(salesByMonth[monthKey].products).forEach(productKey => {
-          if (!updatedData[productKey]) {
-            updatedData[productKey] = { quantity: 0, revenueExcl: 0, revenueIncl: 0 };
-          }
-          updatedData[productKey].quantity += salesByMonth[monthKey].products[productKey].quantity;
-          updatedData[productKey].revenueExcl += salesByMonth[monthKey].products[productKey].revenueExcl;
-          updatedData[productKey].revenueIncl += salesByMonth[monthKey].products[productKey].revenueIncl;
-        });
+      // Merge with existing data
+      const updatedSales = [...monthlySales];
+      newSales.forEach(newMonth => {
+        const existingIndex = updatedSales.findIndex(m => m.monthKey === newMonth.monthKey);
+        if (existingIndex >= 0) {
+          // Merge products into existing month
+          Object.keys(newMonth.products).forEach(productKey => {
+            if (!updatedSales[existingIndex].products[productKey]) {
+              updatedSales[existingIndex].products[productKey] = { quantity: 0, revenueIncl: 0 };
+            }
+            updatedSales[existingIndex].products[productKey].quantity += newMonth.products[productKey].quantity;
+            updatedSales[existingIndex].products[productKey].revenueIncl += newMonth.products[productKey].revenueIncl;
+          });
+        } else {
+          // Add new month
+          updatedSales.push(newMonth);
+        }
       });
+
+      // Sort by month (newest first)
+      updatedSales.sort((a, b) => b.monthKey.localeCompare(a.monthKey));
       
-      const updatedHistory = [...monthlySales, ...newSales];
-      
-      setFinancialData(updatedData);
-      setMonthlySales(updatedHistory);
-      saveFinancialData(updatedData, updatedHistory);
+      setMonthlySales(updatedSales);
+      saveFinancialData(updatedSales);
       
       setImporting(false);
       setShowImport(false);
       
       const monthCount = Object.keys(salesByMonth).length;
-      const productCount = new Set(Object.values(salesByMonth).flatMap(m => Object.keys(m.products))).size;
-      alert(`✅ ייבוא הושלם בהצלחה!\n\nיובאו ${totalImported} רשומות\nחולקו ל-${monthCount} חודשים\n${productCount} מוצרים שונים\nסוג קובץ: ${summary.types.sale ? 'מכירות' : ''} ${summary.types.medicine_usage ? 'שימוש בתרופות' : ''}`);
+      alert(`✅ Import successful!\n\n${totalImported} sales records\n${monthCount} months`);
       
     } catch (error) {
       console.error('Import error:', error);
       setImporting(false);
-      alert(`❌ שגיאה בייבוא: ${error.message}`);
+      alert(`❌ Import error: ${error.message}`);
     }
-  };
-
-  const deleteImportHistory = (index) => {
-    if (!window.confirm('🗑️ Remove this file from history? (Your financial data will remain unchanged)')) return;
-    
-    try {
-      // Simply remove from history without affecting the financial summary
-      const updatedHistory = monthlySales.filter((_, i) => i !== index);
-      
-      setMonthlySales(updatedHistory);
-      saveFinancialData(financialData, updatedHistory);
-      
-      alert('✅ File removed from history');
-    } catch (error) {
-      console.error('Delete error:', error);
-      alert('❌ Remove failed');
-    }
-  };
-
-
-  // Get previous month's external sales (units and revenue) from inventory import history
-  const getPrevMonthExternalSales = () => {
-    try {
-      const inventoryData = localStorage.getItem('blood_inventory');
-      if (inventoryData) {
-        const parsed = JSON.parse(inventoryData);
-        const sales = parsed.sales || [];
-        const now = new Date();
-        let prevMonth = now.getMonth() - 1; // Previous month (0-based)
-        let prevYear = now.getFullYear();
-        if (prevMonth < 0) {
-          prevMonth = 11; // December
-          prevYear--;
-        }
-        // Find the latest sale from previous month
-        const prevMonthSale = [...sales].reverse().find(sale => {
-          const d = new Date(sale.date);
-          return d.getMonth() === prevMonth && d.getFullYear() === prevYear;
-        });
-        if (!prevMonthSale || !prevMonthSale.external) {
-          return { externalSummary: {}, totalExternalUnits: 0, totalExternalRevenue: 0 };
-        }
-        // Revenue: use FinancialTracker's prevMonthSale for product prices
-        const productPrices = {};
-        if (monthlySales.length > 0) {
-          const finPrevMonthSale = [...monthlySales].reverse().find(sale => {
-            const d = new Date(sale.date);
-            return d.getMonth() === prevMonth && d.getFullYear() === prevYear;
-          });
-          if (finPrevMonthSale) {
-            Object.keys(finPrevMonthSale.products).forEach(productKey => {
-              productPrices[productKey] = {
-                avgPrice: finPrevMonthSale.products[productKey].quantity > 0 ?
-                  finPrevMonthSale.products[productKey].revenueIncl / finPrevMonthSale.products[productKey].quantity : 0,
-                product: BLOOD_PRODUCTS[productKey]
-              };
-            });
-          }
-        }
-        const externalSummary = {};
-        let totalExternalUnits = 0;
-        let totalExternalRevenue = 0;
-        Object.keys(prevMonthSale.external).forEach(productKey => {
-          const units = prevMonthSale.external[productKey];
-          const price = productPrices[productKey]?.avgPrice || 0;
-          const revenue = units * price;
-          externalSummary[productKey] = {
-            units,
-            revenue,
-            product: BLOOD_PRODUCTS[productKey]
-          };
-          totalExternalUnits += units;
-          totalExternalRevenue += revenue;
-        });
-        return { externalSummary, totalExternalUnits, totalExternalRevenue };
-      }
-    } catch (error) {
-      console.error('Error loading inventory data:', error);
-    }
-    return { externalSummary: {}, totalExternalUnits: 0, totalExternalRevenue: 0 };
   };
 
   const resetAllData = () => {
-    if (!window.confirm('⚠️ Reset ALL financial data? This cannot be undone!')) return;
-    setFinancialData({});
+    if (!window.confirm('⚠️ Delete all financial data? This cannot be undone!')) return;
     setMonthlySales([]);
     localStorage.removeItem(FINANCIAL_STORAGE_KEY);
-    alert('✅ All financial data has been reset');
+    alert('✅ All data deleted');
   };
 
-  const toggleMonth = (index) => {
-    setExpandedMonths(prev => ({
-      ...prev,
-      [index]: !prev[index]
-    }));
+  const toggleMonth = (monthKey) => {
+    setExpandedMonth(expandedMonth === monthKey ? null : monthKey);
   };
 
-  // Export financial report
-  const exportFinancialReport = async () => {
-    try {
-      // Check if we have data
-      console.log('Financial Data:', financialData);
-      console.log('Monthly Sales:', monthlySales);
-      if (monthlySales.length === 0) {
-        alert('❌ No monthly sales data to export. Please import sales data first.');
-        return;
-      }
-      
-      // Get previous month data
-      const now = new Date();
-      let prevMonth = now.getMonth() - 1; // Previous month (0-based)
-      let prevYear = now.getFullYear();
-      if (prevMonth < 0) {
-        prevMonth = 11; // December
-        prevYear--;
-      }
-      // Find the latest sale from previous month
-      const prevMonthSale = [...monthlySales].reverse().find(sale => {
-        const d = new Date(sale.date);
-        return d.getMonth() === prevMonth && d.getFullYear() === prevYear;
-      });
-      
-      // If no previous month data found, try using the most recent data instead
-      let selectedSale = prevMonthSale;
-      let reportPeriod = '';
-      
-      if (!prevMonthSale) {
-        console.log('No previous month data found, using most recent data');
-        selectedSale = monthlySales[monthlySales.length - 1];
-        if (!selectedSale) {
-          alert('❌ No sales data available to export.');
-          return;
+  const deleteMonth = (monthKey) => {
+    if (!window.confirm(`Delete month ${monthKey}?`)) return;
+    const updated = monthlySales.filter(m => m.monthKey !== monthKey);
+    setMonthlySales(updated);
+    saveFinancialData(updated);
+  };
+
+  // Calculate averages
+  const calculateAverages = () => {
+    if (monthlySales.length === 0) return null;
+
+    const productTotals = {};
+    let totalUnits = 0;
+    let totalRevenue = 0;
+
+    monthlySales.forEach(month => {
+      Object.keys(month.products).forEach(productKey => {
+        const product = month.products[productKey];
+        if (!productTotals[productKey]) {
+          productTotals[productKey] = { quantity: 0, revenueIncl: 0 };
         }
-        const saleDate = new Date(selectedSale.date);
-        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-        reportPeriod = `${monthNames[saleDate.getMonth()]} ${saleDate.getFullYear()} (Most Recent)`;
-      } else {
-        const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-        reportPeriod = `${monthNames[prevMonth]} ${prevYear}`;
-      }
-      const prevRevenue = Object.values(selectedSale.products).reduce((sum, p) => sum + (p?.revenueIncl || 0), 0);
-      const prevUnits = Object.values(selectedSale.products).reduce((sum, p) => sum + (p?.quantity || 0), 0);
-      
-      const csvData = [];
-      
-      // Header
-  csvData.push(['Monthly Financial Report - Generated ' + new Date().toLocaleDateString('en-US')]);
-  csvData.push(['Report Period:', reportPeriod]);
-      csvData.push(['']);
-      
-      // Previous Month Summary
-      csvData.push(['=== Report Period Summary ===']);
-      csvData.push(['Period Revenue:', `$${prevRevenue.toLocaleString()}`]);
-      csvData.push(['Period Units Sold:', prevUnits]);
-      csvData.push(['Average Price per Unit:', prevUnits > 0 ? `$${Math.round(prevRevenue / prevUnits)}` : '$0']);
-      csvData.push(['']);
-      // Previous Month Products breakdown
-      csvData.push(['=== Report Period Products Detail ===']);
-      csvData.push(['Product', 'Species', 'Units', 'Revenue (Excl)', 'Revenue (Incl)', 'Avg Price']);
-      Object.keys(selectedSale.products).forEach(productKey => {
-        const product = selectedSale.products[productKey];
-        const productInfo = BLOOD_PRODUCTS[productKey];
-        const avgPrice = product.quantity > 0 ? Math.round(product.revenueIncl / product.quantity) : 0;
-        csvData.push([
-          productInfo?.name_en || productKey,
-          productInfo?.species || 'Unknown',
-          product.quantity || 0,
-          `$${(product.revenueExcl || 0).toLocaleString()}`,
-          `$${(product.revenueIncl || 0).toLocaleString()}`,
-          `$${avgPrice}`
-        ]);
+        productTotals[productKey].quantity += product.quantity;
+        productTotals[productKey].revenueIncl += product.revenueIncl;
+        totalUnits += product.quantity;
+        totalRevenue += product.revenueIncl;
       });
-      csvData.push(['']);
-      
-      // Blood Products Only Summary
-      // (Removed duplicate blood products summary section)
-      
-      // External inventory data for previous month
-      const { externalSummary, totalExternalUnits, totalExternalRevenue } = getPrevMonthExternalSales();
-      if (totalExternalUnits > 0) {
-        csvData.push(['=== External Blood Products (From Inventory, Previous Month) ===']);
-        csvData.push(['Product Code', 'Species', 'Units Used', 'Revenue (₪)']);
-        Object.keys(externalSummary).forEach(productKey => {
-          const data = externalSummary[productKey];
-          csvData.push([
-            data.product.code,
-            data.product.species || 'Unknown',
-            data.units,
-            data.revenue ? `₪${Math.round(data.revenue)}` : ''
-          ]);
-        });
-        csvData.push(['Total External Units:', totalExternalUnits]);
-        csvData.push(['Total External Revenue:', `₪${Math.round(totalExternalRevenue)}`]);
-        csvData.push(['']);
-      }
-      
-      const csv = Papa.unparse(csvData);
-      const fileName = `latest_month_report_${new Date().toISOString().slice(0, 10)}.csv`;
-      
-      // Save file using Capacitor Filesystem API
-      try {
-        const savedFile = await Filesystem.writeFile({
-          path: fileName,
-          data: csv,
-          directory: Directory.Documents,
-          encoding: Encoding.UTF8
-        });
-        console.log('File saved:', savedFile);
+    });
 
-        // Share the saved file
-        await Share.share({
-          title: 'Financial Report',
-          text: 'Here is the financial report.',
-          url: savedFile.uri,
-          dialogTitle: 'Share Financial Report'
-        });
-        console.log('File shared successfully.');
-      } catch (filesystemError) {
-        console.error('Filesystem error:', filesystemError);
-        alert('❌ Failed to save or share the file.');
-      }
-    } catch (error) {
-      console.error('Export error:', error);
-      alert('❌ Export failed');
-    }
+    const monthCount = monthlySales.length;
+    const productAverages = {};
+    
+    Object.keys(productTotals).forEach(productKey => {
+      productAverages[productKey] = {
+        avgQuantity: productTotals[productKey].quantity / monthCount,
+        avgRevenue: productTotals[productKey].revenueIncl / monthCount,
+        totalQuantity: productTotals[productKey].quantity,
+        totalRevenue: productTotals[productKey].revenueIncl
+      };
+    });
+
+    const months = monthlySales.map(m => m.monthKey).sort();
+    const dateRange = months.length > 0 ? `${months[0]} - ${months[months.length - 1]}` : '';
+
+    return {
+      avgUnitsPerMonth: totalUnits / monthCount,
+      avgRevenuePerMonth: totalRevenue / monthCount,
+      productAverages,
+      monthCount,
+      dateRange,
+      totalUnits,
+      totalRevenue
+    };
+  };
+
+  const averages = calculateAverages();
+
+  const formatMonth = (monthKey) => {
+    const [year, month] = monthKey.split('-');
+    const monthNames = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+    return `${monthNames[parseInt(month) - 1]} ${year}`;
   };
 
   return (
     <div className={`min-h-screen ${colors.bg.primary} p-4`}>
       <div className={`max-w-7xl mx-auto ${colors.bg.card} rounded-2xl shadow-lg p-6 ${colors.border.primary} border`}>
-      {/* Import Modal */}
-      {showImport && (
-        <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowImport(false)}>
-          <div className={`${colors.bg.card} rounded-2xl p-6 max-w-md w-full`} onClick={e => e.stopPropagation()}>
-            <h3 className={`text-2xl font-bold mb-4 ${colors.text.primary}`}>Import Sales CSV / Excel</h3>
-            <input 
-              type="file" 
-              accept=".csv,.txt,.xlsx,.xls,text/csv,text/plain,application/csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel"
-              onChange={(e) => {
-                if (e.target.files[0]) {
-                  importSalesCSV(e.target.files[0]);
-                }
-              }}
-              className={`w-full px-4 py-3 rounded-xl border-2 ${colors.border.input} ${colors.bg.input} ${colors.text.primary}`}
-              disabled={importing}
-            />
-            {importing && <p className={`mt-4 text-center ${colors.text.secondary}`}>Importing...</p>}
+        {/* Import Modal */}
+        {showImport && (
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowImport(false)}>
+            <div className={`${colors.bg.card} rounded-2xl p-6 max-w-md w-full`} onClick={e => e.stopPropagation()}>
+              <h3 className={`text-2xl font-bold mb-4 ${colors.text.primary}`}>Import Sales File</h3>
+              <p className={`text-sm mb-4 ${colors.text.secondary}`}>
+                Upload CSV or Excel file (Item Sales format)
+              </p>
+              <input 
+                type="file" 
+                accept=".csv,.txt,.xlsx,.xls"
+                onChange={(e) => {
+                  if (e.target.files[0]) {
+                    importSalesCSV(e.target.files[0]);
+                  }
+                }}
+                className={`w-full px-4 py-3 rounded-xl border-2 ${colors.border.input} ${colors.bg.input} ${colors.text.primary}`}
+                disabled={importing}
+              />
+              {importing && <p className={`mt-4 text-center ${colors.text.secondary}`}>Importing...</p>}
+            </div>
           </div>
-        </div>
-      )}
+        )}
 
-      {/* Header with Action Buttons */}
+        {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
           <div>
-            <h2 className="text-2xl font-bold mb-3 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">💰 Financial Tracker</h2>
-            <div className="w-24 h-1 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full mb-2"></div>
-            {monthlySales.length > 0 && (
-              <div className="flex gap-4 text-sm">
-                <div className={`${colors.text.secondary}`}>
-                  <span className="font-semibold">Reports:</span> {monthlySales.length}
-                </div>
-              </div>
-            )}
+            <h2 className="text-3xl font-bold mb-2 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
+              💰 Sales Tracker
+            </h2>
+            <div className="w-24 h-1 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full"></div>
           </div>
           <div className="flex gap-2 flex-wrap">
             <button
               onClick={() => setShowImport(true)}
-              className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-4 py-2 rounded-xl font-bold hover:from-blue-600 hover:to-indigo-700 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center gap-2"
+              className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-3 py-1.5 rounded-lg text-sm font-bold hover:from-blue-600 hover:to-indigo-700 shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-200"
             >
-              <span>📥</span>
-              <span className="text-sm">Import CSV</span>
-            </button>
-            <button
-              onClick={exportFinancialReport}
-              className="bg-gradient-to-r from-green-500 to-emerald-600 text-white px-4 py-2 rounded-xl font-bold hover:from-green-600 hover:to-emerald-700 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center gap-2"
-            >
-              <span>📄</span>
-              <span className="text-sm">Export</span>
+              📥 Import
             </button>
             <button
               onClick={resetAllData}
-              className="bg-gradient-to-r from-red-500 to-rose-600 text-white px-4 py-2 rounded-xl font-bold hover:from-red-600 hover:to-rose-700 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex items-center gap-2"
+              className="bg-gradient-to-r from-red-500 to-rose-600 text-white px-3 py-1.5 rounded-lg text-sm font-bold hover:from-red-600 hover:to-rose-700 shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-200"
             >
-              <span>🗑️</span>
-              <span className="text-sm">Reset</span>
+              🗑️ Reset
             </button>
           </div>
         </div>
 
-      {/* Dashboard Component */}
-      <EnhancedFinancialDashboard salesHistory={monthlySales} />
+        {/* Averages Summary */}
+        {averages && (
+          <div className={`${colors.bg.secondary} rounded-xl p-4 mb-6 border ${colors.border.primary}`}>
+            <h3 className={`text-lg font-bold mb-3 ${colors.text.primary}`}>
+              📊 Summary ({averages.monthCount} months: {averages.dateRange})
+            </h3>
+
+            {/* Overall Averages */}
+            <div className="grid grid-cols-2 gap-3 mb-4">
+              <div className={`${colors.bg.card} rounded-lg p-3 border ${colors.border.primary}`}>
+                <div className={`text-xs ${colors.text.secondary} mb-0.5`}>Avg Units/Month</div>
+                <div className={`text-xl font-bold ${colors.text.primary}`}>
+                  {averages.avgUnitsPerMonth.toFixed(1)}
+                </div>
+                <div className={`text-xs ${colors.text.secondary}`}>
+                  Total: {averages.totalUnits.toFixed(1)}
+                </div>
+              </div>
+              <div className={`${colors.bg.card} rounded-lg p-3 border ${colors.border.primary}`}>
+                <div className={`text-xs ${colors.text.secondary} mb-0.5`}>Avg Revenue/Month</div>
+                <div className={`text-xl font-bold ${colors.text.primary}`}>
+                  ₪{averages.avgRevenuePerMonth.toFixed(0)}
+                </div>
+                <div className={`text-xs ${colors.text.secondary}`}>
+                  Total: ₪{averages.totalRevenue.toFixed(0)}
+                </div>
+              </div>
+            </div>
+
+            {/* Product Averages */}
+            <h4 className={`text-sm font-bold mb-2 ${colors.text.primary}`}>By Product</h4>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+              {Object.keys(averages.productAverages)
+                .sort((a, b) => averages.productAverages[b].totalRevenue - averages.productAverages[a].totalRevenue)
+                .map(productKey => {
+                  const avg = averages.productAverages[productKey];
+                  const product = BLOOD_PRODUCTS[productKey];
+                  return (
+                    <div key={productKey} className={`${colors.bg.card} rounded-lg p-2 border ${colors.border.primary}`}>
+                      <div className="flex justify-between items-center mb-1">
+                        <div className={`text-sm font-bold ${colors.text.primary}`}>
+                          {product?.name_en || productKey}
+                        </div>
+                        <div className={`text-xs ${colors.text.secondary}`}>
+                          {product?.species === 'dog' ? '🐕' : '🐈'}
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div>
+                          <div className={`${colors.text.secondary}`}>Avg/mo</div>
+                          <div className={`font-bold ${colors.text.primary}`}>{avg.avgQuantity.toFixed(1)} u</div>
+                        </div>
+                        <div>
+                          <div className={`${colors.text.secondary}`}>Revenue/mo</div>
+                          <div className={`font-bold ${colors.text.primary}`}>₪{avg.avgRevenue.toFixed(0)}</div>
+                        </div>
+                        <div>
+                          <div className={`${colors.text.secondary}`}>Total</div>
+                          <div className={`font-bold ${colors.text.primary}`}>{avg.totalQuantity.toFixed(1)} u</div>
+                        </div>
+                        <div>
+                          <div className={`${colors.text.secondary}`}>Total ₪</div>
+                          <div className={`font-bold ${colors.text.primary}`}>₪{avg.totalRevenue.toFixed(0)}</div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+            </div>
+          </div>
+        )}
+
+        {/* Monthly Cards */}
+        <div className="space-y-3">
+          <h3 className={`text-lg font-bold ${colors.text.primary} mb-3`}>📅 Monthly Data</h3>
+          
+          {monthlySales.length === 0 && (
+            <div className={`text-center py-8 ${colors.text.secondary}`}>
+              <p className="text-base mb-1">No sales data</p>
+              <p className="text-sm">Click "Import" to start</p>
+            </div>
+          )}
+
+          {monthlySales.map((month) => {
+            const isExpanded = expandedMonth === month.monthKey;
+            const monthTotal = Object.values(month.products).reduce((sum, p) => sum + p.revenueIncl, 0);
+            const monthUnits = Object.values(month.products).reduce((sum, p) => sum + p.quantity, 0);
+
+            return (
+              <div key={month.monthKey} className={`${colors.bg.secondary} rounded-lg border ${colors.border.primary} overflow-hidden`}>
+                {/* Month Header - Clickable */}
+                <div 
+                  className={`p-3 cursor-pointer hover:bg-opacity-80 transition-all ${isExpanded ? 'bg-gradient-to-r from-blue-500/10 to-purple-500/10' : ''}`}
+                  onClick={() => toggleMonth(month.monthKey)}
+                >
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <div className={`text-base font-bold ${colors.text.primary}`}>
+                        {formatMonth(month.monthKey)}
+                      </div>
+                      <div className={`text-xs ${colors.text.secondary} mt-0.5`}>
+                        {monthUnits.toFixed(1)} units • ₪{monthTotal.toFixed(0)}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          deleteMonth(month.monthKey);
+                        }}
+                        className="text-red-500 hover:text-red-600 px-2 py-1 rounded hover:bg-red-500/10 transition-all text-sm"
+                      >
+                        🗑️
+                      </button>
+                      <span className={`text-xl ${colors.text.primary}`}>
+                        {isExpanded ? '▼' : '◀'}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Month Details - Expanded */}
+                {isExpanded && (
+                  <div className={`p-3 pt-0 border-t ${colors.border.primary}`}>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 mt-2">
+                      {Object.keys(month.products).map(productKey => {
+                        const product = month.products[productKey];
+                        const productInfo = BLOOD_PRODUCTS[productKey];
+                        return (
+                          <div key={productKey} className={`${colors.bg.card} rounded-lg p-2 border ${colors.border.primary}`}>
+                            <div className="flex justify-between items-center">
+                              <div className="flex-1">
+                                <div className={`text-sm font-bold ${colors.text.primary}`}>
+                                  {productInfo?.name_en || productKey}
+                                </div>
+                                <div className={`text-xs ${colors.text.secondary}`}>
+                                  {productInfo?.species === 'dog' ? '🐕' : '🐈'}
+                                </div>
+                              </div>
+                              <div className="text-right">
+                                <div className={`text-sm font-bold ${colors.text.primary}`}>
+                                  {product.quantity.toFixed(1)} u
+                                </div>
+                                <div className={`text-xs ${colors.text.secondary}`}>
+                                  ₪{product.revenueIncl.toFixed(0)}
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
       </div>
     </div>
   );
