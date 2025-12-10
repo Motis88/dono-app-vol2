@@ -293,12 +293,14 @@ const FinancialTracker = () => {
           <div className="flex gap-2 flex-wrap">
             <button
               onClick={() => setShowImport(true)}
+              aria-label="Import sales data from file"
               className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-3 py-1.5 rounded-lg text-sm font-bold hover:from-blue-600 hover:to-indigo-700 shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-200"
             >
               📥 Import
             </button>
             <button
               onClick={resetAllData}
+              aria-label="Reset all financial data - warning: destructive action"
               className="bg-gradient-to-r from-red-500 to-rose-600 text-white px-3 py-1.5 rounded-lg text-sm font-bold hover:from-red-600 hover:to-rose-700 shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-200"
             >
               🗑️ Reset

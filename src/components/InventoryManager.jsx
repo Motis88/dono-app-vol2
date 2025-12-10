@@ -1249,6 +1249,7 @@ const InventoryManager = () => {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-2 w-full md:w-auto">
               <button
                 onClick={() => setShowImport(true)}
+                aria-label="Import medicine usage CSV file"
                 className="bg-gradient-to-r from-indigo-500 to-purple-600 text-white px-3 py-2.5 rounded-xl font-bold hover:from-indigo-600 hover:to-purple-700 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2"
               >
                 <span className="text-lg md:text-xl">�</span>
@@ -1257,6 +1258,7 @@ const InventoryManager = () => {
               
               <button
                 onClick={showCurrentMonthStats}
+                aria-label="View current month statistics"
                 className="bg-gradient-to-r from-teal-500 to-cyan-600 text-white px-3 py-2.5 rounded-xl font-bold hover:from-teal-600 hover:to-cyan-700 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2"
               >
                 <span className="text-lg md:text-xl">📊</span>
@@ -1265,6 +1267,7 @@ const InventoryManager = () => {
               
               <button
                 onClick={showExternalSalesByMonth}
+                aria-label="View external sales history by month"
                 className="bg-gradient-to-r from-blue-500 to-sky-600 text-white px-3 py-2.5 rounded-xl font-bold hover:from-blue-600 hover:to-sky-700 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2"
               >
                 <span className="text-lg md:text-xl">🏥</span>
@@ -1288,6 +1291,7 @@ const InventoryManager = () => {
                     alert(`📚 Monthly Archives\n\n${archiveList}\n\n💡 Tip: Data is safely stored and can be exported if needed.`);
                   }
                 }}
+                aria-label="View monthly archives"
                 className="bg-gradient-to-r from-amber-500 to-orange-600 text-white px-3 py-2.5 rounded-xl font-bold hover:from-amber-600 hover:to-orange-700 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2"
               >
                 <span className="text-lg md:text-xl">📚</span>
@@ -1296,6 +1300,7 @@ const InventoryManager = () => {
               
               <button
                 onClick={forceResetCounters}
+                aria-label="Reset current month counters"
                 className="bg-gradient-to-r from-purple-500 to-pink-600 text-white px-3 py-2.5 rounded-xl font-bold hover:from-purple-600 hover:to-pink-700 shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200 flex flex-col md:flex-row items-center justify-center gap-1 md:gap-2"
               >
                 <span className="text-lg md:text-xl">🔄</span>
@@ -1308,6 +1313,7 @@ const InventoryManager = () => {
           <div className="flex justify-center md:justify-end">
             <button
               onClick={resetAllData}
+              aria-label="Reset all inventory data - warning: destructive action"
               className="bg-gradient-to-r from-gray-400 to-gray-500 text-white px-3 py-1.5 rounded-lg text-xs font-semibold hover:from-red-500 hover:to-rose-600 shadow transition-all duration-200 opacity-60 hover:opacity-100"
             >
               🗑️ Reset All Data
