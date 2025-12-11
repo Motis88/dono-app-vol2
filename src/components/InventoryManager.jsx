@@ -1690,7 +1690,10 @@ const InventoryManager = () => {
 
                   // Add current month if has data
                   if (Object.keys(currentMonthExternal).length > 0) {
-                    const totalUnits = Object.values(currentMonthExternal).reduce((sum, val) => sum + val, 0);
+                    // Calculate actual total from details instead of inventory totals
+                    const details = getExternalUnitsDetails(currentMonthKey);
+                    const totalUnits = details.reduce((sum, detail) => sum + parseFloat(detail.quantity), 0);
+                    
                     monthsMap.set(currentMonthKey, {
                       monthKey: currentMonthKey,
                       totalUnits,
@@ -1698,15 +1701,16 @@ const InventoryManager = () => {
                     });
                   }
 
-                  // Add archived months - aggregate if month already exists
+                  // Add archived months - calculate from actual details
                   archives.forEach(archive => {
-                    const externalData = archive.totalExternal || {};
-                    const totalUnits = Object.values(externalData).reduce((sum, val) => sum + val, 0);
+                    const details = getExternalUnitsDetails(archive.month);
+                    const totalUnits = details.reduce((sum, detail) => sum + parseFloat(detail.quantity), 0);
+                    
                     if (totalUnits > 0) {
                       const existing = monthsMap.get(archive.month);
                       if (existing) {
-                        // Aggregate: add units to existing month
-                        existing.totalUnits += totalUnits;
+                        // This shouldn't happen anymore with deduplication, but keep for safety
+                        existing.totalUnits = totalUnits;
                       } else {
                         // New month
                         monthsMap.set(archive.month, {
