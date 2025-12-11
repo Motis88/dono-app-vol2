@@ -1050,7 +1050,8 @@ const InventoryManager = () => {
   };
 
   const getExternalUnitsDetails = (monthKey) => {
-    const allDetails = [];
+    // Use Map to prevent duplicates based on unique key (date + animalName + quantity)
+    const detailsMap = new Map();
     
     // Check CURRENT month's imports (monthlySales)
     monthlySales.forEach((importRecord) => {
@@ -1064,14 +1065,17 @@ const InventoryManager = () => {
           
           // Only include if this detail belongs to the requested month
           if (detailMonth === monthKey) {
-            allDetails.push({
-              date: detail.date,
-              animalName: detail.animalName || 'לא צוין',
-              ownerName: detail.ownerName || 'לא צוין',
-              fileNumber: detail.fileNumber || 'אין',
-              productName: detail.productName || BLOOD_PRODUCTS[detail.productKey]?.name_he || 'לא ידוע',
-              quantity: Number(detail.quantity || 0).toFixed(2)
-            });
+            const uniqueKey = `${detail.date}_${detail.animalName}_${detail.quantity}`;
+            if (!detailsMap.has(uniqueKey)) {
+              detailsMap.set(uniqueKey, {
+                date: detail.date,
+                animalName: detail.animalName || 'לא צוין',
+                ownerName: detail.ownerName || 'לא צוין',
+                fileNumber: detail.fileNumber || 'אין',
+                productName: detail.productName || BLOOD_PRODUCTS[detail.productKey]?.name_he || 'לא ידוע',
+                quantity: Number(detail.quantity || 0).toFixed(2)
+              });
+            }
           }
         });
       }
@@ -1084,20 +1088,24 @@ const InventoryManager = () => {
       archives.forEach(archive => {
         if (archive.month === monthKey && archive.externalSalesDetails) {
           archive.externalSalesDetails.forEach(detail => {
-            allDetails.push({
-              date: detail.date,
-              animalName: detail.animalName || 'לא צוין',
-              ownerName: detail.ownerName || 'לא צוין',
-              fileNumber: detail.fileNumber || 'אין',
-              productName: detail.productName || 'לא ידוע',
-              quantity: Number(detail.quantity || 0).toFixed(2)
-            });
+            const uniqueKey = `${detail.date}_${detail.animalName}_${detail.quantity}`;
+            if (!detailsMap.has(uniqueKey)) {
+              detailsMap.set(uniqueKey, {
+                date: detail.date,
+                animalName: detail.animalName || 'לא צוין',
+                ownerName: detail.ownerName || 'לא צוין',
+                fileNumber: detail.fileNumber || 'אין',
+                productName: detail.productName || 'לא ידוע',
+                quantity: Number(detail.quantity || 0).toFixed(2)
+              });
+            }
           });
         }
       });
     }
     
-    // Sort by date (newest first)
+    // Convert Map to array and sort by date (newest first)
+    const allDetails = Array.from(detailsMap.values());
     allDetails.sort((a, b) => new Date(b.date) - new Date(a.date));
     
     return allDetails;
