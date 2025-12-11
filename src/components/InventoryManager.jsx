@@ -1675,34 +1675,43 @@ const InventoryManager = () => {
                     }
                   });
 
-                  const monthsWithData = [];
+                  // Use Map to prevent duplicates and aggregate data by month
+                  const monthsMap = new Map();
+                  const now = new Date();
+                  const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
 
                   // Add current month if has data
                   if (Object.keys(currentMonthExternal).length > 0) {
-                    const now = new Date();
-                    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
                     const totalUnits = Object.values(currentMonthExternal).reduce((sum, val) => sum + val, 0);
-                    monthsWithData.push({
+                    monthsMap.set(currentMonthKey, {
                       monthKey: currentMonthKey,
                       totalUnits,
                       isCurrent: true
                     });
                   }
 
-                  // Add archived months
+                  // Add archived months - aggregate if month already exists
                   archives.forEach(archive => {
                     const externalData = archive.totalExternal || {};
                     const totalUnits = Object.values(externalData).reduce((sum, val) => sum + val, 0);
                     if (totalUnits > 0) {
-                      monthsWithData.push({
-                        monthKey: archive.month,
-                        totalUnits,
-                        isCurrent: false
-                      });
+                      const existing = monthsMap.get(archive.month);
+                      if (existing) {
+                        // Aggregate: add units to existing month
+                        existing.totalUnits += totalUnits;
+                      } else {
+                        // New month
+                        monthsMap.set(archive.month, {
+                          monthKey: archive.month,
+                          totalUnits,
+                          isCurrent: archive.month === currentMonthKey
+                        });
+                      }
                     }
                   });
 
-                  // Sort by month (newest first)
+                  // Convert Map to array and sort by month (newest first)
+                  const monthsWithData = Array.from(monthsMap.values());
                   monthsWithData.sort((a, b) => b.monthKey.localeCompare(a.monthKey));
 
                   return monthsWithData.map((monthData) => {
