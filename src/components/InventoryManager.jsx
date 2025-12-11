@@ -1113,6 +1113,7 @@ const InventoryManager = () => {
 
   const showCurrentMonthStats = () => {
     const now = new Date();
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
     
     // Check if there's any usage data at all
     const hasUsageData = Object.values(inventory).some(
@@ -1124,21 +1125,29 @@ const InventoryManager = () => {
       return;
     }
     
-    // Get inventory totals (this shows what actually happened this month)
+    // Get inventory totals for INTERNAL usage (this shows what actually happened this month)
     const monthUsage = {};
-    const monthExternal = {};
     
     Object.keys(BLOOD_PRODUCTS).forEach(productKey => {
       const product = inventory[productKey];
-      if (product) {
-        if ((product.used || 0) > 0) {
-          // Internal usage = what was used from stock
-          monthUsage[productKey] = product.used || 0;
-        }
-        if ((product.external || 0) > 0) {
-          // External sales
-          monthExternal[productKey] = product.external || 0;
-        }
+      if (product && (product.used || 0) > 0) {
+        // Internal usage = what was used from stock
+        monthUsage[productKey] = product.used || 0;
+      }
+    });
+    
+    // Get EXTERNAL sales from actual sale details instead of inventory totals
+    const externalDetails = getExternalUnitsDetails(currentMonthKey);
+    const monthExternal = {};
+    
+    externalDetails.forEach(detail => {
+      // Find product key by matching product name
+      const productKey = Object.keys(BLOOD_PRODUCTS).find(key => 
+        BLOOD_PRODUCTS[key].name_he === detail.productName
+      );
+      
+      if (productKey) {
+        monthExternal[productKey] = (monthExternal[productKey] || 0) + parseFloat(detail.quantity);
       }
     });
     
