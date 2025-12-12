@@ -715,6 +715,102 @@ const InventoryManager = () => {
     }
   };
 
+  // --- STOCK IMPORT FROM SYSTEM EXPORT ---
+  const importStockCSV = async (file) => {
+    setImporting(true);
+    try {
+      const text = await file.text();
+      
+      Papa.parse(text, {
+        skipEmptyLines: true,
+        complete: (result) => {
+          const data = result.data;
+          
+          // Skip first 2 rows (date header and empty row)
+          // Row 3 is headers: ID, Type, Name, Packages, Package description, Units in the package, Units, Unit description
+          // Data starts from row 4
+          if (data.length < 4) {
+            alert('❌ Invalid file format. Expected stock export CSV.');
+            setImporting(false);
+            const fileInput = document.querySelector('input[type="file"][data-stock-import]');
+            if (fileInput) fileInput.value = '';
+            return;
+          }
+          
+          const updatedInventory = { ...inventory };
+          let updatedCount = 0;
+          const updates = [];
+          
+          // Process each product row (starting from index 3)
+          for (let i = 3; i < data.length; i++) {
+            const row = data[i];
+            if (row.length < 7) continue; // Skip invalid rows
+            
+            const productName = row[2]?.trim(); // Column C: Name
+            const unitsStr = row[6]?.trim(); // Column G: Units
+            
+            if (!productName || !unitsStr) continue;
+            
+            // Parse units (could be decimal like "15.5")
+            const units = parseFloat(unitsStr);
+            if (isNaN(units)) continue;
+            
+            // Find matching product in BLOOD_PRODUCTS
+            const productKey = Object.keys(BLOOD_PRODUCTS).find(key => key === productName);
+            
+            if (productKey) {
+              if (!updatedInventory[productKey]) {
+                updatedInventory[productKey] = {
+                  stock: 0,
+                  received: 0,
+                  used: 0,
+                  external: 0,
+                  lastUpdated: new Date().toISOString()
+                };
+              }
+              
+              // Update stock to the imported value
+              updatedInventory[productKey].stock = units;
+              updatedInventory[productKey].lastUpdated = new Date().toISOString();
+              
+              updatedCount++;
+              updates.push(`${BLOOD_PRODUCTS[productKey].name_en}: ${units} units`);
+            }
+          }
+          
+          if (updatedCount === 0) {
+            alert('ℹ️ No matching products found in the CSV file.\n\nMake sure the product names match exactly.');
+            setImporting(false);
+            const fileInput = document.querySelector('input[type="file"][data-stock-import]');
+            if (fileInput) fileInput.value = '';
+            return;
+          }
+          
+          // Save updated inventory
+          setInventory(updatedInventory);
+          saveInventory(updatedInventory, monthlySales);
+          
+          setImporting(false);
+          const fileInput = document.querySelector('input[type="file"][data-stock-import]');
+          if (fileInput) fileInput.value = '';
+          
+          alert(`✅ Stock Import Successful!\n\nUpdated ${updatedCount} products:\n\n${updates.join('\n')}`);
+        },
+        error: (error) => {
+          console.error('CSV parse error:', error);
+          alert('❌ Failed to parse CSV file. Please check the format.');
+          setImporting(false);
+          const fileInput = document.querySelector('input[type="file"][data-stock-import]');
+          if (fileInput) fileInput.value = '';
+        },
+      });
+    } catch (error) {
+      console.error('Import error:', error);
+      alert('❌ Failed to import file: ' + error.message);
+      setImporting(false);
+    }
+  };
+
   // Function to extract text from PDF
   const extractTextFromPDF = async (file) => {
     try {
@@ -1610,31 +1706,62 @@ const InventoryManager = () => {
         <>
           <div className="fixed inset-0 bg-black bg-opacity-60 backdrop-blur-sm z-40" onClick={() => !importing && setShowImport(false)} />
           <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
-            <div className={`${colors.bg.card} rounded-3xl shadow-2xl p-8 max-w-lg w-full border-2 ${colors.border.primary}`}>
+            <div className={`${colors.bg.card} rounded-3xl shadow-2xl p-8 max-w-2xl w-full border-2 ${colors.border.primary}`}>
               <div className="flex items-center gap-3 mb-6">
                 <div className="text-4xl">📥</div>
-                <h3 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Import Usage Report</h3>
+                <h3 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">Import Data</h3>
               </div>
-              <p className={`text-sm ${colors.text.secondary} mb-6 leading-relaxed`}>
-                Select the <strong>Medicine Usage report</strong> (CSV or PDF) from your clinic system to import and automatically update inventory.
-              </p>
               
-              <input
-                type="file"
-                accept=".csv,.pdf,text/csv,application/pdf"
-                onChange={handleFileSelect}
-                disabled={importing}
-                className={`w-full mb-6 p-4 border-2 border-dashed rounded-xl ${colors.border.primary} hover:border-indigo-500 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200`}
-              />
+              {/* Two import options */}
+              <div className="grid md:grid-cols-2 gap-6 mb-6">
+                {/* Option 1: Usage Report */}
+                <div className={`p-6 border-2 rounded-xl ${colors.border.primary} hover:border-indigo-500 transition-all`}>
+                  <div className="text-3xl mb-3">📊</div>
+                  <h4 className="text-lg font-bold mb-2">Medicine Usage Report</h4>
+                  <p className={`text-xs ${colors.text.secondary} mb-4 leading-relaxed`}>
+                    Import daily/weekly usage to track deductions from stock
+                  </p>
+                  <input
+                    type="file"
+                    accept=".csv,.pdf,text/csv,application/pdf"
+                    onChange={handleFileSelect}
+                    disabled={importing}
+                    className={`w-full p-3 border-2 border-dashed rounded-lg ${colors.border.primary} hover:border-indigo-500 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-sm file:mr-2 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200`}
+                  />
+                </div>
+                
+                {/* Option 2: Stock List */}
+                <div className={`p-6 border-2 rounded-xl ${colors.border.primary} hover:border-green-500 transition-all`}>
+                  <div className="text-3xl mb-3">📦</div>
+                  <h4 className="text-lg font-bold mb-2">Stock List Export</h4>
+                  <p className={`text-xs ${colors.text.secondary} mb-4 leading-relaxed`}>
+                    Import current stock levels directly from system
+                  </p>
+                  <input
+                    type="file"
+                    accept=".csv,text/csv"
+                    data-stock-import
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        importStockCSV(file);
+                      }
+                    }}
+                    disabled={importing}
+                    className={`w-full p-3 border-2 border-dashed rounded-lg ${colors.border.primary} hover:border-green-500 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-sm file:mr-2 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-green-100 file:text-green-700 hover:file:bg-green-200`}
+                  />
+                </div>
+              </div>
 
               {importing && (
-                <div className="text-center py-6 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl">
+                <div className="text-center py-6 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl mb-4">
                   <div className="animate-spin rounded-full h-12 w-12 border-4 border-indigo-200 border-t-indigo-600 mx-auto mb-3"></div>
                   <p className="text-sm font-semibold text-indigo-700 dark:text-indigo-300">Importing data...</p>
                   <button
                     onClick={() => {
                       setImporting(false);
-                      document.querySelector('input[type="file"]').value = '';
+                      const fileInputs = document.querySelectorAll('input[type="file"]');
+                      fileInputs.forEach(input => input.value = '');
                     }}
                     className="mt-3 px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg text-sm"
                   >
