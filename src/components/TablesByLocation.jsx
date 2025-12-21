@@ -123,6 +123,8 @@ const TablesByLocation = ({ onEdit, locationFilter, monthFilter, onClearFilter }
   const [search, setSearch] = useState("");
   const [animalTypeFilter, setAnimalTypeFilter] = useState("");
   const [dateFilter, setDateFilter] = useState("");
+  const [exportStartDate, setExportStartDate] = useState('');
+  const [exportEndDate, setExportEndDate] = useState('');
   const [selectedDonor, setSelectedDonor] = useState(null);
   const [removedHighlights, setRemovedHighlights] = useState(() => {
     return donorStorage.getRemovedHighlights();
@@ -393,6 +395,79 @@ const TablesByLocation = ({ onEdit, locationFilter, monthFilter, onClearFilter }
     }
   };
 
+  const handleExportJSONByDateRange = async () => {
+    try {
+      if (!exportStartDate || !exportEndDate) {
+        alert('⚠️ Please choose start and end dates');
+        return;
+      }
+
+      const start = new Date(exportStartDate);
+      const end = new Date(exportEndDate);
+      if (isNaN(start.getTime()) || isNaN(end.getTime())) {
+        alert('⚠️ Invalid dates selected');
+        return;
+      }
+      if (start > end) {
+        alert('⚠️ Start date must be before end date');
+        return;
+      }
+
+      const filtered = donors.filter((d) => {
+        if (!d.date) return false;
+        const dDate = new Date(d.date);
+        if (isNaN(dDate.getTime())) return false;
+        return dDate >= start && dDate <= end;
+      });
+
+      if (filtered.length === 0) {
+        alert('⛔ No donors found in this date range');
+        return;
+      }
+
+      const exportData = JSON.stringify(filtered, null, 2);
+      const filename = `donor_data_${exportStartDate}_to_${exportEndDate}.json`;
+
+      try {
+        await Filesystem.writeFile({
+          path: filename,
+          data: exportData,
+          directory: Directory.Documents,
+          encoding: Encoding.UTF8,
+        });
+
+        const privateOwnersCount = filtered.filter(d => d.isPrivateOwner).length;
+        alert(`✅ File saved successfully!\n\nFilename: ${filename}\nLocation: Documents\n\nDonors: ${filtered.length}\nPrivate owners: ${privateOwnersCount}`);
+        return;
+      } catch (fsError) {
+        console.warn('Filesystem failed:', fsError);
+
+        try {
+          await navigator.clipboard.writeText(exportData);
+          alert(`📋 Data copied to clipboard!\n\n(File save failed, using clipboard instead)\n\nPaste to save as: ${filename}`);
+          return;
+        } catch (clipError) {
+          console.warn('Clipboard failed:', clipError);
+
+          const blob = new Blob([exportData], { type: 'application/json' });
+          const url = URL.createObjectURL(blob);
+          const link = document.createElement('a');
+          link.href = url;
+          link.download = filename;
+          document.body.appendChild(link);
+          link.click();
+          document.body.removeChild(link);
+          URL.revokeObjectURL(url);
+
+          alert(`📁 File downloaded!\n\nCheck your Downloads for: ${filename}`);
+        }
+      }
+    } catch (error) {
+      console.error('Export by date failed:', error);
+      alert('❌ Export failed: ' + error.message);
+    }
+  };
+
   const downloadFile = (data, filename) => {
     try {
       const blob = new Blob([data], { type: 'application/json;charset=utf-8' });
@@ -603,46 +678,81 @@ const TablesByLocation = ({ onEdit, locationFilter, monthFilter, onClearFilter }
 
       {/* Import/Export JSON - Simple and Clean */}
       <div className="flex justify-center mb-6">
-        <div className={`flex items-center gap-2 ${colors.bg.tertiary} rounded-xl p-2 ${colors.border.primary} border flex-wrap justify-center`}>
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            aria-label="Import donor data from JSON file"
-            className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium shadow-sm hover:shadow-md transition-all duration-200"
-          >
-            📥 Import
-          </button>
-          <button
-            onClick={handleExportJSON}
-            aria-label={`Export ${donors.length} donor records to JSON file`}
-            className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium shadow-sm hover:shadow-md transition-all duration-200"
-            title={`Export ${donors.length} records to JSON file`}
-          >
-            💾 JSON ({donors.length})
-          </button>
-          <button
-            onClick={handleExportCSV}
-            aria-label={`Export ${filteredDonors.length} donors from ${activeLocation} to CSV file`}
-            className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium shadow-sm hover:shadow-md transition-all duration-200"
-            title={`Export donors from ${activeLocation} to CSV`}
-          >
-            📊 CSV ({filteredDonors.length})
-          </button>
-          <button
-            onClick={() => {
-              setIsSelectionMode(!isSelectionMode);
-              if (isSelectionMode) {
-                clearSelection();
-              }
-            }}
-            className={`px-3 py-1.5 rounded-lg text-sm font-medium shadow-sm hover:shadow-md transition-all duration-200 ${
-              isSelectionMode 
-                ? 'bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white' 
-                : 'bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white'
-            }`}
-            title="Toggle selection mode for bulk operations"
-          >
-            {isSelectionMode ? '✓ Selection Mode' : '☐ Select Multiple'}
-          </button>
+        <div className={`flex flex-col md:flex-row gap-3 w-full md:w-auto ${colors.bg.tertiary} rounded-xl p-3 ${colors.border.primary} border`}> 
+          <div className="flex flex-wrap gap-2 md:flex-nowrap md:items-center">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              aria-label="Import donor data from JSON file"
+              className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium shadow-sm hover:shadow-md transition-all duration-200 whitespace-nowrap"
+            >
+              📥 Import
+            </button>
+            <button
+              onClick={handleExportJSON}
+              aria-label={`Export ${donors.length} donor records to JSON file`}
+              className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium shadow-sm hover:shadow-md transition-all duration-200 whitespace-nowrap"
+              title={`Export ${donors.length} records to JSON file`}
+            >
+              💾 JSON ({donors.length})
+            </button>
+            <button
+              onClick={handleExportCSV}
+              aria-label={`Export ${filteredDonors.length} donors from ${activeLocation} to CSV file`}
+              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium shadow-sm hover:shadow-md transition-all duration-200 whitespace-nowrap"
+              title={`Export donors from ${activeLocation} to CSV`}
+            >
+              📊 CSV ({filteredDonors.length})
+            </button>
+            <button
+              onClick={() => {
+                setIsSelectionMode(!isSelectionMode);
+                if (isSelectionMode) {
+                  clearSelection();
+                }
+              }}
+              className={`px-3 py-1.5 rounded-lg text-sm font-medium shadow-sm hover:shadow-md transition-all duration-200 whitespace-nowrap ${
+                isSelectionMode 
+                  ? 'bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white' 
+                  : 'bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white'
+              }`}
+              title="Toggle selection mode for bulk operations"
+            >
+              {isSelectionMode ? '✓ Selection Mode' : '☐ Select Multiple'}
+            </button>
+          </div>
+
+          <div className="flex flex-col gap-2 text-sm">
+            <div className="flex items-center gap-2">
+              <div className="flex flex-col">
+                <label className={`text-[10px] ${colors.text.secondary} mb-0.5 font-medium`}>START DATE</label>
+                <input
+                  type="date"
+                  value={exportStartDate}
+                  onChange={(e) => setExportStartDate(e.target.value)}
+                  className={`px-2 py-1 rounded-lg border ${colors.border.primary} bg-gray-200 dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 w-[130px]`}
+                  aria-label="Start date for JSON export"
+                />
+              </div>
+              <div className="flex flex-col">
+                <label className={`text-[10px] ${colors.text.secondary} mb-0.5 font-medium`}>END DATE</label>
+                <input
+                  type="date"
+                  value={exportEndDate}
+                  onChange={(e) => setExportEndDate(e.target.value)}
+                  className={`px-2 py-1 rounded-lg border ${colors.border.primary} bg-gray-200 dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 w-[130px]`}
+                  aria-label="End date for JSON export"
+                />
+              </div>
+            </div>
+            <button
+              onClick={handleExportJSONByDateRange}
+              aria-label="Export donors by date range to JSON file"
+              className="bg-gradient-to-r from-amber-600 to-orange-700 hover:from-amber-700 hover:to-orange-800 text-white px-3 py-1.5 rounded-lg text-sm font-medium shadow-sm hover:shadow-md transition-all duration-200 whitespace-nowrap w-full"
+              title="Export donors by date range to JSON"
+            >
+              🗓️ JSON by dates
+            </button>
+          </div>
         </div>
         <input
           ref={fileInputRef}

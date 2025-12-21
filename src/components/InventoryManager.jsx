@@ -1,12 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import Papa from 'papaparse';
 import { Filesystem, Directory } from '@capacitor/filesystem';
 import { donorStorage } from '../utils/storage';
-import * as pdfjsLib from 'pdfjs-dist';
-
-// PDF.js configuration with matching versions
-pdfjsLib.GlobalWorkerOptions.workerSrc = `https://unpkg.com/pdfjs-dist@3.11.174/build/pdf.worker.min.js`;
 
 // Blood product definitions - matching the CSV reports
 const BLOOD_PRODUCTS = {
@@ -40,9 +36,9 @@ const InventoryManager = () => {
   // External sales details modal
   const [showExternalDetailsModal, setShowExternalDetailsModal] = useState(false);
   const [selectedExternalMonth, setSelectedExternalMonth] = useState(null);
-  // Collapsible sections for dogs and cats - default closed
-  const [showDogProducts, setShowDogProducts] = useState(false);
-  const [showCatProducts, setShowCatProducts] = useState(false);
+  // Collapsible sections for dogs and cats - default open
+  const [showDogProducts, setShowDogProducts] = useState(true);
+  const [showCatProducts, setShowCatProducts] = useState(true);
 
   useEffect(() => {
     loadInventory();
@@ -555,8 +551,10 @@ const InventoryManager = () => {
           
           // Add to usage history - use parsed CSV date if available, otherwise current date
           const usageDate = csvDateObj ? csvDateObj.toISOString() : new Date().toISOString();
+          const importDate = new Date().toISOString(); // When the import actually happened
           const newUsage = {
-            date: usageDate,
+            date: usageDate, // CSV date (for display/archive purposes)
+            importDate: importDate, // When we imported this file (for "last 24h" tracking)
             fileName: file.name,
             cumulative: cumulativeByProduct,
             delta: deltaByProduct,
@@ -811,151 +809,6 @@ const InventoryManager = () => {
     }
   };
 
-  // Function to extract text from PDF
-  const extractTextFromPDF = async (file) => {
-    try {
-      const arrayBuffer = await file.arrayBuffer();
-      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
-      let fullText = '';
-      
-      // Extract text from all pages
-      for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
-        const page = await pdf.getPage(pageNum);
-        const textContent = await page.getTextContent();
-        const pageText = textContent.items.map(item => item.str).join(' ');
-        fullText += pageText + '\n';
-      }
-      
-      return fullText;
-    } catch (error) {
-      console.error('Error extracting PDF text:', error);
-      throw new Error('Failed to extract text from PDF: ' + error.message);
-    }
-  };
-
-  // Function to parse PDF text into usage data
-  const parsePDFTextToUsage = (text) => {
-    const lines = text.split('\n').filter(line => line.trim());
-    const cumulativeByProduct = {};
-    
-    // Look for patterns that match blood product usage
-    for (let i = 0; i < lines.length; i++) {
-      const line = lines[i].trim();
-      
-      // Skip headers and irrelevant lines
-      if (!line || line.toLowerCase().includes('product') || line.toLowerCase().includes('total')) {
-        continue;
-      }
-      
-      // Try to find blood product names and their usage numbers
-      Object.keys(BLOOD_PRODUCTS).forEach(productKey => {
-        const product = BLOOD_PRODUCTS[productKey];
-        
-        // Check if line contains product name (Hebrew or English)
-        if (line.includes(product.name_he) || line.includes(product.name_en) || line.includes(product.code)) {
-          // Look for numbers in the line (usage amounts)
-          const numberMatches = line.match(/(\d+\.?\d*)/g);
-          if (numberMatches && numberMatches.length > 0) {
-            // Take the last number as cumulative usage
-            const usage = parseFloat(numberMatches[numberMatches.length - 1]);
-            if (!isNaN(usage)) {
-              cumulativeByProduct[productKey] = usage;
-            }
-          }
-        }
-      });
-    }
-    
-    return cumulativeByProduct;
-  };
-
-  const importUsagePDF = async (file) => {
-    setImporting(true);
-    try {
-      // Extract text from PDF
-      const text = await extractTextFromPDF(file);
-      
-      // Parse the text into usage data
-      const cumulativeByProduct = parsePDFTextToUsage(text);
-      
-      if (Object.keys(cumulativeByProduct).length === 0) {
-        alert("❌ No blood product usage data found in PDF. Please check the file format.");
-        setImporting(false);
-        return;
-      }
-      
-      // Process the data similar to CSV import
-      let totalImported = 0;
-      const deltaByProduct = {};
-      const externalUsage = {};
-      const warnings = [];
-      
-      Object.entries(cumulativeByProduct).forEach(([productKey, cumulativeUsage]) => {
-        const lastUsage = lastCumulativeUsage[productKey] || 0;
-        const delta = Math.max(0, cumulativeUsage - lastUsage);
-        
-        if (delta > 0) {
-          deltaByProduct[productKey] = delta;
-          totalImported += delta;
-        }
-      });
-      
-      if (totalImported === 0) {
-        alert('ℹ️ No new usage detected in this PDF report.');
-        setImporting(false);
-        return;
-      }
-      
-      // Update inventory
-      const newInventory = { ...inventory };
-      
-      Object.entries(deltaByProduct).forEach(([productKey, delta]) => {
-        if (newInventory[productKey]) {
-          // Update stock and usage counter
-          const currentProduct = newInventory[productKey];
-          newInventory[productKey] = {
-            ...currentProduct,
-            stock: Math.max(0, currentProduct.stock - delta),
-            used: (currentProduct.used || 0) + delta,
-            lastUpdated: new Date().toISOString()
-          };
-        } else {
-          warnings.push(`Product "${productKey}" not found in inventory`);
-        }
-      });
-      
-      // Save the import record
-      const importRecord = {
-        date: new Date().toISOString(),
-        filename: file.name,
-        type: 'PDF Import',
-        productsUsed: deltaByProduct,
-        externalUsage: externalUsage,
-        totalUsed: totalImported
-      };
-      
-      const newSales = [...monthlySales, importRecord];
-      
-      setInventory(newInventory);
-      setMonthlySales(newSales);
-      setLastCumulativeUsage(cumulativeByProduct);
-      
-      saveInventory(newInventory, newSales);
-      setImporting(false);
-      
-      let message = `✅ PDF imported successfully!\n\nProducts updated: ${Object.keys(deltaByProduct).length}\nTotal units used: ${totalImported}`;
-      if (warnings.length > 0) {
-        message += `\n\n⚠️ Warnings:\n${warnings.join('\n')}`;
-      }
-      alert(message);
-      
-    } catch (error) {
-      console.error('Error importing PDF:', error);
-      alert('❌ Error reading PDF file: ' + error.message);
-      setImporting(false);
-    }
-  };
-
   const handleFileSelect = (event) => {
     const file = event.target.files[0];
     if (file) {
@@ -965,12 +818,10 @@ const InventoryManager = () => {
       // Reset importing state first
       setImporting(false);
       
-      if (fileType === 'pdf') {
-        importUsagePDF(file);
-      } else if (fileType === 'csv') {
+      if (fileType === 'csv') {
         importUsageCSV(file);
       } else {
-        alert('❌ Unsupported file type. Please select a CSV or PDF file.');
+        alert('❌ Unsupported file type. Please select a CSV file.');
       }
     } else {
       console.log('No file selected');
@@ -1221,43 +1072,65 @@ const InventoryManager = () => {
       return;
     }
     
-    // Get inventory totals for INTERNAL usage (this shows what actually happened this month)
+    // Build stats directly from this month's imports (not from inventory counters)
     const monthUsage = {};
-    
-    Object.keys(BLOOD_PRODUCTS).forEach(productKey => {
-      const product = inventory[productKey];
-      if (product && (product.used || 0) > 0) {
-        // Internal usage = what was used from stock
-        monthUsage[productKey] = product.used || 0;
-      }
-    });
-    
-    // Get EXTERNAL sales from actual sale details instead of inventory totals
-    const externalDetails = getExternalUnitsDetails(currentMonthKey);
     const monthExternal = {};
-    
-    externalDetails.forEach(detail => {
-      // Find product key by matching product name
-      const productKey = Object.keys(BLOOD_PRODUCTS).find(key => 
-        BLOOD_PRODUCTS[key].name_he === detail.productName
-      );
-      
-      if (productKey) {
-        monthExternal[productKey] = (monthExternal[productKey] || 0) + parseFloat(detail.quantity);
-      }
+
+    // Only consider imports that belong to the current month (by importDate if exists, otherwise CSV date)
+    const salesThisMonth = monthlySales.filter((sale) => {
+      const source = sale.importDate || sale.date;
+      if (!source) return false;
+      const key = (() => {
+        const d = new Date(source);
+        if (isNaN(d.getTime())) return null;
+        return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+      })();
+      return key === currentMonthKey;
+    });
+
+    salesThisMonth.forEach((sale) => {
+      const externalMap = sale.external || {};
+      // Internal usage = delta minus external for each product
+      Object.entries(sale.delta || {}).forEach(([key, amount]) => {
+        const externalAmount = externalMap[key] || 0;
+        const internalAmount = amount - externalAmount;
+        if (internalAmount > 0) {
+          monthUsage[key] = (monthUsage[key] || 0) + internalAmount;
+        }
+      });
+
+      // External usage from this import
+      Object.entries(externalMap).forEach(([key, amount]) => {
+        if (amount > 0) {
+          monthExternal[key] = (monthExternal[key] || 0) + amount;
+        }
+      });
     });
     
-    // For last 24h - check recent imports
+    // Get EXTERNAL sales details (for modal and names); totals already from monthExternal
+    const externalDetails = getExternalUnitsDetails(currentMonthKey);
+    
+    // For last 24h - check recent imports by IMPORT DATE (not CSV date)
     const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    const recentImports = monthlySales.filter(sale => new Date(sale.date) >= yesterday);
+    const recentImports = monthlySales.filter(sale => {
+      // Use importDate if available (new imports), fallback to date for old data
+      const checkDate = sale.importDate || sale.date;
+      return new Date(checkDate) >= yesterday;
+    });
     
     const last24hUsage = {};
     const last24hExternal = {};
     
     recentImports.forEach(sale => {
+      // Calculate internal usage (delta minus external)
       Object.entries(sale.delta || {}).forEach(([key, amount]) => {
-        last24hUsage[key] = (last24hUsage[key] || 0) + amount;
+        const externalAmount = (sale.external && sale.external[key]) || 0;
+        const internalAmount = amount - externalAmount;
+        if (internalAmount > 0) {
+          last24hUsage[key] = (last24hUsage[key] || 0) + internalAmount;
+        }
       });
+      // Add external sales
       Object.entries(sale.external || {}).forEach(([key, amount]) => {
         last24hExternal[key] = (last24hExternal[key] || 0) + amount;
       });
@@ -1290,9 +1163,11 @@ const InventoryManager = () => {
     
     message += `\n━━━━━━━━━━━━━━━━━━━━━━\n`;
     
-    // Month to Date - from inventory totals
+    // Month to Date - from this month's imports only
+    const filesThisMonth = salesThisMonth.length;
+
     message += `\n� MONTH TO DATE:\n`;
-    message += `Files imported this month: ${monthlySales.length}\n`;
+    message += `Files imported this month: ${filesThisMonth}\n`;
     if (Object.keys(monthUsage).length > 0) {
       message += `\nTotal Internal Usage:\n`;
       Object.entries(monthUsage).forEach(([key, amount]) => {
@@ -1324,26 +1199,20 @@ const InventoryManager = () => {
   };
 
   const getMonthlyExternalSummary = () => {
-    const summary = {};
-    let totalUnits = 0;
+    // Get current month external units from actual details (same as modal)
+    const now = new Date();
+    const currentMonthKey = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    const details = getExternalUnitsDetails(currentMonthKey);
     
-    // Show only current month external units (no revenue - that's in Financial tab)
-    Object.keys(BLOOD_PRODUCTS).forEach(productKey => {
-      const externalUnits = inventory[productKey]?.external || 0;
-      if (externalUnits > 0) {
-        summary[productKey] = {
-          units: externalUnits
-        };
-        totalUnits += externalUnits;
-      }
-    });
+    // Calculate total from actual details
+    const totalUnits = details.reduce((sum, detail) => sum + parseFloat(detail.quantity), 0);
     
-    return { summary, totalExternalRevenue: 0, totalUnits };
+    return { summary: {}, totalExternalRevenue: 0, totalUnits };
   };
 
-  const lowStockProducts = getLowStockProducts();
-  const negativeStockProducts = getNegativeStockProducts();
-  const { summary: externalSummary, totalExternalRevenue, totalUnits: totalExternalUnits } = getMonthlyExternalSummary();
+  const lowStockProducts = useMemo(() => getLowStockProducts(), [inventory]);
+  const negativeStockProducts = useMemo(() => getNegativeStockProducts(), [inventory]);
+  const { summary: externalSummary, totalExternalRevenue, totalUnits: totalExternalUnits } = useMemo(() => getMonthlyExternalSummary(), [inventory, monthlySales]);
 
   return (
     <div className={`min-h-screen ${colors.bg.primary} p-4`}>
@@ -1359,7 +1228,7 @@ const InventoryManager = () => {
             </div>
             
             {/* Main Action Buttons - Responsive Grid */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-2 w-full md:w-auto">
+            <div className="grid grid-cols-2 gap-2 w-full md:w-auto">
               <button
                 onClick={() => setShowImport(true)}
                 aria-label="Import medicine usage CSV file"
@@ -1503,7 +1372,7 @@ const InventoryManager = () => {
                       <tr key={productKey} className={`border-b ${colors.border.secondary} hover:bg-gray-50 dark:hover:bg-gray-700/30 transition-colors bg-white dark:bg-gray-950`}>
                         <td className="p-3">
                           <div className="font-semibold text-sm text-gray-900 dark:text-gray-100">{product.name_en}</div>
-ע                          {(isLow || isNegative) && (
+                          {(isLow || isNegative) && (
                             <div className="text-xs font-bold mt-1 text-gray-600 dark:text-gray-400">
                               {isNegative ? '⚠️ Negative!' : '⚠️ Low'}
                             </div>
@@ -1723,7 +1592,7 @@ const InventoryManager = () => {
                   </p>
                   <input
                     type="file"
-                    accept=".csv,.pdf,text/csv,application/pdf"
+                    accept=".csv,text/csv"
                     onChange={handleFileSelect}
                     disabled={importing}
                     className={`w-full p-3 border-2 border-dashed rounded-lg ${colors.border.primary} hover:border-indigo-500 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed text-sm file:mr-2 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-indigo-100 file:text-indigo-700 hover:file:bg-indigo-200`}
