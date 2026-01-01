@@ -20,6 +20,7 @@ const ManualDonorList = ({ onEdit, onNewDonation }) => {
   const [donors, setDonors] = useState([]);
   const [showProfile, setShowProfile] = useState(null);
   const [bloodTypeFilter, setBloodTypeFilter] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
   const [showReady, setShowReady] = useState(true);
   const [showSoon, setShowSoon] = useState(false);
   const [showNotReady, setShowNotReady] = useState(false);
@@ -27,7 +28,7 @@ const ManualDonorList = ({ onEdit, onNewDonation }) => {
   useEffect(() => {
     refreshDonors();
     // eslint-disable-next-line
-  }, [bloodTypeFilter]);
+  }, [bloodTypeFilter, searchQuery]);
 
   // Calculate donation eligibility status
   const calculateDonationStatus = (lastDonationDate) => {
@@ -92,6 +93,16 @@ const ManualDonorList = ({ onEdit, onNewDonation }) => {
     // Filter by blood type if selected
     if (bloodTypeFilter) {
       privateAnimals = privateAnimals.filter(a => a.bloodType === bloodTypeFilter);
+    }
+
+    // Filter by search query (name of animal or owner)
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      privateAnimals = privateAnimals.filter(a => 
+        (a.animalName || '').toLowerCase().includes(query) ||
+        (a.ownerName || '').toLowerCase().includes(query) ||
+        (a.ownerPhone || '').toLowerCase().includes(query)
+      );
     }
 
     // Smart sorting: Ready -> Soon -> Not Ready, then by days until ready (ascending)
@@ -166,21 +177,45 @@ const ManualDonorList = ({ onEdit, onNewDonation }) => {
           </h1>
           <div className={`w-24 h-1 bg-gradient-to-r from-blue-400 to-purple-400 mx-auto rounded-full ${colors.isDarkMode ? 'opacity-80' : ''}`}></div>
         </div>
-        {/* Blood Type Filter */}
-        <div className="mb-6 flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
-          <label className={`font-semibold ${colors.text.primary}`}>Filter by Blood Type:</label>
-          <select
-            className={`p-2 rounded-lg border ${colors.border.primary} ${colors.bg.input} ${colors.text.primary} w-48`}
-            value={bloodTypeFilter}
-            onChange={e => setBloodTypeFilter(e.target.value)}
-          >
-            <option value="">All</option>
-            <option value="DEA 1.1 Positive">DEA 1.1 Positive (Dog)</option>
-            <option value="DEA 1.1 Negative">DEA 1.1 Negative (Dog)</option>
-            <option value="A">A (Cat)</option>
-            <option value="AB">AB (Cat)</option>
-            <option value="B">B (Cat)</option>
-          </select>
+        {/* Filters - Search and Blood Type */}
+        <div className="mb-6 flex flex-col gap-3">
+          {/* Search Bar */}
+          <div className="flex items-center gap-2">
+            <span className="text-xl">🔍</span>
+            <input
+              type="text"
+              placeholder="Search by animal name, owner name, or phone..."
+              className={`flex-1 p-3 rounded-lg border ${colors.border.primary} ${colors.bg.input} ${colors.text.primary} focus:outline-none focus:ring-2 focus:ring-blue-500`}
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="px-3 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                title="Clear search"
+              >
+                ✕
+              </button>
+            )}
+          </div>
+          
+          {/* Blood Type Filter */}
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-6">
+            <label className={`font-semibold ${colors.text.primary}`}>Filter by Blood Type:</label>
+            <select
+              className={`p-2 rounded-lg border ${colors.border.primary} ${colors.bg.input} ${colors.text.primary} w-full sm:w-48`}
+              value={bloodTypeFilter}
+              onChange={e => setBloodTypeFilter(e.target.value)}
+            >
+              <option value="">All</option>
+              <option value="DEA 1.1 Positive">DEA 1.1 Positive (Dog)</option>
+              <option value="DEA 1.1 Negative">DEA 1.1 Negative (Dog)</option>
+              <option value="A">A (Cat)</option>
+              <option value="AB">AB (Cat)</option>
+              <option value="B">B (Cat)</option>
+            </select>
+          </div>
         </div>
 
         {donors.length === 0 ? (

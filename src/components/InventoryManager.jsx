@@ -1142,6 +1142,28 @@ const InventoryManager = () => {
     message += `${monthName}\n`;
     message += `\n━━━━━━━━━━━━━━━━━━━━━━\n`;
     
+    // CURRENT STATE (total inventory)
+    message += `\n📦 CURRENT STATE:\n`;
+    const inventoryWithStock = Object.keys(BLOOD_PRODUCTS).filter(key => {
+      const product = inventory[key];
+      return product && product.stock !== 0;
+    });
+    
+    if (inventoryWithStock.length > 0) {
+      inventoryWithStock.forEach(key => {
+        const product = inventory[key];
+        const bloodProduct = BLOOD_PRODUCTS[key];
+        message += `  • ${bloodProduct.name_en}: ${product.stock} units\n`;
+      });
+      const totalCurrentStock = inventoryWithStock.reduce((sum, key) => sum + (inventory[key].stock || 0), 0);
+      message += `  ────────────────\n`;
+      message += `  Total Stock: ${totalCurrentStock} units\n`;
+    } else {
+      message += `No units in stock\n`;
+    }
+    
+    message += `\n━━━━━━━━━━━━━━━━━━━━━━\n`;
+    
     // Last 24 Hours
     message += `\n⏰ LAST 24 HOURS:\n`;
     message += `Files imported: ${recentImports.length}\n`;

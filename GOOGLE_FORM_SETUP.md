@@ -12,6 +12,13 @@ Visit: https://forms.google.com and click **+ Blank**
 - **Title:** Blood Donor Collection Form
 - **Description:** Fill this form for each animal checked for blood donation
 
+**IMPORTANT - Configure Form Reset:**
+1. Click **Settings** ⚙️ (top right)
+2. Go to **Presentation** tab
+3. ✅ Check: **"Show link to submit another response"**
+4. ✅ Uncheck: **"Edit after submit"** (prevents data persistence)
+5. Set confirmation message: **"✅ Data saved! You can close this tab now."**
+
 ### 3. Add These Questions (in order):
 
 #### **Section 1: Required Fields**
@@ -186,47 +193,81 @@ Visit: https://forms.google.com and click **+ Blank**
 ```javascript
 function onFormSubmit(e) {
   try {
-    const sheet = SpreadsheetApp.getActiveSpreadsheet().getActiveSheet();
-    const lastRow = sheet.getLastRow();
-    const data = sheet.getRange(lastRow, 1, 1, sheet.getLastColumn()).getValues()[0];
+    // Get response from event object (more reliable than reading sheet)
+    const formResponse = e.response;
+    const itemResponses = formResponse.getItemResponses();
     
-    // Map form responses to JSON structure
+    // Extract responses by question title
+    const responses = {};
+    itemResponses.forEach(function(itemResponse) {
+      const question = itemResponse.getItem().getTitle();
+      const answer = itemResponse.getResponse();
+      responses[question] = answer;
+    });
+    
+    // Map form responses to JSON structure with normalized location
+    const location = responses['Location'] || '';
+    const normalizedLocation = normalizeLocation(location);
+    
     const donor = {
-      date: formatDate(data[0]), // Column A: Timestamp
-      location: data[1] || "",
-      animalName: data[2] || "",
-      animalType: data[3] || "",
-      age: data[4] || "",
-      weight: data[5] || "",
-      gender: data[6] || "",
-      bloodType: data[7] || "",
-      fiv: data[8] || "",
-      felv: data[9] || "",
-      pcv: data[10] || "",
-      hct: data[11] || "",
-      wbc: data[12] || "",
-      plt: data[13] || "",
-      packedCell: data[14] || "",
-      slideFindings: data[15] || "",
-      donated: data[16] || "",
-      volume: data[17] || "",
-      notes: data[18] || "",
-      isPrivateOwner: data[19] === "Yes",
-      ownerName: data[20] || "",
-      fileNumber: data[21] || "",
-      ownerPhone: data[22] || ""
+      date: formatDate(formResponse.getTimestamp()),
+      location: normalizedLocation,  // Fixed: now correctly gets location
+      animalName: responses['Animal Name'] || "",
+      animalType: responses['Animal Type'] || "",
+      age: responses['Age'] || "",
+      weight: responses['Weight (kg)'] || "",
+      gender: responses['Gender'] || "",
+      bloodType: responses['Blood Type'] || "",
+      fiv: responses['FIV (Cats only)'] || "",
+      felv: responses['FeLV (Cats only)'] || "",
+      pcv: responses['PCV'] || "",
+      hct: responses['HCT'] || "",
+      wbc: responses['WBC'] || "",
+      plt: responses['PLT'] || "",
+      packedCell: responses['Packed Cell'] || "",
+      slideFindings: responses['Slide Findings'] || "",
+      donated: responses['Donated?'] || "",
+      volume: responses['Volume (ml)'] || "",
+      notes: responses['Notes'] || "",
+      isPrivateOwner: responses['Private Owner?'] === "Yes",
+      ownerName: responses['Owner Name'] || "",
+      fileNumber: responses['File Number'] || "",
+      ownerPhone: responses['Owner Phone'] || ""
     };
+    
+    // Validate required fields
+    if (!donor.date || !donor.location || !donor.animalName || !donor.animalType) {
+      Logger.log("ERROR: Missing required fields!");
+      Logger.log("Date: " + donor.date);
+      Logger.log("Location: " + donor.location);
+      Logger.log("Animal Name: " + donor.animalName);
+      Logger.log("Animal Type: " + donor.animalType);
+      return;
+    }
     
     // Add to "JSON Export" sheet
     const jsonSheet = getOrCreateJsonSheet();
     const jsonString = JSON.stringify(donor, null, 2);
     jsonSheet.appendRow([new Date(), jsonString]);
     
-    Logger.log("Donor added: " + donor.animalName);
+    Logger.log("✅ Donor added successfully: " + donor.animalName + " at " + donor.location);
     
   } catch (error) {
-    Logger.log("Error: " + error.toString());
+    Logger.log("❌ Error: " + error.toString());
   }
+}
+
+// Normalize location to Hebrew format (matching app storage)
+function normalizeLocation(location) {
+  const locationMap = {
+    'Rehovot': 'רחובות',
+    'Beit Oved': 'בית עובד',
+    'Igud Arim Dan': 'איגוד ערים דן',
+    'Petachya': 'פתחיה',
+    'Holon': 'חולון',
+    'External': 'חיצוני'
+  };
+  return locationMap[location] || location;
 }
 
 function formatDate(timestamp) {
@@ -254,43 +295,51 @@ function getOrCreateJsonSheet() {
 function exportAllToJson() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Form Responses 1");
   const data = sheet.getDataRange().getValues();
+  const headers = data[0];
   const donors = [];
   
   // Skip header row
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
-    donors.push({
-      date: formatDate(row[0]),
-      location: row[1] || "",
-      animalName: row[2] || "",
-      animalType: row[3] || "",
-      age: row[4] || "",
-      weight: row[5] || "",
-      gender: row[6] || "",
-      bloodType: row[7] || "",
-      fiv: row[8] || "",
-      felv: row[9] || "",
-      pcv: row[10] || "",
-      hct: row[11] || "",
-      wbc: row[12] || "",
-      plt: row[13] || "",
-      packedCell: row[14] || "",
-      slideFindings: row[15] || "",
-      donated: row[16] || "",
-      volume: row[17] || "",
-      notes: row[18] || "",
-      isPrivateOwner: row[19] === "Yes",
-      ownerName: row[20] || "",
-      fileNumber: row[21] || "",
-      ownerPhone: row[22] || ""
-    });
+    const location = normalizeLocation(row[headers.indexOf('Location')] || '');
+    
+    const donor = {
+      date: formatDate(row[0]), // Timestamp is always first column
+      location: location,
+      animalName: row[headers.indexOf('Animal Name')] || "",
+      animalType: row[headers.indexOf('Animal Type')] || "",
+      age: row[headers.indexOf('Age')] || "",
+      weight: row[headers.indexOf('Weight (kg)')] || "",
+      gender: row[headers.indexOf('Gender')] || "",
+      bloodType: row[headers.indexOf('Blood Type')] || "",
+      fiv: row[headers.indexOf('FIV (Cats only)')] || "",
+      felv: row[headers.indexOf('FeLV (Cats only)')] || "",
+      pcv: row[headers.indexOf('PCV')] || "",
+      hct: row[headers.indexOf('HCT')] || "",
+      wbc: row[headers.indexOf('WBC')] || "",
+      plt: row[headers.indexOf('PLT')] || "",
+      packedCell: row[headers.indexOf('Packed Cell')] || "",
+      slideFindings: row[headers.indexOf('Slide Findings')] || "",
+      donated: row[headers.indexOf('Donated?')] || "",
+      volume: row[headers.indexOf('Volume (ml)')] || "",
+      notes: row[headers.indexOf('Notes')] || "",
+      isPrivateOwner: row[headers.indexOf('Private Owner?')] === "Yes",
+      ownerName: row[headers.indexOf('Owner Name')] || "",
+      fileNumber: row[headers.indexOf('File Number')] || "",
+      ownerPhone: row[headers.indexOf('Owner Phone')] || ""
+    };
+    
+    // Only add if has required fields
+    if (donor.date && donor.location && donor.animalName && donor.animalType) {
+      donors.push(donor);
+    }
   }
   
   const jsonSheet = getOrCreateJsonSheet();
   const jsonString = JSON.stringify(donors, null, 2);
   jsonSheet.appendRow([new Date(), jsonString]);
   
-  SpreadsheetApp.getUi().alert(`Exported ${donors.length} donors to JSON!`);
+  SpreadsheetApp.getUi().alert(`✅ Exported ${donors.length} donors to JSON!`);
 }
 ```
 
@@ -331,41 +380,48 @@ Add this function to Apps Script:
 function downloadJson() {
   const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName("Form Responses 1");
   const data = sheet.getDataRange().getValues();
+  const headers = data[0];
   const donors = [];
   
   for (let i = 1; i < data.length; i++) {
     const row = data[i];
-    donors.push({
+    const location = normalizeLocation(row[headers.indexOf('Location')] || '');
+    
+    const donor = {
       date: formatDate(row[0]),
-      location: row[1] || "",
-      animalName: row[2] || "",
-      animalType: row[3] || "",
-      age: row[4] || "",
-      weight: row[5] || "",
-      gender: row[6] || "",
-      bloodType: row[7] || "",
-      fiv: row[8] || "",
-      felv: row[9] || "",
-      pcv: row[10] || "",
-      hct: row[11] || "",
-      wbc: row[12] || "",
-      plt: row[13] || "",
-      packedCell: row[14] || "",
-      slideFindings: row[15] || "",
-      donated: row[16] || "",
-      volume: row[17] || "",
-      notes: row[18] || "",
-      isPrivateOwner: row[19] === "Yes",
-      ownerName: row[20] || "",
-      fileNumber: row[21] || "",
-      ownerPhone: row[22] || ""
-    });
+      location: location,
+      animalName: row[headers.indexOf('Animal Name')] || "",
+      animalType: row[headers.indexOf('Animal Type')] || "",
+      age: row[headers.indexOf('Age')] || "",
+      weight: row[headers.indexOf('Weight (kg)')] || "",
+      gender: row[headers.indexOf('Gender')] || "",
+      bloodType: row[headers.indexOf('Blood Type')] || "",
+      fiv: row[headers.indexOf('FIV (Cats only)')] || "",
+      felv: row[headers.indexOf('FeLV (Cats only)')] || "",
+      pcv: row[headers.indexOf('PCV')] || "",
+      hct: row[headers.indexOf('HCT')] || "",
+      wbc: row[headers.indexOf('WBC')] || "",
+      plt: row[headers.indexOf('PLT')] || "",
+      packedCell: row[headers.indexOf('Packed Cell')] || "",
+      slideFindings: row[headers.indexOf('Slide Findings')] || "",
+      donated: row[headers.indexOf('Donated?')] || "",
+      volume: row[headers.indexOf('Volume (ml)')] || "",
+      notes: row[headers.indexOf('Notes')] || "",
+      isPrivateOwner: row[headers.indexOf('Private Owner?')] === "Yes",
+      ownerName: row[headers.indexOf('Owner Name')] || "",
+      fileNumber: row[headers.indexOf('File Number')] || "",
+      ownerPhone: row[headers.indexOf('Owner Phone')] || ""
+    };
+    
+    if (donor.date && donor.location && donor.animalName && donor.animalType) {
+      donors.push(donor);
+    }
   }
   
   const blob = Utilities.newBlob(JSON.stringify(donors, null, 2), 'application/json', 'donors.json');
   DriveApp.createFile(blob);
   
-  SpreadsheetApp.getUi().alert('JSON file created in your Google Drive!');
+  SpreadsheetApp.getUi().alert('✅ JSON file created in your Google Drive with ' + donors.length + ' donors!');
 }
 ```
 
@@ -413,11 +469,27 @@ function downloadJson() {
 **Problem:** Script doesn't run on form submit
 - **Solution:** Check trigger is enabled in Apps Script
 
-**Problem:** JSON format is wrong
-- **Solution:** Make sure column order matches the script
+**Problem:** Location field is empty in JSON
+- **Solution:** Make sure you're using the UPDATED script above (uses `e.response` instead of sheet columns)
 
-**Problem:** Phone validation is too strict
-- **Solution:** Remove validation or change to "Text" type
+**Problem:** Form shows old data after submit
+- **Solution:** In Form Settings → Presentation → Uncheck "Edit after submit"
+
+**Problem:** Missing required fields (date/location/name/type)
+- **Solution:** The script now validates and skips incomplete submissions - check Apps Script logs
+
+**Problem:** Hebrew locations not showing correctly
+- **Solution:** Script now auto-converts English → Hebrew using `normalizeLocation()`
+
+---
+
+## 📋 What's New in This Version?
+
+✅ **Fixed location mapping** - Now correctly extracts location from form responses  
+✅ **Hebrew location conversion** - Auto-converts "Rehovot" → "רחובות" etc.  
+✅ **Required fields validation** - Won't create JSON if missing date/location/name/type  
+✅ **Better error logging** - Shows exactly which fields are missing  
+✅ **Form auto-reset** - Clear instructions to prevent data persistence  
 
 ---
 

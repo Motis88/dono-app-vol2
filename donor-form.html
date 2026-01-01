@@ -1,0 +1,878 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blood Donor Data Collection Form</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+            direction: ltr;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 16px;
+        }
+
+        .form-content {
+            padding: 30px;
+        }
+
+        .section {
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 2px solid #f0f0f0;
+        }
+
+        .section:last-child {
+            border-bottom: none;
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #667eea;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: #333;
+            font-size: 14px;
+        }
+
+        .required {
+            color: #e53e3e;
+            margin-right: 4px;
+        }
+
+        input[type="text"],
+        input[type="number"],
+        input[type="date"],
+        input[type="tel"],
+        select,
+        textarea {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s;
+            font-family: inherit;
+        }
+
+        input:focus,
+        select:focus,
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        textarea {
+            resize: vertical;
+            min-height: 100px;
+        }
+
+        .radio-group {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        .radio-option {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        .radio-option input[type="radio"] {
+            width: 20px;
+            height: 20px;
+            cursor: pointer;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        button {
+            flex: 1;
+            padding: 16px 24px;
+            border: none;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: inherit;
+        }
+
+        .btn-submit {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .btn-reset {
+            background: #f7fafc;
+            color: #4a5568;
+            border: 2px solid #e2e8f0;
+        }
+
+        .btn-reset:hover {
+            background: #edf2f7;
+        }
+
+        .btn-download {
+            background: linear-gradient(135deg, #48bb78 0%, #38a169 100%);
+            color: white;
+            box-shadow: 0 4px 15px rgba(72, 187, 120, 0.4);
+        }
+
+        .btn-download:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(72, 187, 120, 0.6);
+        }
+
+        .status-message {
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            font-weight: 600;
+            display: none;
+        }
+
+        .status-message.success {
+            background: #c6f6d5;
+            color: #22543d;
+            border: 2px solid #9ae6b4;
+        }
+
+        .status-message.error {
+            background: #fed7d7;
+            color: #742a2a;
+            border: 2px solid #fc8181;
+        }
+
+        .donor-count {
+            background: #edf2f7;
+            padding: 15px 20px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            text-align: center;
+            font-weight: bold;
+            color: #2d3748;
+        }
+
+        .donor-list {
+            margin-bottom: 30px;
+            max-height: 300px;
+            overflow-y: auto;
+            border: 2px solid #e2e8f0;
+            border-radius: 10px;
+        }
+
+        .donor-item {
+            padding: 12px 16px;
+            border-bottom: 1px solid #e2e8f0;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: background 0.2s;
+        }
+
+        .donor-item:last-child {
+            border-bottom: none;
+        }
+
+        .donor-item:hover {
+            background: #f7fafc;
+        }
+
+        .donor-item.editing {
+            background: #e6fffa;
+            border-right: 4px solid #38b2ac;
+        }
+
+        .donor-info {
+            flex: 1;
+        }
+
+        .donor-name {
+            font-weight: bold;
+            color: #2d3748;
+            margin-bottom: 4px;
+        }
+
+        .donor-details {
+            font-size: 13px;
+            color: #718096;
+        }
+
+        .donor-actions {
+            display: flex;
+            gap: 8px;
+        }
+
+        .btn-small {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-edit {
+            background: linear-gradient(135deg, #4299e1 0%, #3182ce 100%);
+            color: white;
+        }
+
+        .btn-edit:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(66, 153, 225, 0.4);
+        }
+
+        .btn-delete {
+            background: linear-gradient(135deg, #fc8181 0%, #f56565 100%);
+            color: white;
+        }
+
+        .btn-delete:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 8px rgba(245, 101, 101, 0.4);
+        }
+
+        .editing-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #38b2ac 0%, #319795 100%);
+            color: white;
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: bold;
+            margin-bottom: 10px;
+        }
+
+        @media (max-width: 600px) {
+            .header h1 {
+                font-size: 22px;
+            }
+
+            .form-content {
+                padding: 20px;
+            }
+
+            .button-group {
+                flex-direction: column;
+            }
+
+            button {
+                width: 100%;
+            }
+
+            .donor-item {
+                flex-direction: column;
+                align-items: flex-start;
+                gap: 10px;
+            }
+
+            .donor-actions {
+                width: 100%;
+            }
+
+            .btn-small {
+                flex: 1;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🩸 Blood Donor Data Collection Form</h1>
+            <p>Fill this form for each animal checked for blood donation</p>
+        </div>
+
+        <div class="form-content">
+            <div class="donor-count" id="donorCount">
+                Data saved: <span id="count">0</span>
+            </div>
+
+            <div class="status-message" id="statusMessage"></div>
+
+            <!-- Recent Donors List -->
+            <div id="recentDonorsSection" style="display: none;">
+                <div class="section-title" style="margin-bottom: 15px;">📝 Recently Added (Today)</div>
+                <div class="donor-list" id="recentDonorsList"></div>
+            </div>
+
+            <div id="editingBadge" style="display: none;" class="editing-badge">
+                ✏️ Editing Mode - Update existing record
+            </div>
+
+            <form id="donorForm">
+                <!-- Section 1: Required Fields -->
+                <div class="section">
+                    <div class="section-title">📋 Required Fields</div>
+
+                    <div class="form-group">
+                        <label><span class="required">*</span>Date</label>
+                        <input type="date" id="date" name="date" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label><span class="required">*</span>Location</label>
+                        <select id="location" name="location" required>
+                            <option value="">Select location...</option>
+                            <option value="רחובות">רחובות</option>
+                            <option value="בית עובד">בית עובד</option>
+                            <option value="איגוד ערים דן">איגוד ערים דן</option>
+                            <option value="פתחיה">פתחיה</option>
+                            <option value="חולון">חולון</option>
+                            <option value="חיצוני">חיצוני</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label><span class="required">*</span>Animal Name</label>
+                        <input type="text" id="animalName" name="animalName" placeholder="Enter animal name" required>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Microchip Number (Optional)</label>
+                        <input type="text" id="chipNumber" name="chipNumber" placeholder="Chip number" inputmode="numeric" pattern="[0-9]*">
+                        <small style="display: block; margin-top: 5px; color: #718096; font-size: 12px;">
+                            🔖 Will be used as unique ID if provided
+                        </small>
+                    </div>
+
+                    <div class="form-group">
+                        <label><span class="required">*</span>Animal Type</label>
+                        <div class="radio-group">
+                            <label class="radio-option">
+                                <input type="radio" name="animalType" value="dog" required>
+                                <span>🐕 Dog</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="animalType" value="cat">
+                                <span>🐱 Cat</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 2: Optional Basic Info -->
+                <div class="section">
+                    <div class="section-title">ℹ️ Optional Basic Info</div>
+
+                    <div class="form-group">
+                        <label>Age</label>
+                        <input type="number" id="age" name="age" placeholder="Age in years" min="0" step="0.1">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Weight (kg)</label>
+                        <input type="number" id="weight" name="weight" placeholder="Weight in kg" min="0" step="0.1">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Gender</label>
+                        <div class="radio-group">
+                            <label class="radio-option">
+                                <input type="radio" name="gender" value="Male">
+                                <span>Male</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="gender" value="Female">
+                                <span>Female</span>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Section 3: Blood Work -->
+                <div class="section">
+                    <div class="section-title">🔬 Blood Work</div>
+
+                    <div class="form-group">
+                        <label>Blood Type</label>
+                        <select id="bloodType" name="bloodType">
+                            <option value="">Select...</option>
+                            <option value="DEA 1.1 Positive">DEA 1.1 Positive (כלב)</option>
+                            <option value="DEA 1.1 Negative">DEA 1.1 Negative (כלב)</option>
+                            <option value="A">A (חתול)</option>
+                            <option value="AB">AB (חתול)</option>
+                            <option value="B">B (חתול)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>FIV (Cats only)</label>
+                        <div class="radio-group">
+                            <label class="radio-option">
+                                <input type="radio" name="fiv" value="Positive">
+                                <span>Positive</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="fiv" value="Negative">
+                                <span>Negative</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="fiv" value="Unknown">
+                                <span>Unknown</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>FeLV (Cats only)</label>
+                        <div class="radio-group">
+                            <label class="radio-option">
+                                <input type="radio" name="felv" value="Positive">
+                                <span>Positive</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="felv" value="Negative">
+                                <span>Negative</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="felv" value="Unknown">
+                                <span>Unknown</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>PCV</label>
+                        <input type="number" id="pcv" name="pcv" placeholder="PCV" min="0" step="0.1">
+                    </div>
+
+                    <div class="form-group">
+                        <label>HCT</label>
+                        <input type="number" id="hct" name="hct" placeholder="HCT" min="0" step="0.1">
+                    </div>
+
+                    <div class="form-group">
+                        <label>WBC</label>
+                        <input type="number" id="wbc" name="wbc" placeholder="WBC" min="0" step="0.1">
+                    </div>
+
+                    <div class="form-group">
+                        <label>PLT</label>
+                        <input type="number" id="plt" name="plt" placeholder="PLT" min="0" step="0.1">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Packed Cell</label>
+                        <input type="number" id="packedCell" name="packedCell" placeholder="Packed Cell" min="0" step="0.1">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Slide Findings</label>
+                        <textarea id="slideFindings" name="slideFindings" placeholder="Enter findings..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Section 4: Donation Status -->
+                <div class="section">
+                    <div class="section-title">💉 Donation Status</div>
+
+                    <div class="form-group">
+                        <label>Donated?</label>
+                        <div class="radio-group">
+                            <label class="radio-option">
+                                <input type="radio" name="donated" value="Yes">
+                                <span>Yes</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="donated" value="No">
+                                <span>No</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Volume (ml)</label>
+                        <input type="number" id="volume" name="volume" placeholder="Volume in ml" min="0" step="1">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Notes</label>
+                        <textarea id="notes" name="notes" placeholder="Additional notes..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Section 5: Owner Information -->
+                <div class="section">
+                    <div class="section-title">👤 Owner Information (Optional)</div>
+
+                    <div class="form-group">
+                        <label>Private Owner?</label>
+                        <div class="radio-group">
+                            <label class="radio-option">
+                                <input type="radio" name="isPrivateOwner" value="Yes">
+                                <span>Yes</span>
+                            </label>
+                            <label class="radio-option">
+                                <input type="radio" name="isPrivateOwner" value="No">
+                                <span>No</span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Owner Name</label>
+                        <input type="text" id="ownerName" name="ownerName" placeholder="Owner name">
+                    </div>
+
+                    <div class="form-group">
+                        <label>File Number</label>
+                        <input type="text" id="fileNumber" name="fileNumber" placeholder="File number">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Owner Phone</label>
+                        <input type="tel" id="ownerPhone" name="ownerPhone" placeholder="05X-XXXXXXX">
+                    </div>
+                </div>
+
+                <div class="button-group">
+                    <button type="submit" class="btn-submit" id="submitBtn">✅ Save Data</button>
+                    <button type="button" class="btn-reset" onclick="cancelEdit()">🔄 Clear Form</button>
+                </div>
+            </form>
+
+            <div class="button-group" style="margin-top: 20px;">
+                <button type="button" class="btn-download" onclick="downloadJSON()">
+                    📥 Download JSON (<span id="downloadCount">0</span> records)
+                </button>
+                <button type="button" class="btn-reset" onclick="clearAllData()">
+                    🗑️ Delete All
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Set today's date as default
+        document.getElementById('date').valueAsDate = new Date();
+
+        // Editing state
+        let editingIndex = null;
+
+        // Load donor count on page load
+        updateDonorCount();
+        updateRecentDonorsList();
+
+        // Form submission handler
+        document.getElementById('donorForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            const donor = {
+                date: formData.get('date') || '',
+                location: formData.get('location') || '',
+                animalName: formData.get('animalName') || '',
+                chipNumber: formData.get('chipNumber') || '',
+                animalType: formData.get('animalType') || '',
+                age: formData.get('age') || '',
+                weight: formData.get('weight') || '',
+                gender: formData.get('gender') || '',
+                bloodType: formData.get('bloodType') || '',
+                fiv: formData.get('fiv') || '',
+                felv: formData.get('felv') || '',
+                pcv: formData.get('pcv') || '',
+                hct: formData.get('hct') || '',
+                wbc: formData.get('wbc') || '',
+                plt: formData.get('plt') || '',
+                packedCell: formData.get('packedCell') || '',
+                slideFindings: formData.get('slideFindings') || '',
+                donated: formData.get('donated') || '',
+                volume: formData.get('volume') || '',
+                notes: formData.get('notes') || '',
+                isPrivateOwner: formData.get('isPrivateOwner') === 'Yes',
+                ownerName: formData.get('ownerName') || '',
+                fileNumber: formData.get('fileNumber') || '',
+                ownerPhone: formData.get('ownerPhone') || ''
+            };
+
+            // Validate required fields
+            if (!donor.date || !donor.location || !donor.animalName || !donor.animalType) {
+                showMessage('Please fill all required fields!', 'error');
+                return;
+            }
+
+            let donors = JSON.parse(localStorage.getItem('donors') || '[]');
+            
+            if (editingIndex !== null) {
+                // Update existing donor
+                donors[editingIndex] = donor;
+                showMessage(`✅ Updated successfully! (${donor.animalName})`, 'success');
+                cancelEdit();
+            } else {
+                // Save new donor
+                donors.push(donor);
+                showMessage(`✅ Data saved successfully! (${donor.animalName})`, 'success');
+                
+                // Reset form but keep date and location
+                const currentDate = formData.get('date');
+                const currentLocation = formData.get('location');
+                this.reset();
+                document.getElementById('date').value = currentDate;
+                document.getElementById('location').value = currentLocation;
+            }
+
+            localStorage.setItem('donors', JSON.stringify(donors));
+            updateDonorCount();
+            updateRecentDonorsList();
+
+            // Scroll to top
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        });
+
+        function showMessage(message, type) {
+            const msgEl = document.getElementById('statusMessage');
+            msgEl.textContent = message;
+            msgEl.className = 'status-message ' + type;
+            msgEl.style.display = 'block';
+            
+            setTimeout(() => {
+                msgEl.style.display = 'none';
+            }, 5000);
+        }
+
+        function updateDonorCount() {
+            const donors = JSON.parse(localStorage.getItem('donors') || '[]');
+            document.getElementById('count').textContent = donors.length;
+            document.getElementById('downloadCount').textContent = donors.length;
+        }
+
+        function updateRecentDonorsList() {
+            const donors = JSON.parse(localStorage.getItem('donors') || '[]');
+            const today = new Date().toISOString().split('T')[0];
+            const todayDonors = donors.filter((d, index) => {
+                d._index = index; // Store index for editing
+                return d.date === today;
+            });
+
+            const section = document.getElementById('recentDonorsSection');
+            const listEl = document.getElementById('recentDonorsList');
+
+            if (todayDonors.length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+
+            section.style.display = 'block';
+            listEl.innerHTML = todayDonors.map(donor => `
+                <div class="donor-item ${editingIndex === donor._index ? 'editing' : ''}">
+                    <div class="donor-info">
+                        <div class="donor-name">
+                            ${donor.animalName}
+                            ${donor.chipNumber ? `🔖 ${donor.chipNumber}` : ''}
+                        </div>
+                        <div class="donor-details">
+                            ${donor.animalType === 'dog' ? '🐕' : '🐱'} | 
+                            ${donor.location} | 
+                            ${donor.donated === 'Yes' ? '✅ Donated' : donor.donated === 'No' ? '❌ Not donated' : 'Status unknown'}
+                        </div>
+                    </div>
+                    <div class="donor-actions">
+                        <button class="btn-small btn-edit" onclick="editDonor(${donor._index})">
+                            ✏️ Edit
+                        </button>
+                        <button class="btn-small btn-delete" onclick="deleteDonor(${donor._index})">
+                            🗑️
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function editDonor(index) {
+            const donors = JSON.parse(localStorage.getItem('donors') || '[]');
+            const donor = donors[index];
+
+            if (!donor) return;
+
+            // Set editing mode
+            editingIndex = index;
+
+            // Populate form
+            document.getElementById('date').value = donor.date || '';
+            document.getElementById('location').value = donor.location || '';
+            document.getElementById('animalName').value = donor.animalName || '';
+            document.getElementById('chipNumber').value = donor.chipNumber || '';
+            
+            // Set radio buttons
+            const animalTypeRadio = document.querySelector(`input[name="animalType"][value="${donor.animalType}"]`);
+            if (animalTypeRadio) animalTypeRadio.checked = true;
+
+            document.getElementById('age').value = donor.age || '';
+            document.getElementById('weight').value = donor.weight || '';
+
+            const genderRadio = document.querySelector(`input[name="gender"][value="${donor.gender}"]`);
+            if (genderRadio) genderRadio.checked = true;
+
+            document.getElementById('bloodType').value = donor.bloodType || '';
+
+            const fivRadio = document.querySelector(`input[name="fiv"][value="${donor.fiv}"]`);
+            if (fivRadio) fivRadio.checked = true;
+
+            const felvRadio = document.querySelector(`input[name="felv"][value="${donor.felv}"]`);
+            if (felvRadio) felvRadio.checked = true;
+
+            document.getElementById('pcv').value = donor.pcv || '';
+            document.getElementById('hct').value = donor.hct || '';
+            document.getElementById('wbc').value = donor.wbc || '';
+            document.getElementById('plt').value = donor.plt || '';
+            document.getElementById('packedCell').value = donor.packedCell || '';
+            document.getElementById('slideFindings').value = donor.slideFindings || '';
+
+            const donatedRadio = document.querySelector(`input[name="donated"][value="${donor.donated}"]`);
+            if (donatedRadio) donatedRadio.checked = true;
+
+            document.getElementById('volume').value = donor.volume || '';
+            document.getElementById('notes').value = donor.notes || '';
+
+            const ownerRadio = document.querySelector(`input[name="isPrivateOwner"][value="${donor.isPrivateOwner ? 'Yes' : 'No'}"]`);
+            if (ownerRadio) ownerRadio.checked = true;
+
+            document.getElementById('ownerName').value = donor.ownerName || '';
+            document.getElementById('fileNumber').value = donor.fileNumber || '';
+            document.getElementById('ownerPhone').value = donor.ownerPhone || '';
+
+            // Update UI
+            document.getElementById('submitBtn').textContent = '💾 Update Data';
+            document.getElementById('editingBadge').style.display = 'block';
+            updateRecentDonorsList();
+
+            // Scroll to form
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function cancelEdit() {
+            if (editingIndex !== null) {
+                if (!confirm('Cancel editing? Unsaved changes will be lost.')) {
+                    return;
+                }
+            }
+            editingIndex = null;
+            document.getElementById('donorForm').reset();
+            document.getElementById('date').valueAsDate = new Date();
+            document.getElementById('submitBtn').textContent = '✅ Save Data';
+            document.getElementById('editingBadge').style.display = 'none';
+            updateRecentDonorsList();
+        }
+
+        function deleteDonor(index) {
+            const donors = JSON.parse(localStorage.getItem('donors') || '[]');
+            const donor = donors[index];
+
+            if (!confirm(`Delete ${donor.animalName}?`)) return;
+
+            donors.splice(index, 1);
+            localStorage.setItem('donors', JSON.stringify(donors));
+
+            if (editingIndex === index) {
+                cancelEdit();
+            } else if (editingIndex !== null && editingIndex > index) {
+                editingIndex--;
+            }
+
+            showMessage(`🗑️ Deleted ${donor.animalName}`, 'success');
+            updateDonorCount();
+            updateRecentDonorsList();
+        }
+
+        function resetForm() {
+            cancelEdit();
+        }
+
+        function downloadJSON() {
+            const donors = JSON.parse(localStorage.getItem('donors') || '[]');
+            
+            if (donors.length === 0) {
+                showMessage('No data to download', 'error');
+                return;
+            }
+
+            const jsonStr = JSON.stringify(donors, null, 2);
+            const blob = new Blob([jsonStr], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `donors_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showMessage(`📥 Downloaded ${donors.length} records successfully!`, 'success');
+        }
+
+        function clearAllData() {
+            if (confirm('⚠️ Are you sure? This will delete all saved data!')) {
+                if (confirm('Final confirmation - all data will be permanently deleted!')) {
+                    localStorage.removeItem('donors');
+                    cancelEdit();
+                    updateDonorCount();
+                    updateRecentDonorsList();
+                    showMessage('🗑️ All data deleted', 'success');
+                }
+            }
+        }
+    </script>
+</body>
+</html>

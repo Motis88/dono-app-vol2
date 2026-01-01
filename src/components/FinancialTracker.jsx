@@ -16,16 +16,29 @@ const BLOOD_PRODUCTS = {
 };
 
 const FINANCIAL_STORAGE_KEY = 'financial_data';
+const DEBTS_STORAGE_KEY = 'associations_debts';
 
 const FinancialTracker = () => {
   const { colors } = useTheme();
+  const [activeTab, setActiveTab] = useState('sales'); // 'sales' or 'debts'
   const [monthlySales, setMonthlySales] = useState([]);
   const [showImport, setShowImport] = useState(false);
   const [importing, setImporting] = useState(false);
   const [expandedMonth, setExpandedMonth] = useState(null);
+  
+  // Association debts state
+  const [debtsData, setDebtsData] = useState({
+    'פתחיה': { credit: 0, debt: 0, items: [] },
+    'חולון': { credit: 0, debt: 0, items: [] }
+  });
+  const [editingField, setEditingField] = useState(null); // {association, field}
+  const [editValue, setEditValue] = useState('');
+  const [showAddDebt, setShowAddDebt] = useState(null); // association name or null
+  const [newDebtForm, setNewDebtForm] = useState({ animalName: '', fileNumber: '', amount: '' });
 
   useEffect(() => {
     loadFinancialData();
+    loadDebtsData();
   }, []);
 
   const loadFinancialData = () => {
@@ -38,6 +51,23 @@ const FinancialTracker = () => {
         console.error('Error loading financial data:', e);
       }
     }
+  };
+
+  const loadDebtsData = () => {
+    const saved = localStorage.getItem(DEBTS_STORAGE_KEY);
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setDebtsData(parsed);
+      } catch (e) {
+        console.error('Error loading debts data:', e);
+      }
+    }
+  };
+
+  const saveDebtsData = (data) => {
+    localStorage.setItem(DEBTS_STORAGE_KEY, JSON.stringify(data));
+    setDebtsData(data);
   };
 
   const saveFinancialData = (sales) => {
@@ -189,6 +219,74 @@ const FinancialTracker = () => {
     alert('✅ All data deleted');
   };
 
+  // Debt management functions
+  const startEditField = (association, field) => {
+    setEditingField({ association, field });
+    setEditValue(debtsData[association][field].toString());
+  };
+
+  const saveEditField = () => {
+    if (!editingField) return;
+    const value = parseFloat(editValue) || 0;
+    const updated = {
+      ...debtsData,
+      [editingField.association]: {
+        ...debtsData[editingField.association],
+        [editingField.field]: value
+      }
+    };
+    saveDebtsData(updated);
+    setEditingField(null);
+    setEditValue('');
+  };
+
+  const cancelEditField = () => {
+    setEditingField(null);
+    setEditValue('');
+  };
+
+  const addDebtItem = (association) => {
+    if (!newDebtForm.animalName || !newDebtForm.amount) {
+      alert('Please fill animal name and amount');
+      return;
+    }
+    const amount = parseFloat(newDebtForm.amount) || 0;
+    const updated = {
+      ...debtsData,
+      [association]: {
+        ...debtsData[association],
+        items: [
+          ...debtsData[association].items,
+          {
+            animalName: newDebtForm.animalName,
+            fileNumber: newDebtForm.fileNumber,
+            amount: amount
+          }
+        ]
+      }
+    };
+    saveDebtsData(updated);
+    setShowAddDebt(null);
+    setNewDebtForm({ animalName: '', fileNumber: '', amount: '' });
+  };
+
+  const deleteDebtItem = (association, index) => {
+    const item = debtsData[association].items[index];
+    if (!window.confirm(`Delete ${item.animalName}?`)) return;
+    const updated = {
+      ...debtsData,
+      [association]: {
+        ...debtsData[association],
+        items: debtsData[association].items.filter((_, i) => i !== index)
+      }
+    };
+    saveDebtsData(updated);
+  };
+
+  const calculateBalance = (association) => {
+    return debtsData[association].credit - debtsData[association].debt;
+  };
+
   const toggleMonth = (monthKey) => {
     setExpandedMonth(expandedMonth === monthKey ? null : monthKey);
   };
@@ -258,55 +356,84 @@ const FinancialTracker = () => {
   return (
     <div className={`min-h-screen ${colors.bg.primary} p-4`}>
       <div className={`max-w-7xl mx-auto ${colors.bg.card} rounded-2xl shadow-lg p-6 ${colors.border.primary} border`}>
-        {/* Import Modal */}
-        {showImport && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowImport(false)}>
-            <div className={`${colors.bg.card} rounded-2xl p-6 max-w-md w-full`} onClick={e => e.stopPropagation()}>
-              <h3 className={`text-2xl font-bold mb-4 ${colors.text.primary}`}>Import Sales File</h3>
-              <p className={`text-sm mb-4 ${colors.text.secondary}`}>
-                Upload CSV or Excel file (Item Sales format)
-              </p>
-              <input 
-                type="file" 
-                accept=".csv,.txt,.xlsx,.xls"
-                onChange={(e) => {
-                  if (e.target.files[0]) {
-                    importSalesCSV(e.target.files[0]);
-                  }
-                }}
-                className={`w-full px-4 py-3 rounded-xl border-2 ${colors.border.input} ${colors.bg.input} ${colors.text.primary}`}
-                disabled={importing}
-              />
-              {importing && <p className={`mt-4 text-center ${colors.text.secondary}`}>Importing...</p>}
-            </div>
-          </div>
-        )}
-
+        
         {/* Header */}
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
           <div>
             <h2 className="text-3xl font-bold mb-2 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">
-              💰 Sales Tracker
+              💰 Financial Tracker
             </h2>
             <div className="w-24 h-1 bg-gradient-to-r from-blue-400 to-purple-400 rounded-full"></div>
           </div>
-          <div className="flex gap-2 flex-wrap">
-            <button
-              onClick={() => setShowImport(true)}
-              aria-label="Import sales data from file"
-              className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-3 py-1.5 rounded-lg text-sm font-bold hover:from-blue-600 hover:to-indigo-700 shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-200"
-            >
-              📥 Import
-            </button>
-            <button
-              onClick={resetAllData}
-              aria-label="Reset all financial data - warning: destructive action"
-              className="bg-gradient-to-r from-red-500 to-rose-600 text-white px-3 py-1.5 rounded-lg text-sm font-bold hover:from-red-600 hover:to-rose-700 shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-200"
-            >
-              🗑️ Reset
-            </button>
-          </div>
         </div>
+
+        {/* Tabs */}
+        <div className="flex gap-2 mb-6 border-b-2 border-gray-200 dark:border-gray-700">
+          <button
+            onClick={() => setActiveTab('sales')}
+            className={`px-4 py-2 font-bold transition-all duration-200 border-b-2 ${
+              activeTab === 'sales'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+            }`}
+          >
+            💵 Blood Sales
+          </button>
+          <button
+            onClick={() => setActiveTab('debts')}
+            className={`px-4 py-2 font-bold transition-all duration-200 border-b-2 ${
+              activeTab === 'debts'
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+            }`}
+          >
+            🏦 Association Debts
+          </button>
+        </div>
+
+        {/* Sales Tab Content */}
+        {activeTab === 'sales' && (
+          <>
+            {/* Import Modal */}
+            {showImport && (
+              <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4" onClick={() => setShowImport(false)}>
+                <div className={`${colors.bg.card} rounded-2xl p-6 max-w-md w-full`} onClick={e => e.stopPropagation()}>
+                  <h3 className={`text-2xl font-bold mb-4 ${colors.text.primary}`}>Import Sales File</h3>
+                  <p className={`text-sm mb-4 ${colors.text.secondary}`}>
+                    Upload CSV or Excel file (Item Sales format)
+                  </p>
+                  <input 
+                    type="file" 
+                    accept=".csv,.txt,.xlsx,.xls"
+                    onChange={(e) => {
+                      if (e.target.files[0]) {
+                        importSalesCSV(e.target.files[0]);
+                      }
+                    }}
+                    className={`w-full px-4 py-3 rounded-xl border-2 ${colors.border.input} ${colors.bg.input} ${colors.text.primary}`}
+                    disabled={importing}
+                  />
+                  {importing && <p className={`mt-4 text-center ${colors.text.secondary}`}>Importing...</p>}
+                </div>
+              </div>
+            )}
+
+            <div className="flex gap-2 flex-wrap mb-6">
+              <button
+                onClick={() => setShowImport(true)}
+                aria-label="Import sales data from file"
+                className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-3 py-1.5 rounded-lg text-sm font-bold hover:from-blue-600 hover:to-indigo-700 shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-200"
+              >
+                📥 Import
+              </button>
+              <button
+                onClick={resetAllData}
+                aria-label="Reset all financial data - warning: destructive action"
+                className="bg-gradient-to-r from-red-500 to-rose-600 text-white px-3 py-1.5 rounded-lg text-sm font-bold hover:from-red-600 hover:to-rose-700 shadow-md hover:shadow-lg transform hover:scale-105 transition-all duration-200"
+              >
+                🗑️ Reset
+              </button>
+            </div>
 
         {/* Averages Summary */}
         {averages && (
@@ -466,6 +593,194 @@ const FinancialTracker = () => {
             );
           })}
         </div>
+          </>
+        )}
+
+        {/* Debts Tab Content */}
+        {activeTab === 'debts' && (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            {/* Petahiya Card */}
+            {['פתחיה', 'חולון'].map((association) => {
+              const balance = calculateBalance(association);
+              const isPositive = balance >= 0;
+              
+              return (
+                <div key={association} className={`${colors.bg.secondary} rounded-xl border ${colors.border.primary} p-5`}>
+                  {/* Association Header */}
+                  <h3 className={`text-2xl font-bold mb-4 ${colors.text.primary} flex items-center gap-2`}>
+                    🏛️ {association}
+                  </h3>
+
+                  {/* Credit/Debt Fields */}
+                  <div className="space-y-3 mb-4">
+                    {/* Credit */}
+                    <div className="flex justify-between items-center">
+                      <span className={`font-semibold ${colors.text.primary}`}>Credit:</span>
+                      {editingField?.association === association && editingField?.field === 'credit' ? (
+                        <div className="flex gap-2">
+                          <input
+                            type="number"
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            className={`px-2 py-1 rounded border ${colors.border.input} ${colors.bg.input} w-24 text-sm`}
+                            autoFocus
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') saveEditField();
+                              if (e.key === 'Escape') cancelEditField();
+                            }}
+                          />
+                          <button onClick={saveEditField} className="text-green-600 hover:text-green-700 font-bold">✓</button>
+                          <button onClick={cancelEditField} className="text-red-600 hover:text-red-700 font-bold">✗</button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span className={`font-bold ${colors.text.primary}`}>₪{debtsData[association].credit.toFixed(0)}</span>
+                          <button 
+                            onClick={() => startEditField(association, 'credit')}
+                            className="text-blue-600 hover:text-blue-700 text-sm px-2 py-1 rounded hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                          >
+                            Edit
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Debt */}
+                    <div className="flex justify-between items-center">
+                      <span className={`font-semibold ${colors.text.primary}`}>Debt:</span>
+                      {editingField?.association === association && editingField?.field === 'debt' ? (
+                        <div className="flex gap-2">
+                          <input
+                            type="number"
+                            value={editValue}
+                            onChange={(e) => setEditValue(e.target.value)}
+                            className={`px-2 py-1 rounded border ${colors.border.input} ${colors.bg.input} w-24 text-sm`}
+                            autoFocus
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') saveEditField();
+                              if (e.key === 'Escape') cancelEditField();
+                            }}
+                          />
+                          <button onClick={saveEditField} className="text-green-600 hover:text-green-700 font-bold">✓</button>
+                          <button onClick={cancelEditField} className="text-red-600 hover:text-red-700 font-bold">✗</button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2">
+                          <span className={`font-bold ${colors.text.primary}`}>₪{debtsData[association].debt.toFixed(0)}</span>
+                          <button 
+                            onClick={() => startEditField(association, 'debt')}
+                            className="text-blue-600 hover:text-blue-700 text-sm px-2 py-1 rounded hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                          >
+                            Edit
+                          </button>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Balance */}
+                    <div className={`pt-3 border-t ${colors.border.primary}`}>
+                      <div className="flex justify-between items-center">
+                        <span className={`font-bold ${colors.text.primary}`}>Balance:</span>
+                        <div className={`font-bold text-lg ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+                          ₪{Math.abs(balance).toFixed(0)} {isPositive ? '✅' : '⚠️'}
+                        </div>
+                      </div>
+                      <div className={`text-xs text-right mt-1 ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+                        {isPositive ? 'In favor of association' : 'Owed to association'}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Debt Items List */}
+                  <div className="mt-4">
+                    <h4 className={`text-sm font-bold mb-2 ${colors.text.primary} flex items-center gap-1`}>
+                      📋 Debt Details
+                    </h4>
+                    
+                    {debtsData[association].items.length === 0 ? (
+                      <div className={`text-sm ${colors.text.secondary} text-center py-3 italic`}>
+                        No debt items
+                      </div>
+                    ) : (
+                      <div className="space-y-2 max-h-60 overflow-y-auto">
+                        {debtsData[association].items.map((item, index) => (
+                          <div key={index} className={`${colors.bg.card} rounded-lg p-3 border ${colors.border.primary} flex justify-between items-center`}>
+                            <div>
+                              <div className={`font-semibold ${colors.text.primary}`}>
+                                {item.animalName}
+                                {item.fileNumber && <span className={`text-xs ml-2 ${colors.text.secondary}`}>(#{item.fileNumber})</span>}
+                              </div>
+                              <div className={`text-sm font-bold text-blue-600`}>₪{item.amount.toFixed(0)}</div>
+                            </div>
+                            <button
+                              onClick={() => deleteDebtItem(association, index)}
+                              className="text-red-500 hover:text-red-600 px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20 text-sm"
+                            >
+                              🗑️
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Add Debt Button */}
+                    {showAddDebt === association ? (
+                      <div className={`mt-3 ${colors.bg.card} rounded-lg p-3 border-2 border-blue-500`}>
+                        <div className="space-y-2">
+                          <input
+                            type="text"
+                            placeholder="Animal Name *"
+                            value={newDebtForm.animalName}
+                            onChange={(e) => setNewDebtForm({ ...newDebtForm, animalName: e.target.value })}
+                            className={`w-full px-3 py-2 rounded border ${colors.border.input} ${colors.bg.input} ${colors.text.primary} text-sm`}
+                          />
+                          <input
+                            type="text"
+                            placeholder="File Number (optional)"
+                            value={newDebtForm.fileNumber}
+                            onChange={(e) => setNewDebtForm({ ...newDebtForm, fileNumber: e.target.value })}
+                            className={`w-full px-3 py-2 rounded border ${colors.border.input} ${colors.bg.input} ${colors.text.primary} text-sm`}
+                          />
+                          <input
+                            type="number"
+                            placeholder="Amount *"
+                            value={newDebtForm.amount}
+                            onChange={(e) => setNewDebtForm({ ...newDebtForm, amount: e.target.value })}
+                            className={`w-full px-3 py-2 rounded border ${colors.border.input} ${colors.bg.input} ${colors.text.primary} text-sm`}
+                          />
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => addDebtItem(association)}
+                              className="flex-1 bg-gradient-to-r from-green-500 to-green-600 text-white px-3 py-2 rounded-lg text-sm font-bold hover:from-green-600 hover:to-green-700"
+                            >
+                              ✓ Save
+                            </button>
+                            <button
+                              onClick={() => {
+                                setShowAddDebt(null);
+                                setNewDebtForm({ animalName: '', fileNumber: '', amount: '' });
+                              }}
+                              className="flex-1 bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-3 py-2 rounded-lg text-sm font-bold hover:bg-gray-300 dark:hover:bg-gray-600"
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        onClick={() => setShowAddDebt(association)}
+                        className="w-full mt-3 bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-3 py-2 rounded-lg text-sm font-bold hover:from-blue-600 hover:to-indigo-700 shadow-md hover:shadow-lg transform hover:scale-[1.02] transition-all duration-200"
+                      >
+                        + Add Debt
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
     </div>
   );

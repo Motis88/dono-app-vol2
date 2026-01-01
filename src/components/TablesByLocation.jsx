@@ -89,13 +89,22 @@ const buildHeuristicId = (d) => {
 };
 
 const withStableId = (d) => {
+  // First priority: if chipNumber exists, use it as the unique ID
+  if (d?.chipNumber && typeof d.chipNumber === 'string' && d.chipNumber.trim()) {
+    const chipId = `chip-${d.chipNumber.trim()}`;
+    return { ...d, id: chipId, location: normalizeLocation(d.location) };
+  }
+  
+  // Second priority: existing ID from data
   if (d?.id && typeof d.id === 'string' && d.id.trim()) {
     return { ...d, id: d.id.trim(), location: normalizeLocation(d.location) };
   }
+  
   // אם יש id מספרי – ננרמל למחרוזת
   if (Number.isFinite(d?.id)) {
     return { ...d, id: String(d.id), location: normalizeLocation(d.location) };
   }
+  
   // אחרת – נייצר id
   const heuristic = buildHeuristicId(d);
   const fallback = (globalThis.crypto?.randomUUID?.() ?? `gen-${Math.random().toString(36).slice(2)}`);
@@ -1036,6 +1045,7 @@ const TablesByLocation = ({ onEdit, locationFilter, monthFilter, onClearFilter }
                 {!isSelectionMode && <th className={`px-4 py-3 text-center font-semibold ${colors.text.primary}`}>Actions</th>}
                 <th className={`px-4 py-3 text-left font-semibold ${colors.text.primary}`}>Date</th>
                 <th className={`px-4 py-3 text-left font-semibold ${colors.text.primary}`}>Animal Name</th>
+                <th className={`px-4 py-3 text-left font-semibold ${colors.text.primary}`} title="Microchip Number">Chip #</th>
                 <th className={`px-4 py-3 text-left font-semibold ${colors.text.primary}`}>Animal Type</th>
                 <th className={`px-4 py-3 text-left font-semibold ${colors.text.primary}`}>Blood Type</th>
                 <th className={`px-4 py-3 text-left font-semibold ${colors.text.primary}`}>PCV</th>
@@ -1046,7 +1056,7 @@ const TablesByLocation = ({ onEdit, locationFilter, monthFilter, onClearFilter }
             <tbody className={`divide-y ${colors.border.primary} ${colors.isDarkMode ? 'bg-gray-900/80' : ''}`}>
               {filteredDonors.length === 0 ? (
                 <tr>
-                  <td colSpan={9} className="px-4 py-12 text-center text-gray-500">
+                  <td colSpan={10} className="px-4 py-12 text-center text-gray-500">
                     <div className="text-4xl mb-4">🔍</div>
                     <p className="text-lg font-semibold mb-2">No data to display</p>
                     {(search || animalTypeFilter || dateFilter) ? (
@@ -1104,6 +1114,16 @@ const TablesByLocation = ({ onEdit, locationFilter, monthFilter, onClearFilter }
                     )}
                     <td className={`${colors.text.primary} px-4 py-3`}>{d.date}</td>
                     <td className={`font-medium ${colors.text.primary} px-4 py-3`}>{d.animalName}</td>
+                    <td className={`${colors.text.secondary} px-4 py-3 text-xs font-mono`} title={d.chipNumber ? `Chip: ${d.chipNumber}` : 'No chip number'}>
+                      {d.chipNumber ? (
+                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300">
+                          <span>🔖</span>
+                          <span>{d.chipNumber}</span>
+                        </span>
+                      ) : (
+                        <span className="text-gray-400 dark:text-gray-600">—</span>
+                      )}
+                    </td>
                     <td className={`${colors.text.primary} px-4 py-3`}>{d.animalType}</td>
                     <td className={`${colors.text.primary} px-4 py-3`}>{d.bloodType}</td>
                     <td className={`${colors.text.primary} px-4 py-3`}>{d.pcv}</td>
@@ -1247,6 +1267,17 @@ const TablesByLocation = ({ onEdit, locationFilter, monthFilter, onClearFilter }
                 <div className="grid grid-cols-2 gap-3">
                   <InfoItem label="Date" value={selectedDonor.date} colors={colors} />
                   <InfoItem label="Location" value={selectedDonor.location} colors={colors} />
+                  {selectedDonor.chipNumber && (
+                    <div className="col-span-2">
+                      <p className={`text-xs ${colors.text.secondary} mb-1`}>Microchip Number</p>
+                      <p className={`text-sm font-mono font-semibold ${colors.text.primary} flex items-center gap-2`}>
+                        <span className="text-lg">🔖</span>
+                        <span className="px-3 py-1 rounded-lg bg-blue-50 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-700">
+                          {selectedDonor.chipNumber}
+                        </span>
+                      </p>
+                    </div>
+                  )}
                   <InfoItem label="Age" value={selectedDonor.age} colors={colors} />
                   <InfoItem label="Weight" value={selectedDonor.weight} colors={colors} />
                   <InfoItem label="Gender" value={selectedDonor.gender} colors={colors} />

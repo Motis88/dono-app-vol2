@@ -15,6 +15,7 @@ const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
     date: "",
     location: "",
     animalName: "",
+    chipNumber: "",  // Microchip number - optional, used as unique ID if available
     age: "",
     weight: "",
     gender: "",
@@ -231,6 +232,17 @@ const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
         newForm.donated = "Yes";
       }
 
+      // Auto-focus volume field when donated is set to "Yes"
+      if (name === "donated" && finalValue === "Yes") {
+        setTimeout(() => {
+          const volumeInput = document.querySelector('input[name="volume"]');
+          if (volumeInput) {
+            volumeInput.focus();
+            volumeInput.select();
+          }
+        }, 50);
+      }
+
       // Save location and date to localStorage for convenience
       if (name === "location") {
         donorStorage.saveLastLocation(finalValue);
@@ -259,6 +271,58 @@ const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
     if (!validation.isValid) {
       setValidationErrors(validation.errors);
       return;
+    }
+
+    // Check for duplicate animal names with chip number verification
+    if (!editingDonor && formData.animalName && formData.location) {
+      const allDonors = donorStorage.getDonors();
+      const duplicates = allDonors.filter(d => 
+        d.animalName?.toLowerCase().trim() === formData.animalName.toLowerCase().trim() &&
+        d.location === formData.location
+      );
+
+      if (duplicates.length > 0) {
+        // Check if any existing donor has a chip number
+        const existingWithChip = duplicates.find(d => d.chipNumber?.trim());
+        const currentHasChip = formData.chipNumber?.trim();
+
+        if (existingWithChip && currentHasChip) {
+          // Both have chip numbers - compare them
+          if (existingWithChip.chipNumber.trim() !== formData.chipNumber.trim()) {
+            const confirmDifferent = window.confirm(
+              `⚠️ Warning: An animal named "${formData.animalName}" already exists at ${formData.location}.\n\n` +
+              `Existing chip #: ${existingWithChip.chipNumber}\n` +
+              `New chip #: ${formData.chipNumber}\n\n` +
+              `These are DIFFERENT chip numbers - are you sure this is a different animal?`
+            );
+            if (!confirmDifferent) return;
+          }
+          // Same chip number = same animal, continue (allow new donation entry)
+        } else if (existingWithChip && !currentHasChip) {
+          // Existing has chip, new doesn't
+          const confirmNoChip = window.confirm(
+            `⚠️ Warning: An animal named "${formData.animalName}" already exists at ${formData.location} with chip # ${existingWithChip.chipNumber}.\n\n` +
+            `You didn't enter a chip number. Is this the same animal?\n\n` +
+            `Click OK to continue, Cancel to go back and add chip number.`
+          );
+          if (!confirmNoChip) return;
+        } else if (!existingWithChip && currentHasChip) {
+          // New has chip, existing doesn't
+          const confirmAddChip = window.confirm(
+            `⚠️ An animal named "${formData.animalName}" already exists at ${formData.location} without a chip number.\n\n` +
+            `You're adding chip # ${formData.chipNumber}. Continue?`
+          );
+          if (!confirmAddChip) return;
+        } else {
+          // Neither has chip number
+          const confirmDuplicate = window.confirm(
+            `⚠️ An animal named "${formData.animalName}" already exists at ${formData.location}.\n\n` +
+            `Neither entry has a chip number. Consider adding chip numbers to avoid confusion.\n\n` +
+            `Continue anyway?`
+          );
+          if (!confirmDuplicate) return;
+        }
+      }
     }
 
     // Sanitize donor data before submitting
@@ -312,6 +376,7 @@ const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
       date: "",
       location: "",
       animalName: "",
+      chipNumber: "",
       age: "",
       weight: "",
       gender: "",
@@ -515,6 +580,16 @@ const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
               </div>
             )}
           </div>
+          <input 
+            name="chipNumber" 
+            placeholder="Chip # (optional)" 
+            value={formData.chipNumber} 
+            onChange={handleChange} 
+            className={inputStyles}
+            inputMode="numeric"
+            pattern="[0-9]*"
+            title="Microchip number - will be used as unique ID if provided"
+          />
           <input name="weight" placeholder="Weight (kg)" value={formData.weight} onChange={handleChange} type="number" step="any" className={inputStyles} />
           
           {/* Second Row: Gender, Animal Type (Age and Blood Type hidden in Quick Fill mode) */}
@@ -538,17 +613,23 @@ const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
         </div>
         {/* FIV & FeLV (cats only) - hidden in Quick Fill mode */}
         {!isQuickFillMode && formData.animalType === 'Cat' && (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-            <select name="fiv" value={formData.fiv} onChange={handleChange} className={selectStyles}>
-              <option value="">FIV Status</option>
-              <option value="Negative">FIV Negative</option>
-              <option value="Positive">FIV Positive</option>
-            </select>
-            <select name="felv" value={formData.felv} onChange={handleChange} className={selectStyles}>
-              <option value="">FeLV Status</option>
-              <option value="Negative">FeLV Negative</option>
-              <option value="Positive">FeLV Positive</option>
-            </select>
+          <div className="space-y-3">
+            <div className="text-sm font-semibold text-gray-600 dark:text-gray-400 flex items-center gap-2">
+              <span>🐱</span>
+              <span>Cat-Specific Tests</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
+              <select name="fiv" value={formData.fiv} onChange={handleChange} className={selectStyles}>
+                <option value="">FIV Status</option>
+                <option value="Negative">FIV Negative</option>
+                <option value="Positive">FIV Positive</option>
+              </select>
+              <select name="felv" value={formData.felv} onChange={handleChange} className={selectStyles}>
+                <option value="">FeLV Status</option>
+                <option value="Negative">FeLV Negative</option>
+                <option value="Positive">FeLV Positive</option>
+              </select>
+            </div>
           </div>
         )}
         {/* Blood Work - hidden in Quick Fill mode */}
@@ -599,7 +680,8 @@ const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
             onChange={handleChange}
             type="number"
             inputMode="numeric"
-            className={inputStyles}
+            className={`${inputStyles} ${formData.donated === 'Yes' && !formData.volume ? 'ring-2 ring-green-400 ring-opacity-50 animate-pulse' : ''}`}
+            title={formData.donated === 'Yes' ? '💉 Donated - Please enter volume' : 'Volume in ml'}
           />
           <textarea 
             name="notes" 
