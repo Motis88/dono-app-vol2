@@ -7,6 +7,36 @@ body {
   background: #f8fafc; /* תכלת אפור מודרני */
 }
 
+/* High-contrast Dark Mode overrides */
+.dark body {
+  background: #0f172a; /* slate-900 */
+  color: #e5e7eb; /* text-gray-200 */
+}
+
+.dark .card {
+  @apply bg-gray-900 text-gray-100 shadow-lg;
+}
+
+.dark .btn-primary {
+  @apply bg-indigo-500 hover:bg-indigo-600 text-white;
+}
+
+.dark .btn-secondary {
+  @apply bg-gray-700 hover:bg-gray-600 text-gray-100;
+}
+
+.dark .input-field {
+  @apply bg-gray-800 border-gray-600 text-gray-100 placeholder-gray-400;
+}
+
+.dark table thead {
+  @apply bg-gradient-to-r from-indigo-700 to-purple-800 text-white;
+}
+
+.dark table tbody tr:hover {
+  @apply bg-gray-800;
+}
+
 @layer components {
   .btn-primary {
     @apply px-5 py-3 rounded-lg bg-indigo-600 hover:bg-indigo-700 text-white font-semibold shadow-lg transition-colors;
