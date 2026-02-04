@@ -38,76 +38,97 @@ const PRODUCT_DEFINITIONS = {
 
 /**
  * Normalize product name from CSV to standard key
- * Handles Hebrew product names and variations
+ * Handles ALL variations of Hebrew/English product names
  */
 function normalizeProductName(csvName) {
   if (!csvName) return null;
   
   const lower = csvName.toLowerCase().trim();
+  console.log(`🔍 Normalizing: "${csvName}"`);
   
-  console.log(`🔍 Normalizing: "${csvName}" → lower: "${lower}"`);
+  // Helper: check if string contains animal type
+  const isDog = lower.includes('dog') || lower.includes('כלב');
+  const isCat = lower.includes('cat') || lower.includes('חתול');
   
-  // First try English keywords (works even if Hebrew encoding is broken)
-  // Medicine Usage exports often include English abbreviations
-  if (lower.includes('fresh') || (lower.includes('mdm') && lower.includes('dog') && lower.includes('fresh'))) {
-    console.log(`  ✅ Matched: fresh_blood_dog`);
+  // ========== FRESH BLOOD DOG ==========
+  // Patterns: "דם טרי כלב", "fresh blood dog", "mdm dog fresh", "מנת דם טרי כלב"
+  if (isDog && (
+    lower.includes('fresh') || 
+    lower.includes('טרי') ||
+    (lower.includes('mdm') && lower.includes('fresh'))
+  )) {
+    console.log(`  ✅ fresh_blood_dog`);
     return 'fresh_blood_dog';
   }
-  if (lower.includes('mdm dog') || (lower.includes('mdm') && lower.includes('dog') && !lower.includes('fresh'))) {
-    console.log(`  ✅ Matched: whole_blood_dog`);
+  
+  // ========== WHOLE BLOOD DOG ==========
+  // Patterns: "דם מלא כלב", "whole blood dog", "mdm dog", "מנת דם מלא כלב"
+  if (isDog && (
+    lower.includes('mdm') || 
+    lower.includes('whole') ||
+    lower.includes('מלא')
+  ) && !lower.includes('fresh') && !lower.includes('טרי')) {
+    console.log(`  ✅ whole_blood_dog`);
     return 'whole_blood_dog';
-  }
-  if (lower.includes('mdm cat')) {
-    console.log(`  ✅ Matched: whole_blood_cat`);
-    return 'whole_blood_cat';
-  }
-  // Plasma - match mdp or plasma keyword
-  if (lower.includes('mdp dog') || (lower.includes('plasma') && lower.includes('dog')) || lower.includes('mdp') && lower.includes('dog')) {
-    console.log(`  ✅ Matched: plasma_dog`);
-    return 'plasma_dog';
-  }
-  if (lower.includes('mdp cat') || (lower.includes('plasma') && lower.includes('cat')) || lower.includes('mdp') && lower.includes('cat')) {
-    console.log(`  ✅ Matched: plasma_cat`);
-    return 'plasma_cat';
-  }
-  // pRBC/Packed Cells - match mdtt, mdttbig, prbc, prc, or "תרכיז תאים"
-  if ((lower.includes('mdtt') && lower.includes('dog')) || (lower.includes('תרכיז') && lower.includes('כלב'))) {
-    console.log(`  ✅ Matched: prbc_dog`);
-    return 'prbc_dog';
-  }
-  if ((lower.includes('mdtt') && lower.includes('cat')) || (lower.includes('תרכיז') && lower.includes('חתול'))) {
-    console.log(`  ✅ Matched: prbc_cat`);
-    return 'prbc_cat';
-  }
-  if (lower.includes('prbc dog') || lower.includes('prc dog')) {
-    console.log(`  ✅ Matched: prbc_dog`);
-    return 'prbc_dog';
-  }
-  if (lower.includes('prbc cat') || lower.includes('prc cat')) {
-    console.log(`  ✅ Matched: prbc_cat`);
-    return 'prbc_cat';
   }
   
-  // Fallback to Hebrew patterns (if encoding is correct)
-  if (lower.includes('דם טרי') && lower.includes('כלב')) {
-    console.log(`  ✅ Matched: fresh_blood_dog (Hebrew)`);
-    return 'fresh_blood_dog';
-  }
-  if (lower.includes('דם מלא') && lower.includes('כלב')) {
-    console.log(`  ✅ Matched: whole_blood_dog (Hebrew)`);
-    return 'whole_blood_dog';
-  }
-  if (lower.includes('דם מלא') && lower.includes('חתול')) {
-    console.log(`  ✅ Matched: whole_blood_cat (Hebrew)`);
+  // ========== WHOLE BLOOD CAT ==========
+  // Patterns: "דם מלא חתול", "whole blood cat", "mdm cat", "מנת דם מלא חתול"
+  if (isCat && (
+    lower.includes('mdm') || 
+    lower.includes('whole') ||
+    lower.includes('מלא')
+  )) {
+    console.log(`  ✅ whole_blood_cat`);
     return 'whole_blood_cat';
   }
-  if (lower.includes('פלסמה') && lower.includes('כלב')) {
-    console.log(`  ✅ Matched: plasma_dog (Hebrew)`);
+  
+  // ========== PLASMA DOG ==========
+  // Patterns: "פלסמה כלב", "plasma dog", "mdp dog", "מנת דם פלסמה כלב"
+  if (isDog && (
+    lower.includes('mdp') || 
+    lower.includes('plasma') ||
+    lower.includes('פלסמה')
+  )) {
+    console.log(`  ✅ plasma_dog`);
     return 'plasma_dog';
   }
-  if (lower.includes('פלסמה') && lower.includes('חתול')) {
-    console.log(`  ✅ Matched: plasma_cat (Hebrew)`);
+  
+  // ========== PLASMA CAT ==========
+  // Patterns: "פלסמה חתול", "plasma cat", "mdp cat", "מנת דם פלסמה חתול"
+  if (isCat && (
+    lower.includes('mdp') || 
+    lower.includes('plasma') ||
+    lower.includes('פלסמה')
+  )) {
+    console.log(`  ✅ plasma_cat`);
     return 'plasma_cat';
+  }
+  
+  // ========== pRBC/PACKED CELLS DOG ==========
+  // Patterns: "תרכיז תאים כלב", "prbc dog", "packed cells dog", "mdtt dog", "mdttbig dog", "mdttsmall dog"
+  if (isDog && (
+    lower.includes('mdtt') || 
+    lower.includes('prbc') ||
+    lower.includes('prc') ||
+    lower.includes('packed') ||
+    lower.includes('תרכיז')
+  )) {
+    console.log(`  ✅ prbc_dog`);
+    return 'prbc_dog';
+  }
+  
+  // ========== pRBC/PACKED CELLS CAT ==========
+  // Patterns: "תרכיז תאים חתול", "prbc cat", "packed cells cat", "mdtt cat", "mdttbig cat", "mdttsmall cat"
+  if (isCat && (
+    lower.includes('mdtt') || 
+    lower.includes('prbc') ||
+    lower.includes('prc') ||
+    lower.includes('packed') ||
+    lower.includes('תרכיז')
+  )) {
+    console.log(`  ✅ prbc_cat`);
+    return 'prbc_cat';
   }
   
   console.log(`  ❌ No match found`);
@@ -116,24 +137,42 @@ function normalizeProductName(csvName) {
 
 /**
  * Check if a blood unit is "external" (contains Hebrew word חיצוני)
+ * Handles all variations: with quotes, spaces, hyphens, etc.
  */
 function isExternalUnit(csvName) {
   if (!csvName) return false;
   const lower = csvName.toLowerCase();
   
-  // Check for various spellings and encoding issues
-  const isExt = lower.includes(EXTERNAL_KEYWORD) || 
-                lower.includes('external') ||
-                lower.includes('ציצוני') || // Without leading ח
-                lower.includes("'חיצוני") || // With quote
-                lower.includes('חיצוני\'') || // With trailing quote
-                lower.includes('חצוני'); // Typo variant
-  
-  if (isExt) {
-    console.log(`🔴 EXTERNAL UNIT DETECTED: "${csvName}"`);
+  // Primary check: Does "חיצוני" appear anywhere in the string?
+  // This is the most reliable check regardless of surrounding characters
+  if (lower.includes(EXTERNAL_KEYWORD)) {
+    console.log(`🔴 EXTERNAL UNIT DETECTED (primary): "${csvName}"`);
+    return true;
   }
   
-  return isExt;
+  // Fallback checks for encoding issues, typos, and variations
+  const fallbackPatterns = [
+    'external',
+    'ציצוני',        // Without leading ח
+    'חצוני',         // Typo variant
+    '"חיצוני',       // With double quote at start
+    'חיצוני"',       // With double quote at end
+    "'חיצוני",       // With single quote at start
+    "חיצוני'",       // With single quote at end
+    '- חיצוני',      // With hyphen-space prefix
+    ' - חיצוני',     // With space-hyphen-space prefix
+    'חיצוני -',      // With space-hyphen suffix
+    '" חיצוני "',    // With quotes and spaces
+  ];
+  
+  for (const pattern of fallbackPatterns) {
+    if (lower.includes(pattern)) {
+      console.log(`🔴 EXTERNAL UNIT DETECTED (pattern: "${pattern}"): "${csvName}"`);
+      return true;
+    }
+  }
+  
+  return false;
 }
 
 /**
@@ -628,8 +667,17 @@ const InventoryManager = () => {
         }
         
         const isExternal = isExternalUnit(productName);
-        const quantityStr = row['Quantity (units)'] || row._6 || row.quantity || row.Quantity || '1';
-        const quantity = parseFloat(quantityStr) || 1;
+        const quantityStr = row['Quantity (units)'] || row._6 || row.quantity || row.Quantity || '';
+        const quantity = quantityStr === '' ? 1 : parseFloat(quantityStr);
+        
+        // Skip units with 0 quantity (not used)
+        if (quantity === 0 || isNaN(quantity)) {
+          if (index < 20) {
+            console.log(`⏭️ Row ${index}: Skipped - Zero or invalid quantity (${quantityStr})`);
+          }
+          skippedEmpty++;
+          return;
+        }
         
         // Log first few successful recognitions with external status
         if (index < 20) {
@@ -1085,14 +1133,14 @@ const OverviewView = ({ isDarkMode, overallTotals, mtdTotals, currentMonthKey, c
           Based on snapshot from {currentInventory.snapshotDate}
         </p>
         
-        <div className="overflow-x-auto">
-          <table className="w-full">
+        <div className="overflow-x-auto -mx-2">
+          <table className="w-full text-sm">
             <thead>
               <tr className={`border-b-2 ${isDarkMode ? 'border-gray-600' : 'border-gray-200'}`}>
-                <th className={`text-left py-2 px-4 font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                <th className={`text-left py-1 px-2 font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
                   Product
                 </th>
-                <th className={`text-right py-2 px-4 font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                <th className={`text-right py-1 px-2 font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
                   Count
                 </th>
               </tr>
@@ -1100,10 +1148,10 @@ const OverviewView = ({ isDarkMode, overallTotals, mtdTotals, currentMonthKey, c
             <tbody>
               {Object.entries(currentInventory.byProduct).map(([productKey, count]) => (
                 <tr key={productKey} className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                  <td className={`py-2 px-4 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                  <td className={`py-1 px-2 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
                     {PRODUCT_DEFINITIONS[productKey] || productKey}
                   </td>
-                  <td className={`py-2 px-4 text-right font-semibold ${count < 0 ? 'text-red-400' : count < 5 ? 'text-orange-400' : isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                  <td className={`py-1 px-2 text-right font-semibold ${count < 0 ? 'text-red-400' : count < 5 ? 'text-orange-400' : isDarkMode ? 'text-white' : 'text-gray-800'}`}>
                     {count}
                   </td>
                 </tr>
@@ -1358,20 +1406,20 @@ const ProductBreakdownTable = ({ isDarkMode, title, byProduct, externalByProduct
         </h3>
       )}
       
-      <div className="overflow-x-auto">
-        <table className="w-full">
+      <div className="overflow-x-auto -mx-2">
+        <table className="w-full text-sm">
           <thead>
             <tr className={`border-b-2 ${isDarkMode ? 'border-gray-600' : 'border-gray-200'}`}>
-              <th className={`text-left py-2 px-4 font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+              <th className={`text-left py-1 px-2 font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
                 Product
               </th>
-              <th className={`text-right py-2 px-4 font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
-                Regular
+              <th className={`text-right py-1 px-1 font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                Reg
               </th>
-              <th className={`text-right py-2 px-4 font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
-                External
+              <th className={`text-right py-1 px-1 font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                Ext
               </th>
-              <th className={`text-right py-2 px-4 font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+              <th className={`text-right py-1 px-2 font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
                 Total
               </th>
             </tr>
@@ -1384,16 +1432,16 @@ const ProductBreakdownTable = ({ isDarkMode, title, byProduct, externalByProduct
               
               return (
                 <tr key={productKey} className={`border-b ${isDarkMode ? 'border-gray-700' : 'border-gray-200'}`}>
-                  <td className={`py-2 px-4 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                  <td className={`py-1 px-2 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
                     {PRODUCT_DEFINITIONS[productKey] || productKey}
                   </td>
-                  <td className={`py-2 px-4 text-right font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                  <td className={`py-1 px-1 text-right font-semibold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
                     {regular}
                   </td>
-                  <td className="py-2 px-4 text-right font-semibold text-purple-600 dark:text-purple-400">
+                  <td className="py-1 px-1 text-right font-semibold text-purple-600 dark:text-purple-400">
                     {external}
                   </td>
-                  <td className={`py-2 px-4 text-right font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                  <td className={`py-1 px-2 text-right font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
                     {total}
                   </td>
                 </tr>
@@ -1402,16 +1450,16 @@ const ProductBreakdownTable = ({ isDarkMode, title, byProduct, externalByProduct
             
             {/* Totals Row */}
             <tr className={`border-t-2 font-bold ${isDarkMode ? 'border-gray-600' : 'border-gray-200'}`}>
-              <td className={`py-2 px-4 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+              <td className={`py-1 px-2 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
                 TOTAL
               </td>
-              <td className={`py-2 px-4 text-right ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+              <td className={`py-1 px-1 text-right ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
                 {Object.values(byProduct).reduce((sum, val) => sum + val, 0)}
               </td>
-              <td className="py-2 px-4 text-right text-purple-600 dark:text-purple-400">
+              <td className="py-1 px-1 text-right text-purple-600 dark:text-purple-400">
                 {Object.values(externalByProduct).reduce((sum, val) => sum + val, 0)}
               </td>
-              <td className={`py-2 px-4 text-right ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+              <td className={`py-1 px-2 text-right ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
                 {Object.values(byProduct).reduce((sum, val) => sum + val, 0) + 
                  Object.values(externalByProduct).reduce((sum, val) => sum + val, 0)}
               </td>
