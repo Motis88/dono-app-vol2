@@ -3,6 +3,10 @@
 @tailwind utilities;
 
 /* בדיקה משלך, שיהיה ברור מה קורה */
+:root {
+  --רקע: #f8fafc; /* תכלת אפור מודרני */
+}
+
 body {
-  background: #f8fafc; /* תכלת אפור מודרני */
+  background: var(--רקע);
 }
