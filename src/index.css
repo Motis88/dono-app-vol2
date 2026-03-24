@@ -2,7 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-/* בדיקה משלך, שיהיה ברור מה קורה */
 body {
-  background: #f8fafc; /* תכלת אפור מודרני */
+  background: #f8fafc; /* modern grayish-blue */
 }
