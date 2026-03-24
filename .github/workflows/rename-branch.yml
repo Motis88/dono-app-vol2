@@ -1,0 +1,39 @@
+name: Rename Hebrew Branch to English
+
+on:
+  push:
+    branches:
+      - 'copilot/background'
+
+jobs:
+  rename-branch:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Rename branch 'רקע' to 'background'
+        run: |
+          HEBREW_BRANCH="%D7%A8%D7%A7%D7%A2"
+          REPO="${{ github.repository }}"
+
+          # Check if 'background' branch already exists
+          if gh api "repos/${REPO}/branches/background" > /dev/null 2>&1; then
+            echo "Branch 'background' already exists. Skipping rename."
+            exit 0
+          fi
+
+          # Check if the Hebrew branch exists
+          if ! gh api "repos/${REPO}/branches/${HEBREW_BRANCH}" > /dev/null 2>&1; then
+            echo "Branch 'רקע' not found. Nothing to rename."
+            exit 0
+          fi
+
+          # Rename the branch using GitHub API
+          gh api \
+            --method POST \
+            "repos/${REPO}/branches/${HEBREW_BRANCH}/rename" \
+            -f new_name=background
+
+          echo "Successfully renamed branch 'רקע' to 'background'."
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
