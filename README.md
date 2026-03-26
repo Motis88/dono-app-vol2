@@ -109,42 +109,30 @@ npx cap open android
 
 > **⚠️ לפני שמריצים:** צור ריפוזיטורי ריק בשם `cigarette-tracker` ב-[github.com/new](https://github.com/new) — **ללא** README, .gitignore או License — הריפוזיטורי חייב להיות **ריק לחלוטין**.
 
-פתח **Git Bash** והרץ:
+פתח **Command Prompt** (cmd) והרץ:
 
-```bash
+```cmd
 cd C:\cigarette-tracker
-git init
-git add .
-git status
+echo # cigarette-tracker> README.md
+git add README.md
 git commit -m "Initial commit"
-git log --oneline
-git remote add origin https://github.com/Motis88/cigarette-tracker.git
-git branch -M main
 git push -u origin main
 ```
 
-### שגיאה: `error: src refspec main does not match any`
+> `echo # cigarette-tracker> README.md` יוצר קובץ README בסיסי — זה מבטיח שתמיד יש קובץ לבצע עליו commit, גם אם שאר התיקייה ריקה.
 
-שגיאה זו אומרת שה-`commit` לא בוצע בהצלחה ואין ברנץ' `main`.  
-**בדוק ופתור:**
+### אם Git לא מוגדר עם שם/אימייל (שגיאה בזמן commit)
 
-```bash
-# בדוק שיש קבצים בתיקייה
-git status
+הגדר פעם אחת לפני הכל:
 
-# אם Git לא מוגדר עם שם/אימייל — הגדר פעם אחת:
+```cmd
 git config --global user.email "your@email.com"
 git config --global user.name "Your Name"
-
-# ואז בצע commit מחדש:
-git add .
-git commit -m "Initial commit"
-git push -u origin main
 ```
 
-אם ה-remote כבר הוגדר קודם, הרץ:
+### אם ה-remote כבר מוגדר (`remote origin already exists`)
 
-```bash
+```cmd
 git remote set-url origin https://github.com/Motis88/cigarette-tracker.git
 git branch -M main
 git push -u origin main

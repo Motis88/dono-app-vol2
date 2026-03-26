@@ -31,42 +31,30 @@ npm run build
 > **⚠️ לפני שמריצים:** צור ריפוזיטורי ריק בשם `cigarette-tracker` ב-[github.com/new](https://github.com/new)  
 > **ללא** סימון של README, .gitignore או License — הריפוזיטורי חייב להיות **ריק לחלוטין**.
 
-פתח **Git Bash** והרץ את הפקודות האלה **אחת אחרי השנייה** — ודא שכל אחת מצליחה לפני שממשיכים:
+פתח **Command Prompt** (cmd) והרץ את הפקודות האלה **אחת אחרי השנייה**:
 
-```bash
+```cmd
 cd C:\cigarette-tracker
-git init
-git add .
-git status
+echo # cigarette-tracker> README.md
+git add README.md
 git commit -m "Initial commit"
-git log --oneline
-git remote add origin https://github.com/Motis88/cigarette-tracker.git
-git branch -M main
 git push -u origin main
 ```
 
-### שגיאה נפוצה: `error: src refspec main does not match any`
+> `echo # cigarette-tracker> README.md` יוצר קובץ README בסיסי — זה מבטיח שתמיד יש קובץ לבצע עליו commit, גם אם שאר התיקייה ריקה.
 
-שגיאה זו אומרת שה-`commit` לא בוצע — לא נוצר ברנץ' `main` כי אין commits.  
-הגורמים האפשריים ופתרונם:
+### אם Git לא מוגדר עם שם/אימייל (שגיאה בזמן commit)
 
-**סיבה 1 — `git add .` לא הוסיף קבצים (תיקייה ריקה)**  
-הרץ `git status` — אם הפלט מראה `nothing to commit`, ודא שאתה בתיקייה הנכונה ושיש בה קבצים.
+הגדר פעם אחת לפני הכל:
 
-**סיבה 2 — שכחת להגדיר שם משתמש ואימייל ב-Git**  
-הרץ פעם אחת (מחוץ לכל תיקייה):
-
-```bash
+```cmd
 git config --global user.email "your@email.com"
 git config --global user.name "Your Name"
 ```
 
-ואז חזור לשלבים מהתחלה.
+### אם ה-remote כבר מוגדר (`remote origin already exists`)
 
-**סיבה 3 — כבר ניסית קודם וה-remote כבר מוגדר**  
-אם מקבלים `remote origin already exists`, הרץ:
-
-```bash
+```cmd
 git remote set-url origin https://github.com/Motis88/cigarette-tracker.git
 git branch -M main
 git push -u origin main
