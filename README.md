@@ -105,6 +105,24 @@ npx cap open android
 
 ---
 
+## העלאת cigarette-tracker ל-GitHub — פקודות לפי הסדר
+
+פתח **Git Bash** (או Command Prompt / PowerShell), נווט לתיקיית הפרויקט שלך והרץ:
+
+```bash
+cd C:\cigarette-tracker
+git init
+git add .
+git commit -m "Initial commit"
+git remote add origin https://github.com/Motis88/cigarette-tracker.git
+git branch -M main
+git push -u origin main
+```
+
+> **⚠️ לפני שמריצים:** צור ריפוזיטורי ריק בשם `cigarette-tracker` ב-[github.com/new](https://github.com/new) — **ללא** README, .gitignore או License.
+
+---
+
 ## About the Application
 Dono App Vol2 is designed to help manage donation processes and track cigarette consumption.
 
