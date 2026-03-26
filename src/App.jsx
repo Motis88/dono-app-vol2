@@ -11,7 +11,6 @@ const TablesByLocation = lazy(() => import('./components/TablesByLocation'));
 const Dashboard = lazy(() => import('./components/DonorDashboard'));
 const ManualDonorList = lazy(() => import('./components/ManualDonorList'));
 const ExternalCells = lazy(() => import('./components/ExternalCells'));
-const CigaretteApp = lazy(() => import('./components/cigarette/CigaretteApp'));
 
 /**
  * Check if target element is inside a horizontally scrollable element
@@ -37,7 +36,6 @@ function isInsideHorizontallyScrollableElement(target) {
 }
 
 const App = () => {
-  const [appMode, setAppMode] = useState('donor'); // 'donor' | 'cigarette'
   const [view, setView] = useState('form');
   const [editingDonor, setEditingDonor] = useState(null);
 
@@ -147,103 +145,74 @@ const App = () => {
 
   return (
     <>
-      {/* App mode switcher */}
-      <div
-        className="fixed top-0 left-0 right-0 z-50 flex justify-center gap-2 bg-white/90 backdrop-blur border-b border-gray-200 py-1.5 shadow-sm"
-        style={{ paddingTop: 'calc(env(safe-area-inset-top, 0px) + 6px)' }}
-      >
-        <button
-          onClick={() => setAppMode('donor')}
-          className={`px-4 py-1 rounded-full text-sm font-semibold transition-colors
-            ${appMode === 'donor' ? 'bg-blue-600 text-white' : 'text-gray-500 hover:bg-gray-100'}`}
-        >
-          🩸 תורמים
-        </button>
-        <button
-          onClick={() => setAppMode('cigarette')}
-          className={`px-4 py-1 rounded-full text-sm font-semibold transition-colors
-            ${appMode === 'cigarette' ? 'bg-orange-500 text-white' : 'text-gray-500 hover:bg-gray-100'}`}
-        >
-          🚬 עישון
-        </button>
-      </div>
-
-      {appMode === 'cigarette' ? (
-        <div className="pt-10">
-          <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-orange-500" /></div>}>
-            <CigaretteApp />
-          </Suspense>
-        </div>
-      ) : (
-        <div className="min-h-screen pb-20 bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100 pt-10">
-          {/* Top buttons */}
-          <div className="flex justify-center mb-6 gap-4 pt-4">
-            <button
-              className="px-4 py-2 rounded bg-green-500 text-white font-bold shadow"
-              onClick={backupDonorsToFile}
-            >
-              Backup
-            </button>
-            <button
-              className="px-4 py-2 rounded bg-yellow-500 text-gray-800 font-bold shadow"
-              onClick={async () => {
-                if (window.confirm('Are you sure you want to RESTORE from backup? This will overwrite all your current donors!')) {
-                  await restoreDonorsFromFile();
-                }
-              }}
-            >
-              Restore
-            </button>
-          </div>
-
-          <div className="p-4 pb-4" {...swipeHandlers}>
-            <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>}>
-              {view === 'form' && <DonorForm editingDonor={editingDonor} onCancelEdit={handleCancelEdit} onAddDonor={handleAddDonor} />}
-              {view === 'table' && <TablesByLocation onEdit={(donor) => { setEditingDonor(donor); setView("form"); }} />}
-              {view === 'dashboard' && <Dashboard />}
-              {view === 'manual' && <ManualDonorList />}
-              {view === 'external-cells' && <ExternalCells />}
-            </Suspense>
-          </div>
-
-          <div
-            className="fixed bottom-0 left-0 right-0 bg-white flex justify-around border-t shadow z-50"
-            style={{
-              paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 9px)',
-              minHeight: 58,
+      <div className="min-h-screen pb-20 bg-gradient-to-br from-blue-100 via-purple-100 to-pink-100">
+        {/* Top buttons */}
+        <div className="flex justify-center mb-6 gap-4 pt-4">
+          <button
+            className="px-4 py-2 rounded bg-green-500 text-white font-bold shadow"
+            onClick={backupDonorsToFile}
+          >
+            Backup
+          </button>
+          <button
+            className="px-4 py-2 rounded bg-yellow-500 text-gray-800 font-bold shadow"
+            onClick={async () => {
+              if (window.confirm('Are you sure you want to RESTORE from backup? This will overwrite all your current donors!')) {
+                await restoreDonorsFromFile();
+              }
             }}
           >
-            <button
-              className={`flex-1 flex flex-col items-center py-1 ${view === 'form' ? 'text-blue-600 font-bold' : 'text-gray-500'}`}
-              onClick={() => setView('form')}
-            >
-              <span style={{fontSize: 22}}>📝</span>
-              <span style={{fontSize: 13, marginTop: 2}}>Form</span>
-            </button>
-            <button
-              className={`flex-1 flex flex-col items-center py-1 ${view === 'table' ? 'text-blue-600 font-bold' : 'text-gray-500'}`}
-              onClick={() => setView('table')}
-            >
-              <span style={{fontSize: 22}}>📋</span>
-              <span style={{fontSize: 13, marginTop: 2}}>Table</span>
-            </button>
-            <button
-              className={`flex-1 flex flex-col items-center py-1 ${view === 'dashboard' ? 'text-blue-600 font-bold' : 'text-gray-500'}`}
-              onClick={() => setView('dashboard')}
-            >
-              <span style={{fontSize: 22}}>📊</span>
-              <span style={{fontSize: 13, marginTop: 2}}>Dashboard</span>
-            </button>
-            <button
-              className={`flex-1 flex flex-col items-center py-1 ${view === 'external-cells' ? 'text-blue-600 font-bold' : 'text-gray-500'}`}
-              onClick={() => setView('external-cells')}
-            >
-              <span style={{fontSize: 22}}>🩸</span>
-              <span style={{fontSize: 13, marginTop: 2}}>External</span>
-            </button>
-          </div>
+            Restore
+          </button>
         </div>
-      )}
+
+        <div className="p-4 pb-4" {...swipeHandlers}>
+          <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div></div>}>
+            {view === 'form' && <DonorForm editingDonor={editingDonor} onCancelEdit={handleCancelEdit} onAddDonor={handleAddDonor} />}
+            {view === 'table' && <TablesByLocation onEdit={(donor) => { setEditingDonor(donor); setView("form"); }} />}
+            {view === 'dashboard' && <Dashboard />}
+            {view === 'manual' && <ManualDonorList />}
+            {view === 'external-cells' && <ExternalCells />}
+          </Suspense>
+        </div>
+
+        <div
+          className="fixed bottom-0 left-0 right-0 bg-white flex justify-around border-t shadow z-50"
+          style={{
+            paddingBottom: 'calc(env(safe-area-inset-bottom, 0px) + 9px)',
+            minHeight: 58,
+          }}
+        >
+          <button
+            className={`flex-1 flex flex-col items-center py-1 ${view === 'form' ? 'text-blue-600 font-bold' : 'text-gray-500'}`}
+            onClick={() => setView('form')}
+          >
+            <span style={{fontSize: 22}}>📝</span>
+            <span style={{fontSize: 13, marginTop: 2}}>Form</span>
+          </button>
+          <button
+            className={`flex-1 flex flex-col items-center py-1 ${view === 'table' ? 'text-blue-600 font-bold' : 'text-gray-500'}`}
+            onClick={() => setView('table')}
+          >
+            <span style={{fontSize: 22}}>📋</span>
+            <span style={{fontSize: 13, marginTop: 2}}>Table</span>
+          </button>
+          <button
+            className={`flex-1 flex flex-col items-center py-1 ${view === 'dashboard' ? 'text-blue-600 font-bold' : 'text-gray-500'}`}
+            onClick={() => setView('dashboard')}
+          >
+            <span style={{fontSize: 22}}>📊</span>
+            <span style={{fontSize: 13, marginTop: 2}}>Dashboard</span>
+          </button>
+          <button
+            className={`flex-1 flex flex-col items-center py-1 ${view === 'external-cells' ? 'text-blue-600 font-bold' : 'text-gray-500'}`}
+            onClick={() => setView('external-cells')}
+          >
+            <span style={{fontSize: 22}}>🩸</span>
+            <span style={{fontSize: 13, marginTop: 2}}>External</span>
+          </button>
+        </div>
+      </div>
     </>
   );
 };
