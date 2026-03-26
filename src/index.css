@@ -2,7 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
-/* בדיקה משלך, שיהיה ברור מה קורה */
 body {
-  background: #f8fafc; /* תכלת אפור מודרני */
+  background: #f8fafc;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background: #111827;
+    color: #f9fafb;
+  }
 }
