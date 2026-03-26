@@ -1,0 +1,16 @@
+{
+  "recommendations": [
+    // React / JSX
+    "dsznajder.es7-react-js-snippets",
+    "dbaeumer.vscode-eslint",
+    "esbenp.prettier-vscode",
+    // Tailwind CSS
+    "bradlc.vscode-tailwindcss",
+    // Path intellisense
+    "christian-kohler.path-intellisense",
+    // Git helpers
+    "eamodio.gitlens",
+    // Capacitor / Android
+    "ionic.ionic"
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  // ── Editor ──────────────────────────────────────────────────────────────────
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.tabSize": 2,
+  "editor.wordWrap": "on",
+
+  // ── Files ────────────────────────────────────────────────────────────────────
+  "files.exclude": {
+    "node_modules": true,
+    "dist": true
+  },
+
+  // ── Tailwind CSS ─────────────────────────────────────────────────────────────
+  "tailwindCSS.includeLanguages": {
+    "javascript": "javascript",
+    "javascriptreact": "javascriptreact"
+  },
+  "tailwindCSS.experimental.classRegex": [
+    ["clsx\\(([^)]*)\\)", "(?:'|\"|`)([^']*)(?:'|\"|`)"]
+  ],
+
+  // ── Emmet (JSX) ──────────────────────────────────────────────────────────────
+  "emmet.includeLanguages": {
+    "javascript": "javascriptreact"
+  },
+
+  // ── Search ───────────────────────────────────────────────────────────────────
+  "search.exclude": {
+    "node_modules": true,
+    "dist": true,
+    "package-lock.json": true
+  }
+}

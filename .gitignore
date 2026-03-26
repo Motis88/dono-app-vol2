@@ -19,4 +19,4 @@ Thumbs.db
 
 # IDE/editor settings
 .idea/
-.vscode/
+# .vscode/ is intentionally tracked — it contains shared workspace settings and recommended extensions
