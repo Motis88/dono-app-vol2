@@ -319,7 +319,7 @@ const AppContent = () => {
   };
 
   return (
-    <div className={`min-h-screen ${colors.bg.primary} flex flex-col`}>
+    <div className={`h-screen overflow-hidden ${colors.bg.primary} flex flex-col`}>
       {/* Toast Notifications Container */}
       <Toaster 
         position="top-center"
@@ -435,7 +435,7 @@ const AppContent = () => {
           <button onClick={(e)=>{setView('financial'); e.currentTarget.blur();}} className={`px-3 py-1.5 rounded-lg font-semibold transition-all duration-200 text-xl ${view==='financial'? 'bg-blue-600 text-white shadow-md' : 'hover:bg-blue-50'}`} title="Financial">💰</button>
         </div>
       </nav>
-      <div {...swipeHandlers} className="flex-1 overflow-y-auto px-3 pb-2 pt-1" style={{ minHeight: 'calc(100vh - 120px)' }}>
+      <div {...swipeHandlers} className="flex-1 overflow-y-auto px-3 pb-2 pt-1">
         <Suspense fallback={<div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-10 w-10 border-b-3 border-blue-600"></div></div>}>
           {view === 'form' && (
             <DonorForm 
@@ -462,7 +462,9 @@ const AppContent = () => {
             <ManualDonorList 
                 onEdit={(donor) => { setEditingDonor(donor); setView('form'); }}
                 onNewDonation={(donor) => {
-                  setEditingDonor({ ...donor, date: '', tests: [], notes: '' });
+                  // Strip id so a new unique ID is generated - prevents overwriting the previous donation record
+                  const { id: _discardId, ...donorFields } = donor;
+                  setEditingDonor({ ...donorFields, date: '', notes: '' });
                   setView('form');
                 }}
               />

@@ -11,25 +11,11 @@ const DonorDashboard = ({ onLocationClick }) => {
   const donors = donorStorage.getDonors();
   const [view, setView] = useState('overview'); // 'overview' or 'analytics'
 
-  // Calculate key statistics
-  const totalDonations = donors.filter(d => d.donated === 'Yes').length;
-  const totalDonors = donors.length;
-  const privateOwners = donors.filter(d => d.isPrivateOwner).length;
-  
-  // Calculate eligible donors (90+ days since last donation)
-  const eligibleDonors = donors.filter(d => {
-    if (!d.date) return false;
-    const lastDate = new Date(d.date);
-    const today = new Date();
-    const daysSince = Math.floor((today - lastDate) / (1000 * 60 * 60 * 24));
-    return daysSince >= 90;
-  }).length;
-
   // Pie chart colors
   const dogColors = ['#3b82f6', '#f59e42'];
   const catColors = ['#ec4899', '#fbbf24', '#6366f1'];
 
-  // Helper function to identify unique animals
+  // Helper function to identify unique animals (must be defined before stats that use it)
   const getUniqueAnimals = (animalsList) => {
     const seen = new Set();
     return animalsList.filter(animal => {
@@ -63,6 +49,32 @@ const DonorDashboard = ({ onLocationClick }) => {
       return true;
     });
   };
+
+  // Calculate key statistics (after getUniqueAnimals is defined)
+  const totalDonations = donors.filter(d => d.donated === 'Yes').length;
+  const totalDonors = donors.length; // total records (used for internal calcs / CSV)
+
+  // Sort donors by date DESC so getUniqueAnimals picks the most recent record per animal
+  const donorsByDateDesc = [...donors].sort((a, b) => {
+    if (!a.date) return 1;
+    if (!b.date) return -1;
+    return new Date(b.date) - new Date(a.date);
+  });
+
+  const uniqueAnimalsList = getUniqueAnimals(donorsByDateDesc);
+  const totalUniqueAnimals = uniqueAnimalsList.length;
+
+  // Private owners: count unique animals, not records
+  const privateOwners = getUniqueAnimals(donorsByDateDesc.filter(d => d.isPrivateOwner)).length;
+
+  // Eligible donors: per unique animal, based on their most recent donation date
+  const eligibleDonors = uniqueAnimalsList.filter(d => {
+    if (!d.date) return false;
+    const lastDate = new Date(d.date);
+    const today = new Date();
+    const daysSince = Math.floor((today - lastDate) / (1000 * 60 * 60 * 24));
+    return daysSince >= 90;
+  }).length;
 
   // Blood type breakdown - count unique animals only
   const dogDonorsAll = donors.filter(d => d.animalType?.toLowerCase() === 'dog' && d.bloodType);
@@ -170,7 +182,7 @@ const DonorDashboard = ({ onLocationClick }) => {
     <div className={`min-h-screen ${colors.bg.primary} p-4`}>
       <div className={`max-w-7xl mx-auto ${colors.bg.card} rounded-2xl shadow-lg p-6 ${colors.border.primary} border`}>
           <div className="text-center mb-4 sm:mb-6">
-            <h1 className={`text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3`}>
+            <h1 className={`text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2`}>
               Donor Dashboard
             </h1>
             <div className="w-16 sm:w-24 h-1 bg-gradient-to-r from-blue-400 to-purple-400 mx-auto rounded-full"></div>
@@ -179,9 +191,9 @@ const DonorDashboard = ({ onLocationClick }) => {
             <div className="flex gap-2 justify-center mt-3 flex-wrap">
               <button
                 onClick={() => setView('overview')}
-                className={`px-4 py-2 rounded-lg font-semibold transition-all duration-200 ${
+                className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 ${
                   view === 'overview' 
-                    ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-md' 
+                    ? 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow' 
                     : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
                 }`}
               >
@@ -189,20 +201,20 @@ const DonorDashboard = ({ onLocationClick }) => {
               </button>
               <button
                 onClick={() => setView('analytics')}
-                className={`px-4 py-2 rounded-lg font-semibold transition-all duration-200 ${
+                className={`px-3 py-1 rounded-lg text-sm font-medium transition-all duration-200 ${
                   view === 'analytics' 
-                    ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-md' 
+                    ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow' 
                     : 'bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300'
                 }`}
               >
-                📈 Advanced Analytics
+                📈 Analytics
               </button>
               <button
                 onClick={handleExportStats}
-                className="bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white px-4 py-2 rounded-lg font-medium shadow-md hover:shadow-lg transition-all duration-200"
+                className="bg-gradient-to-r from-indigo-500 to-indigo-600 hover:from-indigo-600 hover:to-indigo-700 text-white px-3 py-1 rounded-lg text-sm font-medium shadow hover:shadow-md transition-all duration-200"
                 title="Export statistics summary to CSV"
               >
-                � Export
+                📤 Export
               </button>
             </div>
           </div>
@@ -211,29 +223,29 @@ const DonorDashboard = ({ onLocationClick }) => {
           {view === 'overview' && (
             <div>
               {/* Key Statistics Summary */}
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 sm:gap-4 mb-6">
-                <div className={`${colors.bg.gradient} rounded-xl p-4 shadow-lg border ${colors.border.primary}`}>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 sm:gap-3 mb-4">
+                <div className={`${colors.bg.gradient} rounded-lg p-3 shadow border ${colors.border.primary}`}>
                   <div className="text-center">
-                    <div className="text-3xl font-bold text-blue-600">{totalDonors}</div>
-                    <div className={`text-sm ${colors.text.secondary} mt-1`}>Total Animals</div>
+                    <div className="text-2xl font-bold text-blue-600">{totalUniqueAnimals}</div>
+                    <div className={`text-xs ${colors.text.secondary} mt-0.5`}>Total Animals</div>
                   </div>
                 </div>
-                <div className={`${colors.bg.gradient} rounded-xl p-4 shadow-lg border ${colors.border.primary}`}>
+                <div className={`${colors.bg.gradient} rounded-lg p-3 shadow border ${colors.border.primary}`}>
                   <div className="text-center">
-                    <div className="text-3xl font-bold text-green-600">{totalDonations}</div>
-                    <div className={`text-sm ${colors.text.secondary} mt-1`}>Successful Donations</div>
+                    <div className="text-2xl font-bold text-green-600">{totalDonations}</div>
+                    <div className={`text-xs ${colors.text.secondary} mt-0.5`}>Successful Donations</div>
                   </div>
                 </div>
-                <div className={`${colors.bg.gradient} rounded-xl p-4 shadow-lg border ${colors.border.primary}`}>
+                <div className={`${colors.bg.gradient} rounded-lg p-3 shadow border ${colors.border.primary}`}>
                   <div className="text-center">
-                    <div className="text-3xl font-bold text-yellow-600">{eligibleDonors}</div>
-                    <div className={`text-sm ${colors.text.secondary} mt-1`}>Ready to Donate</div>
+                    <div className="text-2xl font-bold text-yellow-600">{eligibleDonors}</div>
+                    <div className={`text-xs ${colors.text.secondary} mt-0.5`}>Ready to Donate</div>
                   </div>
                 </div>
-                <div className={`${colors.bg.gradient} rounded-xl p-4 shadow-lg border ${colors.border.primary}`}>
+                <div className={`${colors.bg.gradient} rounded-lg p-3 shadow border ${colors.border.primary}`}>
                   <div className="text-center">
-                    <div className="text-3xl font-bold text-purple-600">{privateOwners}</div>
-                    <div className={`text-sm ${colors.text.secondary} mt-1`}>Private Owners</div>
+                    <div className="text-2xl font-bold text-purple-600">{privateOwners}</div>
+                    <div className={`text-xs ${colors.text.secondary} mt-0.5`}>Private Owners</div>
                   </div>
                 </div>
               </div>
@@ -245,11 +257,11 @@ const DonorDashboard = ({ onLocationClick }) => {
 
           {/* Blood Type Breakdown Section */}
           <div className={`${colors.bg.card} rounded-xl sm:rounded-2xl shadow-lg p-4 sm:p-6 mt-8 ${colors.border.primary} border`}>
-            <h2 className={`text-lg sm:text-xl font-bold mb-4 text-center ${colors.text.primary}`}>Blood Type Statistics</h2>
+            <h2 className={`text-base font-bold mb-3 text-center ${colors.text.primary}`}>Blood Type Statistics</h2>
             <div className="flex flex-col md:flex-row gap-8 justify-center">
               {/* Dog Pie Chart & Stats */}
               <div className="flex-1 flex flex-col items-center">
-                <h3 className={`font-semibold mb-2 ${colors.text.primary}`}>Dogs <span className="text-xs text-gray-500">(n={dogDonors.length})</span></h3>
+                <h3 className={`font-semibold mb-2 ${colors.text.primary}`}>Dogs <span className="text-xs text-gray-500 dark:text-gray-400">(n={dogDonors.length})</span></h3>
                 <ResponsiveContainer width="100%" height={180} minWidth={180} minHeight={180}>
                   <PieChart>
                     <Pie 
@@ -281,7 +293,7 @@ const DonorDashboard = ({ onLocationClick }) => {
                   {dogData.map((item, idx) => {
                     const percent = dogDonors.length ? Math.round((item.value / dogDonors.length) * 100) : 0;
                     return (
-                      <li key={item.name} className="flex justify-between border-b border-dashed py-1">
+                      <li key={item.name} className="flex justify-between border-b border-dashed border-gray-200 dark:border-gray-600 py-1">
                         <span className={colors.text.secondary}>{item.name}</span>
                         <span className="font-bold text-blue-500">{percent}% <span className="text-xs">({item.value})</span></span>
                       </li>
@@ -291,7 +303,7 @@ const DonorDashboard = ({ onLocationClick }) => {
               </div>
               {/* Cat Pie Chart & Stats */}
               <div className="flex-1 flex flex-col items-center">
-                <h3 className={`font-semibold mb-2 ${colors.text.primary}`}>Cats <span className="text-xs text-gray-500">(n={catDonors.length})</span></h3>
+                <h3 className={`font-semibold mb-2 ${colors.text.primary}`}>Cats <span className="text-xs text-gray-500 dark:text-gray-400">(n={catDonors.length})</span></h3>
                 <ResponsiveContainer width="100%" height={180} minWidth={180} minHeight={180}>
                   <PieChart>
                     <Pie 
@@ -323,7 +335,7 @@ const DonorDashboard = ({ onLocationClick }) => {
                   {catData.map((item, idx) => {
                     const percent = catDonors.length ? Math.round((item.value / catDonors.length) * 100) : 0;
                     return (
-                      <li key={item.name} className="flex justify-between border-b border-dashed py-1">
+                      <li key={item.name} className="flex justify-between border-b border-dashed border-gray-200 dark:border-gray-600 py-1">
                         <span className={colors.text.secondary}>{item.name}</span>
                         <span className="font-bold text-pink-500">{percent}% <span className="text-xs">({item.value})</span></span>
                       </li>

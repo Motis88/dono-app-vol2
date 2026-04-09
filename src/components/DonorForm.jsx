@@ -274,7 +274,8 @@ const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
     }
 
     // Check for duplicate animal names with chip number verification
-    if (!editingDonor && formData.animalName && formData.location) {
+    // Skip check for numeric-only names (stray cats / anonymous animals without real names)
+    if (!editingDonor && formData.animalName && formData.location && !/^\d+$/.test(formData.animalName.trim())) {
       const allDonors = donorStorage.getDonors();
       const duplicates = allDonors.filter(d => 
         d.animalName?.toLowerCase().trim() === formData.animalName.toLowerCase().trim() &&
@@ -452,7 +453,7 @@ const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
     <div className={`min-h-screen ${colors.bg.primary} p-4`}>
       <div className={`max-w-7xl mx-auto ${colors.bg.card} rounded-2xl shadow-lg p-6 ${colors.border.primary} border pb-20 sm:pb-24`}>
       <div className="text-center mb-4">
-        <h2 className="text-2xl font-bold mb-3 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">📝 Donor Form</h2>
+        <h2 className="text-xl font-bold mb-2 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent">📝 Donor Form</h2>
         <div className="w-24 h-1 bg-gradient-to-r from-blue-400 to-purple-400 mx-auto rounded-full"></div>
       </div>
       
@@ -763,7 +764,7 @@ const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
         )}
         
         {editingDonor ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 md:col-span-2 mt-6 sm:mt-8 pt-4 sm:pt-6 border-t-2 border-gray-200">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 md:col-span-2 mt-6 sm:mt-8 pt-4 sm:pt-6 border-t-2 border-gray-200 dark:border-gray-700">
             <button 
               type="submit" 
               className="bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 text-white py-3 sm:py-4 px-6 sm:px-8 rounded-lg sm:rounded-xl w-full font-semibold shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105 text-sm sm:text-base"

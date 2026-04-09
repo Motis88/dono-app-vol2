@@ -249,6 +249,15 @@ export const sanitizeDonor = (donor) => {
   // Handle boolean field
   sanitized.isPrivateOwner = Boolean(donor.isPrivateOwner);
 
+  // Preserve chip number (numeric string - must not be parsed as float)
+  if (donor.chipNumber !== undefined && donor.chipNumber !== null && donor.chipNumber !== '') {
+    sanitized.chipNumber = String(donor.chipNumber)
+      .replace(/<script[^>]*>.*?<\/script>/gi, '')
+      .replace(/javascript:/gi, '')
+      .replace(/on\w+\s*=/gi, '')
+      .trim();
+  }
+
   // Preserve ID if it exists
   if (donor.id) {
     sanitized.id = String(donor.id);

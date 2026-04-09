@@ -910,25 +910,25 @@ const InventoryManager = () => {
         {/* Header */}
         <div className="mb-6 flex justify-between items-start">
           <div>
-            <h1 className={`text-3xl font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+            <h1 className={`text-xl font-bold mb-1 bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent`}>
               Inventory Usage
             </h1>
-            <p className={`text-sm ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
+            <p className={`text-xs ${isDarkMode ? 'text-gray-400' : 'text-gray-500'}`}>
               Track blood product usage with zero data loss and correct aggregation
             </p>
           </div>
           <button
             onClick={handleClearAllData}
-            className="px-4 py-2 rounded-lg text-sm font-bold bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors border border-red-300 dark:border-red-800"
+            className="px-2 py-1 rounded text-xs font-medium bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50 transition-colors border border-red-200 dark:border-red-800"
           >
-            🗑️ Reset All Data
+            🗑️ Reset
           </button>
         </div>
         
         {/* Import Section */}
         <div className={`mb-6 p-4 rounded-lg ${isDarkMode ? 'bg-gray-800' : 'bg-white'} border ${isDarkMode ? 'border-gray-600' : 'border-gray-200'}`}>
           <div className="flex items-center justify-between mb-4">
-            <h2 className={`text-lg font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+            <h2 className={`text-sm font-bold ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
               Import Data
             </h2>
             {Object.keys(data.units).length > 0 && (
@@ -954,10 +954,10 @@ const InventoryManager = () => {
               />
               <label
                 htmlFor="usageFileInput"
-                className={`block px-6 py-3 rounded-lg font-bold cursor-pointer transition-all ${
+                className={`block px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer transition-all ${
                   importing 
                     ? 'bg-gray-400 cursor-not-allowed' 
-                    : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg hover:shadow-xl transform hover:scale-[1.02]'
+                    : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow hover:shadow-md transform hover:scale-[1.01]'
                 }`}
               >
                 📊 USAGE
@@ -976,10 +976,10 @@ const InventoryManager = () => {
               />
               <label
                 htmlFor="stockFileInput"
-                className={`block px-6 py-3 rounded-lg font-bold cursor-pointer transition-all ${
+                className={`block px-4 py-2 rounded-lg text-sm font-semibold cursor-pointer transition-all ${
                   importing 
                     ? 'bg-gray-400 cursor-not-allowed' 
-                    : 'bg-gradient-to-r from-green-500 to-green-600 text-white shadow-lg hover:shadow-xl transform hover:scale-[1.02]'
+                    : 'bg-gradient-to-r from-green-500 to-green-600 text-white shadow hover:shadow-md transform hover:scale-[1.01]'
                 }`}
               >
                 📦 STOCK
@@ -998,7 +998,7 @@ const InventoryManager = () => {
         <div className="mb-6">
           <button
             onClick={() => setSelectedView(selectedView === 'overview' ? 'monthly' : 'overview')}
-            className="px-6 py-3 rounded-lg font-bold bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow-lg hover:shadow-xl transform hover:scale-[1.02] transition-all"
+            className="px-4 py-2 rounded-lg text-sm font-semibold bg-gradient-to-r from-blue-500 to-blue-600 text-white shadow hover:shadow-md transform hover:scale-[1.01] transition-all"
           >
             {selectedView === 'overview' ? '📊 Show Monthly History' : '📋 Show Overview'}
           </button>
@@ -1066,8 +1066,8 @@ const OverviewView = ({ isDarkMode, overallTotals, mtdTotals, currentMonthKey, c
   <div className="space-y-6">
     
     {/* Month Selector and Summary */}
-    <div className={`p-6 rounded-lg ${isDarkMode ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'} border`}>
-      <h2 className={`text-xl font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+    <div className={`p-4 rounded-lg ${isDarkMode ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'} border`}>
+      <h2 className={`text-base font-bold mb-3 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
         Monthly Usage Summary
       </h2>
       
@@ -1094,21 +1094,21 @@ const OverviewView = ({ isDarkMode, overallTotals, mtdTotals, currentMonthKey, c
       </div>
       
       {/* Month Statistics */}
-      <div className="grid grid-cols-2 gap-4 mb-4">
-        <div className="p-4 rounded-lg bg-blue-50 dark:bg-blue-900/20">
-          <div className="text-3xl font-bold text-blue-600 dark:text-blue-400">
+      <div className="grid grid-cols-2 gap-3 mb-4">
+        <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20">
+          <div className="text-xl font-bold text-blue-600 dark:text-blue-400">
             {selectedMonthData.total}
           </div>
-          <div className="text-sm text-blue-700 dark:text-blue-300">
+          <div className="text-xs text-blue-700 dark:text-blue-300">
             Regular Units
           </div>
         </div>
         
-        <div className="p-4 rounded-lg bg-purple-50 dark:bg-purple-900/20">
-          <div className="text-3xl font-bold text-purple-600 dark:text-purple-400">
+        <div className="p-3 rounded-lg bg-purple-50 dark:bg-purple-900/20">
+          <div className="text-xl font-bold text-purple-600 dark:text-purple-400">
             {selectedMonthData.totalExternal}
           </div>
-          <div className="text-sm text-purple-700 dark:text-purple-300">
+          <div className="text-xs text-purple-700 dark:text-purple-300">
             External Units
           </div>
         </div>
@@ -1126,7 +1126,7 @@ const OverviewView = ({ isDarkMode, overallTotals, mtdTotals, currentMonthKey, c
     {/* Current Inventory */}
     {currentInventory.snapshotDate && (
       <div className={`p-6 rounded-lg ${isDarkMode ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'} border`}>
-        <h2 className={`text-xl font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+        <h2 className={`text-base font-bold mb-2 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
           Current Inventory
         </h2>
         <p className={`text-sm mb-4 ${isDarkMode ? 'text-gray-300' : 'text-gray-600'}`}>
@@ -1164,7 +1164,7 @@ const OverviewView = ({ isDarkMode, overallTotals, mtdTotals, currentMonthKey, c
     
     {/* Uploaded Files */}
     <div className={`p-6 rounded-lg ${isDarkMode ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'} border`}>
-      <h2 className={`text-xl font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+      <h2 className={`text-base font-bold mb-3 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
         Uploaded Files
       </h2>
       
@@ -1273,7 +1273,7 @@ const MonthlySummaryView = ({ isDarkMode, monthlySummary }) => {
   return (
     <div className="space-y-4">
       <div className={`p-6 rounded-lg ${isDarkMode ? 'bg-gray-800 border-gray-600' : 'bg-white border-gray-200'} border`}>
-        <h2 className={`text-xl font-bold mb-4 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+        <h2 className={`text-base font-bold mb-3 ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
           Historical Monthly Summary
         </h2>
         
@@ -1305,7 +1305,7 @@ const MonthlySummaryView = ({ isDarkMode, monthlySummary }) => {
                       <span className={`text-2xl transition-transform ${isExpanded ? 'rotate-90' : ''}`}>
                         ▶
                       </span>
-                      <span className={`font-bold text-lg ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
+                      <span className={`font-semibold text-sm ${isDarkMode ? 'text-white' : 'text-gray-800'}`}>
                         {monthName}
                       </span>
                     </div>

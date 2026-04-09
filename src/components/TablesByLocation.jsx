@@ -89,23 +89,23 @@ const buildHeuristicId = (d) => {
 };
 
 const withStableId = (d) => {
-  // First priority: if chipNumber exists, use it as the unique ID
+  // First priority: existing string ID (preserves separate donation records for the same animal)
+  if (d?.id && typeof d.id === 'string' && d.id.trim()) {
+    return { ...d, id: d.id.trim(), location: normalizeLocation(d.location) };
+  }
+
+  // Convert numeric ID to string
+  if (Number.isFinite(d?.id)) {
+    return { ...d, id: String(d.id), location: normalizeLocation(d.location) };
+  }
+
+  // No existing ID: use chip number as fallback (only for records without an ID)
   if (d?.chipNumber && typeof d.chipNumber === 'string' && d.chipNumber.trim()) {
     const chipId = `chip-${d.chipNumber.trim()}`;
     return { ...d, id: chipId, location: normalizeLocation(d.location) };
   }
-  
-  // Second priority: existing ID from data
-  if (d?.id && typeof d.id === 'string' && d.id.trim()) {
-    return { ...d, id: d.id.trim(), location: normalizeLocation(d.location) };
-  }
-  
-  // אם יש id מספרי – ננרמל למחרוזת
-  if (Number.isFinite(d?.id)) {
-    return { ...d, id: String(d.id), location: normalizeLocation(d.location) };
-  }
-  
-  // אחרת – נייצר id
+
+  // Last resort: heuristic or random UUID
   const heuristic = buildHeuristicId(d);
   const fallback = (globalThis.crypto?.randomUUID?.() ?? `gen-${Math.random().toString(36).slice(2)}`);
   const newId = heuristic || fallback;
@@ -679,27 +679,28 @@ const TablesByLocation = ({ onEdit, locationFilter, monthFilter, onClearFilter }
       <div className={`max-w-7xl mx-auto ${colors.bg.card} rounded-2xl shadow-lg p-6 ${colors.border.primary} border`}>
       {/* Page Title */}
       <div className="text-center mb-6">
-        <h1 className={`text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3`}>
+        <h1 className={`text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2`}>
           Donors Table
         </h1>
         <div className="w-24 h-1 bg-gradient-to-r from-blue-400 to-purple-400 mx-auto rounded-full"></div>
       </div>
 
       {/* Import/Export JSON - Simple and Clean */}
-      <div className="flex justify-center mb-6">
-        <div className={`flex flex-col md:flex-row gap-3 w-full md:w-auto ${colors.bg.tertiary} rounded-xl p-3 ${colors.border.primary} border`}> 
-          <div className="flex flex-wrap gap-2 md:flex-nowrap md:items-center">
+      <div className="mb-6">
+        <div className={`${colors.bg.tertiary} rounded-xl p-3 ${colors.border.primary} border`}>
+          {/* Row 1: main action buttons */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
             <button
               onClick={() => fileInputRef.current?.click()}
               aria-label="Import donor data from JSON file"
-              className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium shadow-sm hover:shadow-md transition-all duration-200 whitespace-nowrap"
+              className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white px-2 py-2 rounded-lg text-xs font-medium shadow-sm hover:shadow-md transition-all duration-200 text-center leading-tight"
             >
               📥 Import
             </button>
             <button
               onClick={handleExportJSON}
               aria-label={`Export ${donors.length} donor records to JSON file`}
-              className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium shadow-sm hover:shadow-md transition-all duration-200 whitespace-nowrap"
+              className="bg-gradient-to-r from-purple-500 to-purple-600 hover:from-purple-600 hover:to-purple-700 text-white px-2 py-2 rounded-lg text-xs font-medium shadow-sm hover:shadow-md transition-all duration-200 text-center leading-tight"
               title={`Export ${donors.length} records to JSON file`}
             >
               💾 JSON ({donors.length})
@@ -707,7 +708,7 @@ const TablesByLocation = ({ onEdit, locationFilter, monthFilter, onClearFilter }
             <button
               onClick={handleExportCSV}
               aria-label={`Export ${filteredDonors.length} donors from ${activeLocation} to CSV file`}
-              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium shadow-sm hover:shadow-md transition-all duration-200 whitespace-nowrap"
+              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white px-2 py-2 rounded-lg text-xs font-medium shadow-sm hover:shadow-md transition-all duration-200 text-center leading-tight"
               title={`Export donors from ${activeLocation} to CSV`}
             >
               📊 CSV ({filteredDonors.length})
@@ -719,44 +720,42 @@ const TablesByLocation = ({ onEdit, locationFilter, monthFilter, onClearFilter }
                   clearSelection();
                 }
               }}
-              className={`px-3 py-1.5 rounded-lg text-sm font-medium shadow-sm hover:shadow-md transition-all duration-200 whitespace-nowrap ${
+              className={`px-2 py-2 rounded-lg text-xs font-medium shadow-sm hover:shadow-md transition-all duration-200 text-center leading-tight ${
                 isSelectionMode 
                   ? 'bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white' 
                   : 'bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white'
               }`}
               title="Toggle selection mode for bulk operations"
             >
-              {isSelectionMode ? '✓ Selection Mode' : '☐ Select Multiple'}
+              {isSelectionMode ? '✓ Selection' : '☐ Select Multiple'}
             </button>
           </div>
-
-          <div className="flex flex-col gap-2 text-sm">
-            <div className="flex items-center gap-2">
-              <div className="flex flex-col">
-                <label className={`text-[10px] ${colors.text.secondary} mb-0.5 font-medium`}>START DATE</label>
-                <input
-                  type="date"
-                  value={exportStartDate}
-                  onChange={(e) => setExportStartDate(e.target.value)}
-                  className={`px-2 py-1 rounded-lg border ${colors.border.primary} bg-gray-200 dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 w-[130px]`}
-                  aria-label="Start date for JSON export"
-                />
-              </div>
-              <div className="flex flex-col">
-                <label className={`text-[10px] ${colors.text.secondary} mb-0.5 font-medium`}>END DATE</label>
-                <input
-                  type="date"
-                  value={exportEndDate}
-                  onChange={(e) => setExportEndDate(e.target.value)}
-                  className={`px-2 py-1 rounded-lg border ${colors.border.primary} bg-gray-200 dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 w-[130px]`}
-                  aria-label="End date for JSON export"
-                />
-              </div>
+          {/* Row 2: date range export */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 items-end">
+            <div className="flex flex-col">
+              <label className={`text-[10px] ${colors.text.secondary} mb-0.5 font-medium`}>START DATE</label>
+              <input
+                type="date"
+                value={exportStartDate}
+                onChange={(e) => setExportStartDate(e.target.value)}
+                className={`px-2 py-1.5 rounded-lg border ${colors.border.primary} bg-gray-200 dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 w-full`}
+                aria-label="Start date for JSON export"
+              />
+            </div>
+            <div className="flex flex-col">
+              <label className={`text-[10px] ${colors.text.secondary} mb-0.5 font-medium`}>END DATE</label>
+              <input
+                type="date"
+                value={exportEndDate}
+                onChange={(e) => setExportEndDate(e.target.value)}
+                className={`px-2 py-1.5 rounded-lg border ${colors.border.primary} bg-gray-200 dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 w-full`}
+                aria-label="End date for JSON export"
+              />
             </div>
             <button
               onClick={handleExportJSONByDateRange}
               aria-label="Export donors by date range to JSON file"
-              className="bg-gradient-to-r from-amber-600 to-orange-700 hover:from-amber-700 hover:to-orange-800 text-white px-3 py-1.5 rounded-lg text-sm font-medium shadow-sm hover:shadow-md transition-all duration-200 whitespace-nowrap w-full"
+              className="bg-gradient-to-r from-amber-600 to-orange-700 hover:from-amber-700 hover:to-orange-800 text-white px-3 py-1.5 rounded-lg text-sm font-medium shadow-sm hover:shadow-md transition-all duration-200 w-full col-span-2 sm:col-span-1"
               title="Export donors by date range to JSON"
             >
               🗓️ JSON by dates
@@ -830,10 +829,10 @@ const TablesByLocation = ({ onEdit, locationFilter, monthFilter, onClearFilter }
           <button
             key={loc}
             onClick={() => handleLocationChange(loc)}
-            className={`px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:scale-105 ${
+            className={`px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-300 transform hover:scale-105 ${
               normalizeLocation(activeLocation) === normalizeLocation(loc)
-                ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-lg"
-                : `${colors.bg.card} ${colors.text.primary} hover:${colors.bg.tableRowHover} shadow-md hover:shadow-lg border ${colors.border.primary}`
+                ? "bg-gradient-to-r from-blue-600 to-blue-700 text-white shadow-md"
+                : `${colors.bg.card} ${colors.text.primary} hover:${colors.bg.tableRowHover} shadow-sm hover:shadow-md border ${colors.border.primary}`
             }`}
           >
             {loc}

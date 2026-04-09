@@ -172,7 +172,7 @@ const ManualDonorList = ({ onEdit, onNewDonation }) => {
     <div className={`min-h-screen ${colors.bg.primary} p-4`}>
       <div className={`max-w-7xl mx-auto ${colors.bg.card} rounded-2xl shadow-lg p-6 ${colors.border.primary} border`}>
         <div className="text-center mb-8">
-          <h1 className={`text-2xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-3`}>
+          <h1 className={`text-xl font-bold bg-gradient-to-r from-blue-600 to-purple-600 bg-clip-text text-transparent mb-2`}>
             👥 Private Owners
           </h1>
           <div className={`w-24 h-1 bg-gradient-to-r from-blue-400 to-purple-400 mx-auto rounded-full ${colors.isDarkMode ? 'opacity-80' : ''}`}></div>
@@ -180,19 +180,19 @@ const ManualDonorList = ({ onEdit, onNewDonation }) => {
         {/* Filters - Search and Blood Type */}
         <div className="mb-6 flex flex-col gap-3">
           {/* Search Bar */}
-          <div className="flex items-center gap-2">
-            <span className="text-xl">🔍</span>
+          <div className="flex items-center gap-2 min-w-0 overflow-hidden">
+            <span className="text-xl flex-shrink-0">🔍</span>
             <input
               type="text"
               placeholder="Search by animal name, owner name, or phone..."
-              className={`flex-1 p-3 rounded-lg border ${colors.border.primary} ${colors.bg.input} ${colors.text.primary} focus:outline-none focus:ring-2 focus:ring-blue-500`}
+              className={`flex-1 min-w-0 p-3 rounded-lg border ${colors.border.primary} ${colors.bg.input} ${colors.text.primary} focus:outline-none focus:ring-2 focus:ring-blue-500`}
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
             />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery('')}
-                className="px-3 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
+                className="flex-shrink-0 px-3 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors"
                 title="Clear search"
               >
                 ✕
@@ -234,12 +234,12 @@ const ManualDonorList = ({ onEdit, onNewDonation }) => {
                   onClick={() => setShowReady(!showReady)}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="text-2xl font-bold text-green-600">
+                    <div className="text-2xl font-bold text-green-600 dark:text-green-400">
                       {donors.filter(d => d.status === 'ready').length}
                     </div>
-                    <h2 className="text-lg font-bold text-green-600">✅ Ready to Donate</h2>
+                    <h2 className="text-lg font-bold text-green-600 dark:text-green-400">✅ Ready to Donate</h2>
                   </div>
-                  <span className="text-lg text-green-600">{showReady ? '▼' : '▶'}</span>
+                  <span className="text-lg text-green-600 dark:text-green-400">{showReady ? '▼' : '▶'}</span>
                 </div>
                 {showReady && (
                   <div className="p-4 pt-4 border-t border-gray-200 dark:border-gray-700">
@@ -280,7 +280,7 @@ const ManualDonorList = ({ onEdit, onNewDonation }) => {
                   </div>
 
                   {/* Donation Status */}
-                  <div className="border-t pt-4">
+                  <div className="border-t dark:border-gray-700 pt-4">
                     <div className={`text-sm font-medium ${getStatusTextColor(d.status)}`}>
                       {d.daysStatus}
                     </div>
@@ -292,7 +292,7 @@ const ManualDonorList = ({ onEdit, onNewDonation }) => {
                   </div>
 
                   {/* Actions */}
-                  <div className="flex gap-2 mt-4 pt-4 border-t" onClick={e => e.stopPropagation()}>
+                  <div className="flex gap-2 mt-4 pt-4 border-t dark:border-gray-700" onClick={e => e.stopPropagation()}>
                     <button
                       onClick={() => onEdit(d)}
                       className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold text-sm px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105"
@@ -322,12 +322,12 @@ const ManualDonorList = ({ onEdit, onNewDonation }) => {
                   onClick={() => setShowSoon(!showSoon)}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="text-2xl font-bold text-yellow-600">
+                    <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">
                       {donors.filter(d => d.status === 'soon').length}
                     </div>
-                    <h2 className="text-lg font-bold text-yellow-600">⌛ Available Soon</h2>
+                    <h2 className="text-lg font-bold text-yellow-600 dark:text-yellow-400">⌛ Available Soon</h2>
                   </div>
-                  <span className="text-lg text-yellow-600">{showSoon ? '▼' : '▶'}</span>
+                  <span className="text-lg text-yellow-600 dark:text-yellow-400">{showSoon ? '▼' : '▶'}</span>
                 </div>
                 {showSoon && (
                   <div className="p-4 pt-4 border-t border-gray-200 dark:border-gray-700">
@@ -363,7 +363,7 @@ const ManualDonorList = ({ onEdit, onNewDonation }) => {
                       </div>
                     )}
                   </div>
-                  <div className="border-t pt-4">
+                  <div className="border-t dark:border-gray-700 pt-4">
                     <div className={`text-sm font-medium ${getStatusTextColor(d.status)}`}>
                       {d.daysStatus}
                     </div>
@@ -373,7 +373,7 @@ const ManualDonorList = ({ onEdit, onNewDonation }) => {
                       </div>
                     )}
                   </div>
-                  <div className="flex gap-2 mt-4 pt-4 border-t" onClick={e => e.stopPropagation()}>
+                  <div className="flex gap-2 mt-4 pt-4 border-t dark:border-gray-700" onClick={e => e.stopPropagation()}>
                     <button
                       onClick={() => onEdit(d)}
                       className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold text-sm px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105"
@@ -403,12 +403,12 @@ const ManualDonorList = ({ onEdit, onNewDonation }) => {
                   onClick={() => setShowNotReady(!showNotReady)}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="text-2xl font-bold text-red-600">
+                    <div className="text-2xl font-bold text-red-600 dark:text-red-400">
                       {donors.filter(d => d.status === 'not-ready').length}
                     </div>
-                    <h2 className="text-lg font-bold text-red-600">⏸️ Not Ready</h2>
+                    <h2 className="text-lg font-bold text-red-600 dark:text-red-400">⏸️ Not Ready</h2>
                   </div>
-                  <span className="text-lg text-red-600">{showNotReady ? '▼' : '▶'}</span>
+                  <span className="text-lg text-red-600 dark:text-red-400">{showNotReady ? '▼' : '▶'}</span>
                 </div>
                 {showNotReady && (
                   <div className="p-4 pt-4 border-t border-gray-200 dark:border-gray-700">
@@ -444,7 +444,7 @@ const ManualDonorList = ({ onEdit, onNewDonation }) => {
                       </div>
                     )}
                   </div>
-                  <div className="border-t pt-4">
+                  <div className="border-t dark:border-gray-700 pt-4">
                     <div className={`text-sm font-medium ${getStatusTextColor(d.status)}`}>
                       {d.daysStatus}
                     </div>
@@ -454,7 +454,7 @@ const ManualDonorList = ({ onEdit, onNewDonation }) => {
                       </div>
                     )}
                   </div>
-                  <div className="flex gap-2 mt-4 pt-4 border-t" onClick={e => e.stopPropagation()}>
+                  <div className="flex gap-2 mt-4 pt-4 border-t dark:border-gray-700" onClick={e => e.stopPropagation()}>
                     <button
                       onClick={() => onEdit(d)}
                       className="flex-1 bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white font-semibold text-sm px-4 py-2 rounded-lg shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105"
