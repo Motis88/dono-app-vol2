@@ -26,7 +26,6 @@ export const parseCsvFile = (file) => {
                   (rowStr.includes('date') && (rowStr.includes('name') || rowStr.includes('quantity')))) {
                 headerRowIndex = i;
                 headers = row;
-                console.log('📋 Found header row at index:', i, '→', headers);
                 break;
               }
             }
@@ -47,8 +46,6 @@ export const parseCsvFile = (file) => {
               });
               return obj;
             });
-          
-          console.log('📦 Parsed', objectData.length, 'data rows');
           
           const normalizedData = normalizeData(objectData);
           resolve(normalizedData);

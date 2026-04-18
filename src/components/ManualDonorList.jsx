@@ -67,25 +67,22 @@ const ManualDonorList = ({ onEdit, onNewDonation }) => {
 
   const refreshDonors = () => {
     const all = donorStorage.getDonors();
-    // For each private owner animal, find its last donation date
-    let privateAnimals = all.filter(x => x.isPrivateOwner).map(animal => {
-      // Find all donations for this animal (by id or by animalName+ownerName)
-      const matches = all.filter(d =>
-        d.isPrivateOwner &&
-        d.animalName === animal.animalName &&
-        d.ownerName === animal.ownerName
-      );
-      // Get the latest date
-      const lastDonation = matches.reduce((latest, d) => {
-        if (d.date && (!latest || new Date(d.date) > new Date(latest))) {
-          return d.date;
-        }
-        return latest;
-      }, null);
-      const donationInfo = calculateDonationStatus(lastDonation);
+    // Build a map of latest donation dates per animal (single pass - O(n))
+    const latestByAnimal = new Map();
+    all.forEach(d => {
+      if (!d.isPrivateOwner) return;
+      const key = `${d.animalName}|${d.ownerName}`;
+      const existing = latestByAnimal.get(key);
+      if (!existing || (d.date && (!existing.date || new Date(d.date) > new Date(existing.date)))) {
+        latestByAnimal.set(key, d);
+      }
+    });
+
+    let privateAnimals = Array.from(latestByAnimal.values()).map(animal => {
+      const donationInfo = calculateDonationStatus(animal.date);
       return { 
         ...animal, 
-        donationDate: lastDonation,
+        donationDate: animal.date,
         ...donationInfo
       };
     });

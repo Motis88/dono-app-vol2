@@ -45,7 +45,7 @@ const StatusBadge = ({ label, value, colors, isMain = false }) => {
   );
 };
 
-// ---------- Helper Functions ----------            💾 Export ({donors.length})rs ----------
+// ---------- Helper Functions ----------
 const normalizeLocation = (loc) =>
   (loc ?? '').toString().trim();
 

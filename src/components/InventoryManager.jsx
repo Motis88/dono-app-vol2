@@ -44,8 +44,6 @@ function normalizeProductName(csvName) {
   if (!csvName) return null;
   
   const lower = csvName.toLowerCase().trim();
-  console.log(`🔍 Normalizing: "${csvName}"`);
-  
   // Helper: check if string contains animal type
   const isDog = lower.includes('dog') || lower.includes('כלב');
   const isCat = lower.includes('cat') || lower.includes('חתול');
@@ -57,7 +55,6 @@ function normalizeProductName(csvName) {
     lower.includes('טרי') ||
     (lower.includes('mdm') && lower.includes('fresh'))
   )) {
-    console.log(`  ✅ fresh_blood_dog`);
     return 'fresh_blood_dog';
   }
   
@@ -68,7 +65,6 @@ function normalizeProductName(csvName) {
     lower.includes('whole') ||
     lower.includes('מלא')
   ) && !lower.includes('fresh') && !lower.includes('טרי')) {
-    console.log(`  ✅ whole_blood_dog`);
     return 'whole_blood_dog';
   }
   
@@ -79,7 +75,6 @@ function normalizeProductName(csvName) {
     lower.includes('whole') ||
     lower.includes('מלא')
   )) {
-    console.log(`  ✅ whole_blood_cat`);
     return 'whole_blood_cat';
   }
   
@@ -90,7 +85,6 @@ function normalizeProductName(csvName) {
     lower.includes('plasma') ||
     lower.includes('פלסמה')
   )) {
-    console.log(`  ✅ plasma_dog`);
     return 'plasma_dog';
   }
   
@@ -101,7 +95,6 @@ function normalizeProductName(csvName) {
     lower.includes('plasma') ||
     lower.includes('פלסמה')
   )) {
-    console.log(`  ✅ plasma_cat`);
     return 'plasma_cat';
   }
   
@@ -114,7 +107,6 @@ function normalizeProductName(csvName) {
     lower.includes('packed') ||
     lower.includes('תרכיז')
   )) {
-    console.log(`  ✅ prbc_dog`);
     return 'prbc_dog';
   }
   
@@ -127,11 +119,9 @@ function normalizeProductName(csvName) {
     lower.includes('packed') ||
     lower.includes('תרכיז')
   )) {
-    console.log(`  ✅ prbc_cat`);
     return 'prbc_cat';
   }
   
-  console.log(`  ❌ No match found`);
   return null;
 }
 
@@ -146,7 +136,6 @@ function isExternalUnit(csvName) {
   // Primary check: Does "חיצוני" appear anywhere in the string?
   // This is the most reliable check regardless of surrounding characters
   if (lower.includes(EXTERNAL_KEYWORD)) {
-    console.log(`🔴 EXTERNAL UNIT DETECTED (primary): "${csvName}"`);
     return true;
   }
   
@@ -167,7 +156,6 @@ function isExternalUnit(csvName) {
   
   for (const pattern of fallbackPatterns) {
     if (lower.includes(pattern)) {
-      console.log(`🔴 EXTERNAL UNIT DETECTED (pattern: "${pattern}"): "${csvName}"`);
       return true;
     }
   }
@@ -514,8 +502,6 @@ const InventoryManager = () => {
         text = win1255Text;
         chosen = 'Windows-1255';
       }
-      console.log(`🔎 Decoding chosen: ${chosen} (UTF-8 letters=${utf8Letters}, marks=${utf8Marks}, mojibake=${utf8Mojibake}; Win-1255 letters=${winLetters}, marks=${winMarks}, mojibake=${winMojibake})`);
-
       // Secondary recovery: if we see many '×' characters (classic mojibake), try Latin1→UTF8 repair
       const xCount = (text.match(/×/g) || []).length;
       if (xCount > 50) {
@@ -526,15 +512,11 @@ const InventoryManager = () => {
           const currentLetters = (text.match(/[\u05D0-\u05EA]/g) || []).length;
           if (repairedLetters > currentLetters) {
             text = repaired;
-            console.log(`🩺 Applied Latin1→UTF8 repair (× count=${xCount}, letters improved ${currentLetters}→${repairedLetters})`);
           }
         } catch {}
       }
       
       // Debug: Show first 500 characters of raw file
-      console.log('📄 Raw file preview (first 500 chars):', text.substring(0, 500));
-      console.log('📄 File size:', text.length, 'characters');
-      
       // Medicine Usage exports have 4-5 metadata rows before the real headers
       // Find the row that starts with "Invoice row #" and parse from there
       const lines = text.split('\n');
@@ -547,8 +529,6 @@ const InventoryManager = () => {
         event.target.value = '';
         return;
       }
-      
-      console.log(`📍 Found headers at row ${headerIndex}, skipping ${headerIndex} metadata rows`);
       
       // Rejoin from the header row onwards
       const cleanedText = lines.slice(headerIndex).join('\n');
@@ -589,12 +569,8 @@ const InventoryManager = () => {
     let skippedEmpty = 0;
     const uniqueProducts = new Set(); // Track unique product names
     
-    console.log(`📊 Processing ${rows.length} rows from ${fileName}`);
-    
     // Debug: Show available columns
     if (rows.length > 0) {
-      console.log('📋 Available columns:', Object.keys(rows[0]));
-      console.log('📋 First row sample:', rows[0]);
     }
     
     setData(prevData => {
@@ -605,7 +581,6 @@ const InventoryManager = () => {
         // Debug first 10 rows to see what's really there
         if (index < 10) {
           const hasContent = Object.values(row).some(v => v && v.toString().trim());
-          console.log(`Row ${index}: hasContent=${hasContent}, values=`, Object.values(row).slice(0, 5));
         }
         
         // Skip empty rows
@@ -614,15 +589,10 @@ const InventoryManager = () => {
           return;
         }
         
-        // Debug first few rows that pass empty check
-        if (index < 5) console.log(`Row ${index} passed empty check:`, row);
-        
         // First capture product name (for unique list) even if row later skipped
         const productNameEarly = row.Medicine || row._2 || row.product || row.Product || row.product_name || row['Product Name'] || '';
         if (index < 10) {
           const codes = typeof productNameEarly === 'string' ? Array.from(productNameEarly).map(ch => ch.codePointAt(0)) : [];
-          console.log(`🔎 Product raw [${index}]:`, productNameEarly);
-          console.log(`🔎 Product codes [${index}]:`, codes.slice(0, 25));
         }
         if (productNameEarly) uniqueProducts.add(productNameEarly);
 
@@ -640,14 +610,12 @@ const InventoryManager = () => {
         
         if (!dateStr) {
           skippedNoDate++;
-          if (index < 5) console.log(`Row ${index} has no date:`, row);
           return;
         }
         
         const date = parseDate(dateStr);
         if (!date) {
           skippedNoDate++;
-          if (index < 5) console.log(`Row ${index} date parse failed: "${dateStr}"`);
           return;
         }
         
@@ -655,14 +623,12 @@ const InventoryManager = () => {
         
         if (!productName) {
           skippedUnknownProduct++;
-          if (index < 5) console.log(`Row ${index} has no product name:`, row);
           return;
         }
         
         const productKey = normalizeProductName(productName);
         if (!productKey) {
           skippedUnknownProduct++;
-          console.log(`❌ Row ${index} unknown product: "${productName}"`);
           return;
         }
         
@@ -673,7 +639,6 @@ const InventoryManager = () => {
         // Skip units with 0 quantity (not used)
         if (quantity === 0 || isNaN(quantity)) {
           if (index < 20) {
-            console.log(`⏭️ Row ${index}: Skipped - Zero or invalid quantity (${quantityStr})`);
           }
           skippedEmpty++;
           return;
@@ -681,7 +646,6 @@ const InventoryManager = () => {
         
         // Log first few successful recognitions with external status
         if (index < 20) {
-          console.log(`Row ${index}: "${productName}" → ${productKey} | External: ${isExternal} | Qty: ${quantity} | Date: ${date}`);
         }
         
         // Generate unique unit ID
@@ -708,12 +672,10 @@ const InventoryManager = () => {
         
         // Log first few successful units
         if (newUnits <= 3) {
-          console.log(`✅ Unit ${newUnits}: ${PRODUCT_DEFINITIONS[productKey]} (${quantity}) on ${date} - External: ${isExternal}`);
         }
         
         // Debug on very first unit
         if (newUnits === 1) {
-          console.log('🎯 First unit details:', { row, dateStr, productName, productKey, date, isExternal });
         }
       });
       
@@ -731,21 +693,7 @@ const InventoryManager = () => {
       // Count external units
       const externalCount = Object.values(newUnitsMap).filter(u => u.isExternal).length;
       const regularCount = Object.values(newUnitsMap).length - externalCount;
-      
-      console.log(`📊 After setData: Expected ${newUnits} units added`);
-      console.log(`📊 Total units in storage: ${Object.values(newUnitsMap).length} (${regularCount} regular + ${externalCount} external)`);
-      
-      console.log(`📋 Import Summary:
-- Total rows: ${rows.length}
-- New units: ${newUnits}
-- Duplicates: ${duplicates}
-- Skipped (empty): ${skippedEmpty}
-- Skipped (no date): ${skippedNoDate}
-- Skipped (unknown product): ${skippedUnknownProduct}`);
-      
       // Show unique product names found in file
-      console.log(`🏷️ Unique product names found (${uniqueProducts.size}):`, Array.from(uniqueProducts));
-      
       // Show alert with results
       setTimeout(() => {
         const message = `✅ Import complete!\n\nNew units: ${newUnits}\nDuplicates: ${duplicates}\nSkipped - Empty rows: ${skippedEmpty}\nSkipped - No date: ${skippedNoDate}\nSkipped - Unknown product: ${skippedUnknownProduct}\n\nFile: ${fileName}`;
@@ -850,8 +798,6 @@ const InventoryManager = () => {
         }
       });
       updated.units = newUnits;
-      
-      console.log(`🗑️ Deleted file ${fileId} and ${unitCount} units`);
       
       return updated;
     });

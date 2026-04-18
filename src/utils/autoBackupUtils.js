@@ -85,11 +85,9 @@ export const scheduleAutoBackup = (backupFunction) => {
 
   const check = async () => {
     if (isBackupDue()) {
-      console.log('Auto-backup is due, initiating backup...');
       try {
         await backupFunction(false); // Silent backup
         recordBackup();
-        console.log('Auto-backup completed successfully');
       } catch (error) {
         console.error('Auto-backup failed:', error);
       }
