@@ -64,14 +64,11 @@ const EnhancedFinancialDashboard = ({ salesHistory }) => {
     // Listen to storage events from other tabs/windows
     window.addEventListener('storage', handleStorageChange);
 
-    // Also refresh periodically to catch same-tab changes
-    const interval = setInterval(() => {
-      loadMonthlyData();
-    }, 2000); // Refresh every 2 seconds
+    // Refresh once on mount and when manually triggered (no aggressive polling)
+    loadMonthlyData();
 
     return () => {
       window.removeEventListener('storage', handleStorageChange);
-      clearInterval(interval);
     };
   }, [manualData])
 

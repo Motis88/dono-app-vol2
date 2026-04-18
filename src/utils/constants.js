@@ -13,7 +13,7 @@ export const FILE_NAMES = {
   BACKUP: 'donor_backup.json'
 };
 
-export const LOCATIONS = ['רחובות', 'בית עובד', 'איגוד ערים דן', 'פתחיה', 'חולון', 'חיצוני'];
+export const LOCATIONS = ['בית עובד', 'איגוד ערים דן', 'פתחיה', 'חולון', 'רחובות', 'חיצוני'];
 
 export const BLOOD_TYPES = {
   DOG: ['DEA 1.1 Positive', 'DEA 1.1 Negative'],
@@ -22,4 +22,4 @@ export const BLOOD_TYPES = {
 
 export const VIEWS = ['form', 'table', 'dashboard', 'external-cells', 'inventory', 'financial'];
 
-export const DONATION_STATUSES = ['Positive', 'Negative', 'Unknown'];
+export const DONATION_STATUSES = ['Yes', 'No'];

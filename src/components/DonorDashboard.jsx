@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useMemo, useCallback } from "react";
 import { PieChart, Pie, Cell, Legend, Tooltip, ResponsiveContainer } from 'recharts';
 import DonorPivotTable from "./DonorPivotTable";
 import EnhancedDashboard from "./EnhancedDashboard";
@@ -16,7 +16,7 @@ const DonorDashboard = ({ onLocationClick }) => {
   const catColors = ['#ec4899', '#fbbf24', '#6366f1'];
 
   // Helper function to identify unique animals (must be defined before stats that use it)
-  const getUniqueAnimals = (animalsList) => {
+  const getUniqueAnimals = useCallback((animalsList) => {
     const seen = new Set();
     return animalsList.filter(animal => {
       // Create unique key: name + type + location (+ owner if private)
@@ -48,52 +48,56 @@ const DonorDashboard = ({ onLocationClick }) => {
       seen.add(uniqueKey);
       return true;
     });
-  };
+  }, []);
 
-  // Calculate key statistics (after getUniqueAnimals is defined)
-  const totalDonations = donors.filter(d => d.donated === 'Yes').length;
-  const totalDonors = donors.length; // total records (used for internal calcs / CSV)
+  // Memoize all expensive computations
+  const {
+    totalDonations, totalDonors, totalUniqueAnimals, privateOwners,
+    eligibleDonors, dogDonors, catDonors, dogData, catData, uniqueAnimalsList
+  } = useMemo(() => {
+    const totalDonations = donors.filter(d => d.donated === 'Yes').length;
+    const totalDonors = donors.length;
 
-  // Sort donors by date DESC so getUniqueAnimals picks the most recent record per animal
-  const donorsByDateDesc = [...donors].sort((a, b) => {
-    if (!a.date) return 1;
-    if (!b.date) return -1;
-    return new Date(b.date) - new Date(a.date);
-  });
+    const donorsByDateDesc = [...donors].sort((a, b) => {
+      if (!a.date) return 1;
+      if (!b.date) return -1;
+      return new Date(b.date) - new Date(a.date);
+    });
 
-  const uniqueAnimalsList = getUniqueAnimals(donorsByDateDesc);
-  const totalUniqueAnimals = uniqueAnimalsList.length;
+    const uniqueAnimalsList = getUniqueAnimals(donorsByDateDesc);
+    const totalUniqueAnimals = uniqueAnimalsList.length;
+    const privateOwners = getUniqueAnimals(donorsByDateDesc.filter(d => d.isPrivateOwner)).length;
 
-  // Private owners: count unique animals, not records
-  const privateOwners = getUniqueAnimals(donorsByDateDesc.filter(d => d.isPrivateOwner)).length;
+    const eligibleDonors = uniqueAnimalsList.filter(d => {
+      if (!d.date) return false;
+      const lastDate = new Date(d.date);
+      const today = new Date();
+      const daysSince = Math.floor((today - lastDate) / (1000 * 60 * 60 * 24));
+      return daysSince >= 90;
+    }).length;
 
-  // Eligible donors: per unique animal, based on their most recent donation date
-  const eligibleDonors = uniqueAnimalsList.filter(d => {
-    if (!d.date) return false;
-    const lastDate = new Date(d.date);
-    const today = new Date();
-    const daysSince = Math.floor((today - lastDate) / (1000 * 60 * 60 * 24));
-    return daysSince >= 90;
-  }).length;
+    const dogDonorsAll = donors.filter(d => d.animalType?.toLowerCase() === 'dog' && d.bloodType);
+    const catDonorsAll = donors.filter(d => d.animalType?.toLowerCase() === 'cat' && d.bloodType);
+    const dogDonors = getUniqueAnimals(dogDonorsAll);
+    const catDonors = getUniqueAnimals(catDonorsAll);
+    
+    const dogTypes = ['DEA 1.1 Positive', 'DEA 1.1 Negative'];
+    const catTypes = ['A', 'AB', 'B'];
+    
+    const dogData = dogTypes.map((type) => ({
+      name: type,
+      value: dogDonors.filter(d => d.bloodType === type).length
+    }));
+    const catData = catTypes.map((type) => ({
+      name: type,
+      value: catDonors.filter(d => d.bloodType === type).length
+    }));
 
-  // Blood type breakdown - count unique animals only
-  const dogDonorsAll = donors.filter(d => d.animalType?.toLowerCase() === 'dog' && d.bloodType);
-  const catDonorsAll = donors.filter(d => d.animalType?.toLowerCase() === 'cat' && d.bloodType);
-  
-  const dogDonors = getUniqueAnimals(dogDonorsAll);
-  const catDonors = getUniqueAnimals(catDonorsAll);
-  
-  const dogTypes = ['DEA 1.1 Positive', 'DEA 1.1 Negative'];
-  const catTypes = ['A', 'AB', 'B'];
-  
-  const dogData = dogTypes.map((type) => ({
-    name: type,
-    value: dogDonors.filter(d => d.bloodType === type).length
-  }));
-  const catData = catTypes.map((type) => ({
-    name: type,
-    value: catDonors.filter(d => d.bloodType === type).length
-  }));
+    return {
+      totalDonations, totalDonors, totalUniqueAnimals, privateOwners,
+      eligibleDonors, dogDonors, catDonors, dogData, catData, uniqueAnimalsList
+    };
+  }, [donors, getUniqueAnimals]);
 
   // Export statistics to CSV
   const handleExportStats = async () => {

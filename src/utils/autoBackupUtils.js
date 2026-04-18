@@ -157,27 +157,6 @@ export const getBackupStats = () => {
   };
 };
 
-/**
- * Create backup versioning (keep multiple backups)
- * @param {string} filename - Base filename
- * @param {number} maxVersions - Maximum versions to keep
- * @returns {string} Versioned filename
- */
-export const createVersionedFilename = (filename, maxVersions = 5) => {
-  const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
-  return `${filename.replace('.json', '')}_v${timestamp}.json`;
-};
-
-/**
- * Clean old backups (keep only recent ones)
- * @param {number} maxVersions - Maximum versions to keep
- */
-export const cleanOldBackups = async (maxVersions = 5) => {
-  // This would need filesystem integration
-  // For now, just a placeholder
-  console.log(`Cleaning old backups, keeping last ${maxVersions} versions`);
-};
-
 export default {
   getAutoBackupSettings,
   saveAutoBackupSettings,
@@ -187,6 +166,4 @@ export default {
   enableAutoBackup,
   disableAutoBackup,
   getBackupStats,
-  createVersionedFilename,
-  cleanOldBackups,
 };

@@ -35,13 +35,31 @@ const donorSearchConfig = {
   useExtendedSearch: true, // Enable advanced query syntax
 };
 
+// Cache for Fuse instance to avoid rebuilding index on every search
+let _cachedFuse = null;
+let _cachedDonorsRef = null;
+
 /**
- * Create a Fuse instance for donor search
+ * Create a Fuse instance for donor search (cached)
  * @param {Array} donors - Array of donor objects
  * @returns {Fuse} Configured Fuse instance
  */
 export const createDonorSearch = (donors) => {
-  return new Fuse(donors, donorSearchConfig);
+  // Reuse cached instance if donors array reference hasn't changed
+  if (_cachedFuse && _cachedDonorsRef === donors) {
+    return _cachedFuse;
+  }
+  _cachedFuse = new Fuse(donors, donorSearchConfig);
+  _cachedDonorsRef = donors;
+  return _cachedFuse;
+};
+
+/**
+ * Invalidate the Fuse cache (call after donors are modified)
+ */
+export const invalidateSearchCache = () => {
+  _cachedFuse = null;
+  _cachedDonorsRef = null;
 };
 
 /**
@@ -165,15 +183,12 @@ export const getSearchSuggestions = (donors, partial, limit = 5) => {
   const lowerPartial = partial.toLowerCase();
 
   donors.forEach(donor => {
-    // Check animal names
     if (donor.animalName?.toLowerCase().includes(lowerPartial)) {
       suggestions.add(donor.animalName);
     }
-    // Check owner names
     if (donor.ownerName?.toLowerCase().includes(lowerPartial)) {
       suggestions.add(donor.ownerName);
     }
-    // Check file numbers
     if (donor.fileNumber?.toLowerCase().includes(lowerPartial)) {
       suggestions.add(donor.fileNumber);
     }
@@ -182,78 +197,10 @@ export const getSearchSuggestions = (donors, partial, limit = 5) => {
   return Array.from(suggestions).slice(0, limit);
 };
 
-/**
- * Multi-field search (OR logic)
- * Searches specific fields only
- * @param {Array} donors - Array of donor objects
- * @param {Object} fieldQueries - Object with field: query pairs
- * @returns {Array} Matching donors
- */
-export const multiFieldSearch = (donors, fieldQueries) => {
-  const matches = new Set();
-
-  Object.entries(fieldQueries).forEach(([field, query]) => {
-    if (!query || query.trim().length < 2) return;
-
-    const config = {
-      ...donorSearchConfig,
-      keys: [field],
-    };
-
-    const fuse = new Fuse(donors, config);
-    const results = fuse.search(query);
-    results.forEach(r => matches.add(r.item));
-  });
-
-  return Array.from(matches);
-};
-
-/**
- * Search analytics - get search statistics
- * @param {Array} searchResults - Results from search
- * @returns {Object} Statistics object
- */
-export const getSearchStats = (searchResults) => {
-  const stats = {
-    total: searchResults.length,
-    byLocation: {},
-    byAnimalType: {},
-    byBloodType: {},
-    donated: 0,
-    notDonated: 0,
-    privateOwners: 0,
-  };
-
-  searchResults.forEach(donor => {
-    // Count by location
-    const loc = donor.location || 'Unknown';
-    stats.byLocation[loc] = (stats.byLocation[loc] || 0) + 1;
-
-    // Count by animal type
-    const type = donor.animalType || 'Unknown';
-    stats.byAnimalType[type] = (stats.byAnimalType[type] || 0) + 1;
-
-    // Count by blood type
-    const blood = donor.bloodType || 'Unknown';
-    stats.byBloodType[blood] = (stats.byBloodType[blood] || 0) + 1;
-
-    // Donation status
-    if (donor.donated === 'Yes') stats.donated++;
-    else stats.notDonated++;
-
-    // Private owners
-    if (donor.isPrivateOwner) stats.privateOwners++;
-  });
-
-  return stats;
-};
-
 export default {
   createDonorSearch,
   searchDonors,
   advancedSearch,
-  searchWithHighlights,
   getSearchSuggestions,
-  multiFieldSearch,
-  getSearchStats,
+  invalidateSearchCache,
 };

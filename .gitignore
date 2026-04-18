@@ -12,6 +12,9 @@ ios/
 donor_backup.json
 capacitor.config.json
 
+# sensitive data
+donor_data.json
+
 # system garbage
 .DS_Store
 Thumbs.db

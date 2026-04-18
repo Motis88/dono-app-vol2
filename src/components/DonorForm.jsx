@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback, useRef } from "react";
 import PropTypes from 'prop-types';
-import { LOCATIONS, BLOOD_TYPES, DONATION_STATUSES } from '../utils/constants.js';
+import { LOCATIONS, BLOOD_TYPES } from '../utils/constants.js';
 import { donorStorage } from '../utils/storage.js';
 import { validateDonor, sanitizeDonor, normalizeBloodType } from '../utils/donorUtils.js';
 import { useTheme } from '../contexts/ThemeContext.jsx';

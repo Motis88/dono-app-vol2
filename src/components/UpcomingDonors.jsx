@@ -86,8 +86,8 @@ const daysBetween = (dateString) => {
 const eligibleDonors = latestDonors.filter(d => {
   if (!d.date) return false; // חייב שיהיה date!
   const days = daysBetween(d.date);
-  // רוצה בין 90 ל-97 יום (שלושה חודשים עד שלושה חודשים ושבוע)
-  return days >= 90 && days <= 97;
+  // כל מי שעברו 90 יום מתרומה אחרונה - זמין לתרומה חוזרת
+  return days >= 90;
 }).filter(d =>
   !locationFilter || d.location === locationFilter
 );
