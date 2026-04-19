@@ -35,6 +35,8 @@ const FinancialTracker = () => {
   const [editValue, setEditValue] = useState('');
   const [showAddDebt, setShowAddDebt] = useState(null); // association name or null
   const [newDebtForm, setNewDebtForm] = useState({ animalName: '', fileNumber: '', amount: '' });
+  const [showAddAssociation, setShowAddAssociation] = useState(false);
+  const [newAssociationName, setNewAssociationName] = useState('');
 
   useEffect(() => {
     loadFinancialData();
@@ -285,6 +287,29 @@ const FinancialTracker = () => {
 
   const calculateBalance = (association) => {
     return debtsData[association].credit - debtsData[association].debt;
+  };
+
+  const addNewAssociation = () => {
+    const name = newAssociationName.trim();
+    if (!name) return;
+    if (debtsData[name]) {
+      alert('מקום זה כבר קיים');
+      return;
+    }
+    const updated = {
+      ...debtsData,
+      [name]: { credit: 0, debt: 0, items: [] }
+    };
+    saveDebtsData(updated);
+    setNewAssociationName('');
+    setShowAddAssociation(false);
+  };
+
+  const deleteAssociation = (association) => {
+    if (!window.confirm(`Delete "${association}" and all its data?`)) return;
+    const updated = { ...debtsData };
+    delete updated[association];
+    saveDebtsData(updated);
   };
 
   const toggleMonth = (monthKey) => {
@@ -598,18 +623,27 @@ const FinancialTracker = () => {
 
         {/* Debts Tab Content */}
         {activeTab === 'debts' && (
+          <div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            {/* Petahiya Card */}
-            {['פתחיה', 'חולון'].map((association) => {
+            {Object.keys(debtsData).map((association) => {
               const balance = calculateBalance(association);
               const isPositive = balance >= 0;
               
               return (
                 <div key={association} className={`${colors.bg.secondary} rounded-xl border ${colors.border.primary} p-5`}>
                   {/* Association Header */}
-                  <h3 className={`text-2xl font-bold mb-4 ${colors.text.primary} flex items-center gap-2`}>
-                    🏛️ {association}
-                  </h3>
+                  <div className="flex justify-between items-center mb-4">
+                    <h3 className={`text-2xl font-bold ${colors.text.primary} flex items-center gap-2`}>
+                      🏛️ {association}
+                    </h3>
+                    <button
+                      onClick={() => deleteAssociation(association)}
+                      className="text-red-400 hover:text-red-600 text-sm px-2 py-1 rounded hover:bg-red-50 dark:hover:bg-red-900/20"
+                      title="מחק מקום"
+                    >
+                      🗑️
+                    </button>
+                  </div>
 
                   {/* Credit/Debt Fields */}
                   <div className="space-y-3 mb-4">
@@ -779,6 +813,41 @@ const FinancialTracker = () => {
                 </div>
               );
             })}
+          </div>
+
+          {/* Add New Association */}
+          {showAddAssociation ? (
+            <div className="mt-4 flex gap-2 items-center">
+              <input
+                type="text"
+                value={newAssociationName}
+                onChange={(e) => setNewAssociationName(e.target.value)}
+                placeholder="New association name"
+                className="flex-1 px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 text-sm"
+                autoFocus
+                onKeyDown={(e) => e.key === 'Enter' && addNewAssociation()}
+              />
+              <button
+                onClick={addNewAssociation}
+                className="bg-gradient-to-r from-green-500 to-green-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:from-green-600 hover:to-green-700"
+              >
+                ✓
+              </button>
+              <button
+                onClick={() => { setShowAddAssociation(false); setNewAssociationName(''); }}
+                className="bg-gray-200 dark:bg-gray-700 text-gray-800 dark:text-gray-200 px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-300 dark:hover:bg-gray-600"
+              >
+                ✕
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={() => setShowAddAssociation(true)}
+              className="mt-4 w-full bg-gradient-to-r from-purple-500 to-indigo-600 text-white px-4 py-3 rounded-lg text-sm font-bold hover:from-purple-600 hover:to-indigo-700 shadow-md hover:shadow-lg transform hover:scale-[1.02] transition-all duration-200"
+            >
+              + Add New Association
+            </button>
+          )}
           </div>
         )}
       </div>
