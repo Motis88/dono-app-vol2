@@ -75,18 +75,19 @@ const DonorForm = ({ onAddDonor, onCancelEdit, editingDonor }) => {
         donor.location === location &&
         donor.animalName &&
         donor.animalName.toLowerCase().includes(namePattern) &&
-        donor.animalName.toLowerCase() !== namePattern && // Don't suggest exact matches
-        (!editingDonor || donor.id !== editingDonor.id) // Don't suggest the donor being edited
+        donor.animalName.toLowerCase() !== namePattern &&
+        (!editingDonor || donor.id !== editingDonor.id)
       )
       .reduce((unique, donor) => {
-        // Remove duplicates by animalName
-        const exists = unique.find(d => d.animalName === donor.animalName);
-        if (!exists) {
-          unique.push(donor);
+        // Remove duplicates by animalName using Set for O(n)
+        if (!unique.seen.has(donor.animalName)) {
+          unique.seen.add(donor.animalName);
+          unique.list.push(donor);
         }
         return unique;
-      }, [])
-      .slice(0, 5); // Limit to 5 suggestions
+      }, { seen: new Set(), list: [] })
+      .list
+      .slice(0, 5);
 
     setAnimalSuggestions(suggestions);
     setShowSuggestions(suggestions.length > 0);

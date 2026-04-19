@@ -98,7 +98,7 @@ const FinancialTracker = () => {
         parsedData = await parseCsvFile(file);
       }
       
-      if (parsedData.length === 0) {
+      if (!Array.isArray(parsedData) || parsedData.length === 0) {
         alert('❌ No valid data found in file');
         setImporting(false);
         return;

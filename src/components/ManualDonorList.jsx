@@ -182,6 +182,7 @@ const ManualDonorList = ({ onEdit, onNewDonation }) => {
             <input
               type="text"
               placeholder="Search by animal name, owner name, or phone..."
+              aria-label="Search donors"
               className={`flex-1 min-w-0 p-3 rounded-lg border ${colors.border.primary} ${colors.bg.input} ${colors.text.primary} focus:outline-none focus:ring-2 focus:ring-blue-500`}
               value={searchQuery}
               onChange={e => setSearchQuery(e.target.value)}
